@@ -21,7 +21,8 @@ in this order:
 3. `@reliability-review` — Stability and fault tolerance
 4. `@performance-review` — Performance efficiency
 5. `@maintainability-review` — Long-term maintenance cost
-6. `@acceptance-report` — Final pass/fail decision
+6. `@sonarqube-review` — SonarQube rule-based review (Java/JS projects only)
+7. `@acceptance-report` — Final pass/fail decision
 
 Each review skill depends on artifacts from `@codebase-reverse-engineering`.
 Do NOT skip Phase 0.
@@ -33,6 +34,8 @@ All reviews MUST follow the rules defined in `.kiro/rules/`:
 - `reliability-standards.md` — Reliability review criteria
 - `performance-standards.md` — Performance review criteria
 - `maintainability-standards.md` — Maintainability review criteria
+- `sonarqube-java-standards.md` — SonarQube Java rules (145 rules)
+- `sonarqube-javascript-standards.md` — SonarQube JavaScript rules (77 rules)
 
 These rules are always active and must be respected during all interactions.
 

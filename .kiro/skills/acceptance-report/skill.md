@@ -23,7 +23,12 @@ ALL of the following reports MUST exist before running this skill:
 - `code-review-artifacts/performance-review/performance-report.md`
 - `code-review-artifacts/maintainability-review/maintainability-report.md`
 
-If any file is missing, instruct the user to run the corresponding skill first.
+The following report is OPTIONAL (only for Java/JavaScript projects):
+- `code-review-artifacts/sonarqube-review/sonarqube-report.md`
+
+If any required file is missing, instruct the user to run the corresponding
+skill first. If the SonarQube report is missing but the project contains Java
+or JavaScript, recommend running `@sonarqube-review` first but do not block.
 
 ## Output
 
@@ -33,9 +38,10 @@ If any file is missing, instruct the user to run the corresponding skill first.
 
 ### Step 1: Collect All Findings
 
-1. Read all four review reports
-2. Read the reverse engineering analysis summary
-3. Extract from each report:
+1. Read all four standard review reports
+2. Read the SonarQube review report (if it exists)
+3. Read the reverse engineering analysis summary
+4. Extract from each report:
    - Rating/score
    - Finding counts by severity
    - Critical and High findings list
@@ -51,10 +57,26 @@ Compile a unified metrics dashboard:
 | Reliability | [from reliability report] | | | | |
 | Performance | [from performance report] | | | | |
 | Maintainability | [from maintainability report] | | | | |
+| SonarQube (if applicable) | [from sonarqube report] | | | | |
 
 ### Step 3: Calculate Composite Score
 
 Apply dimension weights to calculate an overall score:
+
+Apply dimension weights to calculate an overall score.
+
+When SonarQube report is **available** (Java/JS projects):
+
+| Dimension | Weight | Score | Weighted |
+|-----------|--------|-------|----------|
+| Security | 30% | [n] | [n] |
+| Reliability | 25% | [n] | [n] |
+| Performance | 15% | [n] | [n] |
+| Maintainability | 15% | [n] | [n] |
+| SonarQube | 15% | [n] | [n] |
+| **Composite** | **100%** | | **[n]** |
+
+When SonarQube report is **not available** (non-Java/JS projects):
 
 | Dimension | Weight | Score | Weighted |
 |-----------|--------|-------|----------|
@@ -70,21 +92,23 @@ Apply the following rules IN ORDER (first matching rule determines decision):
 
 **REJECT if any of these are true:**
 - Any Critical security finding (CWE Top 5, hardcoded secrets, etc.)
-- Total Critical findings across all dimensions > 0
-- Total High findings across all dimensions > 10
+- Any Critical SonarQube Blocker finding in security category
+- Total Critical findings across all dimensions (including SonarQube) > 0
+- Total High findings across all dimensions (including SonarQube) > 10
 - Any single dimension score < 40
 - Security dimension score < 50
 
 **CONDITIONAL ACCEPT if any of these are true:**
-- High findings: 4-10 total
+- High findings: 4-10 total (including SonarQube High)
 - Any single dimension score between 40-60
 - Composite score between 50-70
 - Missing external tool scan data (SCA/SAST)
+- SonarQube review not performed for a Java/JS project
 - Test coverage assessed as "Insufficient" or "None"
 
 **ACCEPT if all of these are true:**
-- No Critical findings
-- High findings <= 3
+- No Critical findings (including SonarQube Blocker)
+- High findings <= 3 (including SonarQube High)
 - All dimension scores >= 70
 - Composite score >= 70
 
@@ -126,21 +150,28 @@ Create `code-review-artifacts/acceptance-report.md`:
 
 | Dimension | Weight | Score | Weighted | Rating |
 |-----------|--------|-------|----------|--------|
-| Security | 35% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
-| Reliability | 30% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
-| Performance | 15% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
-| Maintainability | 20% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
+| Security | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
+| Reliability | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
+| Performance | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
+| Maintainability | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
+| SonarQube | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] / N/A |
 | **Composite** | **100%** | | **[n]/100** | **[rating]** |
+
+> Note: Weights adjust based on whether SonarQube review is applicable.
+> See Step 3 for weight tables.
 
 ## Findings Summary
 
-| Severity | Security | Reliability | Performance | Maintainability | Total |
-|----------|----------|-------------|-------------|-----------------|-------|
-| Critical | [n] | [n] | [n] | [n] | [n] |
-| High | [n] | [n] | [n] | [n] | [n] |
-| Medium | [n] | [n] | [n] | [n] | [n] |
-| Low | [n] | [n] | [n] | [n] | [n] |
-| **Total** | **[n]** | **[n]** | **[n]** | **[n]** | **[n]** |
+| Severity | Security | Reliability | Performance | Maintainability | SonarQube | Total |
+|----------|----------|-------------|-------------|-----------------|-----------|-------|
+| Critical | [n] | [n] | [n] | [n] | [n] | [n] |
+| High | [n] | [n] | [n] | [n] | [n] | [n] |
+| Medium | [n] | [n] | [n] | [n] | — | [n] |
+| Low | [n] | [n] | [n] | [n] | — | [n] |
+| **Total** | **[n]** | **[n]** | **[n]** | **[n]** | **[n]** | **[n]** |
+
+> Note: SonarQube findings only have Critical (Blocker) and High severity levels.
+> SonarQube column shows "—" if review was not applicable.
 
 ## Key Metrics
 
@@ -158,6 +189,7 @@ Create `code-review-artifacts/acceptance-report.md`:
 | Data Source | Status | Impact on Decision |
 |------------|--------|-------------------|
 | Kiro AI Code Analysis | Completed | Primary data source |
+| SonarQube Rule Review | Completed / Not Applicable / Not Provided | [impact] |
 | SCA Scan (Trivy) | Completed / Not Provided | [impact] |
 | SAST Scan (Semgrep) | Completed / Not Provided | [impact] |
 | IaC Scan (Checkov) | Completed / Not Provided | [impact] |
@@ -188,6 +220,10 @@ Create `code-review-artifacts/acceptance-report.md`:
 ### Maintainability
 [2-3 sentence summary of maintainability review findings and key concerns]
 
+### SonarQube (if applicable)
+[2-3 sentence summary of SonarQube rule-based review findings. Note the
+SonarQube compliance rate and any Blocker-level violations found.]
+
 ## Remediation Plan (if Conditional Accept or Reject)
 
 ### Required Before Acceptance
@@ -213,6 +249,7 @@ Create `code-review-artifacts/acceptance-report.md`:
 | CWE Top 25 (2025) | Top 5 blocking checks performed |
 | 12-Factor App | [n]/6 key factors compliant |
 | NIST SSDF PW.7 | Code review performed (this report) |
+| SonarQube Rules | [n]% compliance ([n] violations / [n] applicable rules) or N/A |
 
 ## Appendix: Detailed Reports
 
@@ -221,6 +258,7 @@ For full findings and technical details, refer to:
 - [Reliability Report](reliability-review/reliability-report.md)
 - [Performance Report](performance-review/performance-report.md)
 - [Maintainability Report](maintainability-review/maintainability-report.md)
+- [SonarQube Report](sonarqube-review/sonarqube-report.md) (if applicable)
 - [Architecture Documentation](reverse-engineering/architecture.md)
 ```
 
@@ -234,10 +272,11 @@ For full findings and technical details, refer to:
 DECISION: [ACCEPT / CONDITIONAL ACCEPT / REJECT]
 
 Composite Score: [n]/100
-  - Security:        [n]/100 (weight 35%)
-  - Reliability:     [n]/100 (weight 30%)
-  - Performance:     [n]/100 (weight 15%)
-  - Maintainability: [n]/100 (weight 20%)
+  - Security:        [n]/100 (weight [w]%)
+  - Reliability:     [n]/100 (weight [w]%)
+  - Performance:     [n]/100 (weight [w]%)
+  - Maintainability: [n]/100 (weight [w]%)
+  - SonarQube:       [n]/100 (weight [w]%) [or N/A]
 
 Total Findings: [n]
   - Critical: [n]

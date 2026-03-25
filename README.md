@@ -56,13 +56,16 @@ target-project/
 │   │   ├── security-standards.md
 │   │   ├── reliability-standards.md
 │   │   ├── performance-standards.md
-│   │   └── maintainability-standards.md
+│   │   ├── maintainability-standards.md
+│   │   ├── sonarqube-java-standards.md
+│   │   └── sonarqube-javascript-standards.md
 │   └── skills/
 │       ├── codebase-reverse-engineering/
 │       ├── security-review/
 │       ├── reliability-review/
 │       ├── performance-review/
 │       ├── maintainability-review/
+│       ├── sonarqube-review/
 │       └── acceptance-report/
 ├── src/                    <-- 开发团队的代码
 ├── package.json            <-- 开发团队的配置
@@ -119,7 +122,25 @@ Kiro 审核时会自动读取这些报告。
 
 每个审核完成后，对应的报告会保存到 `code-review-artifacts/` 对应子目录中。
 
-#### 4.3 生成准入报告
+#### 4.3 执行 SonarQube 规则审核（Java/JavaScript 项目推荐）
+
+如果待审核项目包含 Java 或 JavaScript/TypeScript 代码，**强烈建议**执行此步骤：
+
+```
+@sonarqube-review
+```
+
+此审核基于从组织 SonarQube 系统导出的 222 条 Blocker/High 级别规则（Java 145 条 + JavaScript 77 条），
+覆盖以下检查领域：
+- **安全漏洞**：注入攻击、XSS、硬编码凭据、加密弱点等
+- **可靠性缺陷**：资源泄漏、并发问题、无限循环等
+- **Spring Framework**：Spring 特定的配置和使用问题（仅 Java）
+- **测试质量**：测试完整性、断言正确性等
+- **代码质量**：复杂度、命名、类型安全、现代语法等
+
+如果项目不包含 Java 或 JavaScript，可跳过此步骤。
+
+#### 4.4 生成准入报告
 
 所有维度审核完成后，执行：
 
@@ -158,6 +179,8 @@ code-review-artifacts/
 │   └── performance-report.md    # 性能审核详细报告
 ├── maintainability-review/
 │   └── maintainability-report.md # 可维护性审核详细报告
+├── sonarqube-review/
+│   └── sonarqube-report.md      # SonarQube 规则审核报告（Java/JS 项目）
 └── acceptance-report.md          # 最终准入决策报告
 ```
 
@@ -177,8 +200,10 @@ code-review-artifacts/
 - **可靠性**：缺陷密度 < 1.0/KLOC、12-Factor App 运维就绪性
 - **性能**：响应时间分级、资源利用率基线、可扩展性评估
 - **可维护性**：可维护性指数、技术债务比率 < 10%、代码异味密度 < 5/KLOC
+- **SonarQube 规则**：222 条 Blocker/High 级别规则（Java 145 + JavaScript 77），
+  覆盖注入攻击、Spring Framework、并发安全、测试质量等
 
-详细标准见 `standards/code-scan-standards.md`。
+详细标准见 `standards/code-scan-standards.md` 和 `.kiro/rules/` 目录。
 
 ## 常见问题
 
@@ -191,6 +216,12 @@ A: 取决于代码库规模。每个 skill 执行通常需要几分钟，整套�
 **Q: 可以只跑部分审核吗？**
 A: 可以，但 `@codebase-reverse-engineering` 必须最先执行（后续审核依赖它的产出）。
 四个维度审核可以选择性执行，但建议全部执行以获得完整的准入决策。
+`@sonarqube-review` 是可选的，仅适用于 Java/JavaScript 项目。
+
+**Q: SonarQube 规则审核和现有四维度审核有什么区别？**
+A: 四维度审核是基于通用行业标准（OWASP、CWE、12-Factor 等）的审核，侧重架构和设计层面。
+SonarQube 规则审核是基于组织现有 SonarQube 质量配置导出的语言特定编码规则，侧重具体代码模式和
+最佳实践。两者互补，SonarQube 审核的发现会自动纳入最终准入决策评分。
 
 **Q: 整改后需要全部重新审核吗？**
 A: 如果是 Conditional Accept，可以只针对问题相关的维度重新执行对应的 review skill，
@@ -198,3 +229,8 @@ A: 如果是 Conditional Accept，可以只针对问题相关的维度重新执�
 
 **Q: 如何更新审核标准？**
 A: 修改 `.kiro/rules/` 目录下的对应规则文件即可。建议每季度审查一次行业标准更新。
+
+**Q: 如何更新 SonarQube 规则？**
+A: 从组织的 SonarQube 系统导出最新的规则配置（JSON 格式），然后更新
+`.kiro/rules/sonarqube-java-standards.md` 和 `.kiro/rules/sonarqube-javascript-standards.md`
+中的规则列表。当前版本包含 222 条规则（Blocker + High 级别）。
