@@ -58,7 +58,8 @@ target-project/
 │   │   ├── performance-standards.md
 │   │   ├── maintainability-standards.md
 │   │   ├── sonarqube-java-standards.md
-│   │   └── sonarqube-javascript-standards.md
+│   │   ├── sonarqube-javascript-standards.md
+│   │   └── secure-coding-baseline-standards.md
 │   └── skills/
 │       ├── codebase-reverse-engineering/
 │       ├── security-review/
@@ -66,6 +67,7 @@ target-project/
 │       ├── performance-review/
 │       ├── maintainability-review/
 │       ├── sonarqube-review/
+│       ├── secure-coding-baseline-review/
 │       └── acceptance-report/
 ├── src/                    <-- 开发团队的代码
 ├── package.json            <-- 开发团队的配置
@@ -140,7 +142,37 @@ Kiro 审核时会自动读取这些报告。
 
 如果项目不包含 Java 或 JavaScript，可跳过此步骤。
 
-#### 4.4 生成准入报告
+#### 4.4 执行安全编码基线审核（推荐）
+
+如果组织要求符合 Secure Coding Baseline (BSL 11.1.1.d)，执行此步骤：
+
+```
+@secure-coding-baseline-review
+```
+
+此审核基于组织安全编码基线标准（BSL 11.1.1.d，版本 3，2025年10月），
+包含 **230 条安全控制要求**，覆盖 **17 个安全域**：
+- **认证与密码管理**（31 条）：认证机制、凭据存储、密码策略
+- **通信安全**（8 条）：TLS 配置、加密传输
+- **密码学**（7 条）：加密实现、密钥管理
+- **数据保护**（13 条）：敏感数据处理、缓存控制
+- **数据库安全**（14 条）：参数化查询、连接管理
+- **错误处理与日志**（25 条）：安全错误处理、安全事件日志
+- **文件管理**（14 条）：文件上传安全、路径遍历防护
+- **通用编码实践**（12 条）：命令注入防护、竞态条件
+- **输入验证**（15 条）：服务端验证、白名单验证
+- **逻辑访问控制**（23 条）：授权架构、最小权限
+- **内存管理**（9 条）：缓冲区溢出防护
+- **输出编码**（7 条）：XSS 防护、注入防护
+- **安全设计**（9 条）：威胁建模、安全测试
+- **安全配置**（6 条）：依赖管理、漏洞修复
+- **安全日志**（8 条）：安全监控、审计追踪
+- **会话管理**（15 条）：Cookie 安全、CSRF 防护
+- **系统配置**（12 条）：服务器加固、HTTP 安全头
+
+此审核适用于所有编程语言和应用类型。
+
+#### 4.5 生成准入报告
 
 所有维度审核完成后，执行：
 
@@ -181,6 +213,8 @@ code-review-artifacts/
 │   └── maintainability-report.md # 可维护性审核详细报告
 ├── sonarqube-review/
 │   └── sonarqube-report.md      # SonarQube 规则审核报告（Java/JS 项目）
+├── secure-coding-baseline-review/
+│   └── bsl-report.md            # BSL 11.1.1.d 安全编码基线合规报告
 └── acceptance-report.md          # 最终准入决策报告
 ```
 
@@ -202,6 +236,9 @@ code-review-artifacts/
 - **可维护性**：可维护性指数、技术债务比率 < 10%、代码异味密度 < 5/KLOC
 - **SonarQube 规则**：222 条 Blocker/High 级别规则（Java 145 + JavaScript 77），
   覆盖注入攻击、Spring Framework、并发安全、测试质量等
+- **安全编码基线 (BSL 11.1.1.d)**：230 条安全控制要求，覆盖 17 个安全域，
+  包括认证、通信安全、密码学、数据保护、数据库安全、输入验证、访问控制、
+  会话管理等
 
 详细标准见 `standards/code-scan-standards.md` 和 `.kiro/rules/` 目录。
 
@@ -217,11 +254,18 @@ A: 取决于代码库规模。每个 skill 执行通常需要几分钟，整套�
 A: 可以，但 `@codebase-reverse-engineering` 必须最先执行（后续审核依赖它的产出）。
 四个维度审核可以选择性执行，但建议全部执行以获得完整的准入决策。
 `@sonarqube-review` 是可选的，仅适用于 Java/JavaScript 项目。
+`@secure-coding-baseline-review` 是可选的，适用于需要符合 BSL 11.1.1.d 的项目。
 
 **Q: SonarQube 规则审核和现有四维度审核有什么区别？**
 A: 四维度审核是基于通用行业标准（OWASP、CWE、12-Factor 等）的审核，侧重架构和设计层面。
 SonarQube 规则审核是基于组织现有 SonarQube 质量配置导出的语言特定编码规则，侧重具体代码模式和
 最佳实践。两者互补，SonarQube 审核的发现会自动纳入最终准入决策评分。
+
+**Q: BSL 安全编码基线审核和安全维度审核有什么区别？**
+A: 安全维度审核（`@security-review`）基于 OWASP Top 10、CWE Top 25 等通用行业标准，侧重发现安全漏洞。
+BSL 审核（`@secure-coding-baseline-review`）基于组织内部的安全编码基线标准（BSL 11.1.1.d），侧重
+合规性检查，验证代码是否满足组织要求的 230 条最低安全控制措施。两者互补，BSL 审核的发现也会纳入
+最终准入决策。
 
 **Q: 整改后需要全部重新审核吗？**
 A: 如果是 Conditional Accept，可以只针对问题相关的维度重新执行对应的 review skill，

@@ -23,12 +23,14 @@ ALL of the following reports MUST exist before running this skill:
 - `code-review-artifacts/performance-review/performance-report.md`
 - `code-review-artifacts/maintainability-review/maintainability-report.md`
 
-The following report is OPTIONAL (only for Java/JavaScript projects):
-- `code-review-artifacts/sonarqube-review/sonarqube-report.md`
+The following reports are OPTIONAL:
+- `code-review-artifacts/sonarqube-review/sonarqube-report.md` (Java/JavaScript projects)
+- `code-review-artifacts/secure-coding-baseline-review/bsl-report.md` (BSL 11.1.1.d compliance)
 
 If any required file is missing, instruct the user to run the corresponding
-skill first. If the SonarQube report is missing but the project contains Java
-or JavaScript, recommend running `@sonarqube-review` first but do not block.
+skill first. If optional reports are missing, recommend running the
+corresponding skill but do not block. If the BSL report exists, incorporate
+its compliance findings into the acceptance decision.
 
 ## Output
 
@@ -40,8 +42,9 @@ or JavaScript, recommend running `@sonarqube-review` first but do not block.
 
 1. Read all four standard review reports
 2. Read the SonarQube review report (if it exists)
-3. Read the reverse engineering analysis summary
-4. Extract from each report:
+3. Read the BSL compliance report (if it exists)
+4. Read the reverse engineering analysis summary
+5. Extract from each report:
    - Rating/score
    - Finding counts by severity
    - Critical and High findings list
@@ -58,6 +61,7 @@ Compile a unified metrics dashboard:
 | Performance | [from performance report] | | | | |
 | Maintainability | [from maintainability report] | | | | |
 | SonarQube (if applicable) | [from sonarqube report] | | | | |
+| BSL Compliance (if applicable) | [from bsl report] | | | | |
 
 ### Step 3: Calculate Composite Score
 
@@ -190,6 +194,7 @@ Create `code-review-artifacts/acceptance-report.md`:
 |------------|--------|-------------------|
 | Kiro AI Code Analysis | Completed | Primary data source |
 | SonarQube Rule Review | Completed / Not Applicable / Not Provided | [impact] |
+| BSL 11.1.1.d Compliance | Completed / Not Provided | [impact] |
 | SCA Scan (Trivy) | Completed / Not Provided | [impact] |
 | SAST Scan (Semgrep) | Completed / Not Provided | [impact] |
 | IaC Scan (Checkov) | Completed / Not Provided | [impact] |
@@ -224,6 +229,11 @@ Create `code-review-artifacts/acceptance-report.md`:
 [2-3 sentence summary of SonarQube rule-based review findings. Note the
 SonarQube compliance rate and any Blocker-level violations found.]
 
+### BSL Compliance (if applicable)
+[2-3 sentence summary of BSL 11.1.1.d Secure Coding Baseline compliance.
+Note overall compliance rate, number of non-compliant controls, and top
+security domains with gaps.]
+
 ## Remediation Plan (if Conditional Accept or Reject)
 
 ### Required Before Acceptance
@@ -250,6 +260,7 @@ SonarQube compliance rate and any Blocker-level violations found.]
 | 12-Factor App | [n]/6 key factors compliant |
 | NIST SSDF PW.7 | Code review performed (this report) |
 | SonarQube Rules | [n]% compliance ([n] violations / [n] applicable rules) or N/A |
+| BSL 11.1.1.d | [n]% compliance ([n] non-compliant / [n] applicable controls) or N/A |
 
 ## Appendix: Detailed Reports
 
@@ -259,6 +270,7 @@ For full findings and technical details, refer to:
 - [Performance Report](performance-review/performance-report.md)
 - [Maintainability Report](maintainability-review/maintainability-report.md)
 - [SonarQube Report](sonarqube-review/sonarqube-report.md) (if applicable)
+- [BSL Compliance Report](secure-coding-baseline-review/bsl-report.md) (if applicable)
 - [Architecture Documentation](reverse-engineering/architecture.md)
 ```
 
