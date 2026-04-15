@@ -8,17 +8,32 @@
 **本工具包不要求开发团队使用 Kiro 或任何特定工具。**
 审核工作完全由运维团队在自己的环境中完成。
 
+## 核心能力
+
+- **一键批量扫描**：单条指令 `@batch-scan` 触发所有模块的完整扫描
+- **每模块 2 份报告**：Reliability & Maintainability + Security
+- **全局汇总报告**：合并所有模块扫描结果，整体 Pass/Fail 判定
+- **严格规则对照**：每个 issue 必须映射到具体 Rule ID，不允许自行调整
+- **质量门控**：基于 Critical/High/Medium(P0) 的自动 Pass/Fail 判定
+- **修复优先级**：P0–P3 分级，明确修复时间要求
+
+## 报告类型
+
+| 报告 | 审查标准 | 覆盖范围 |
+|------|---------|---------|
+| Reliability & Maintainability | SonarQube Java/JavaScript 规则 | Blocker / High / Medium |
+| Security | Philips Secure Coding Baseline (BSL 11.1.1.d, 230 条) | 17 个安全域 |
+| Summary | 汇总所有模块 | 全局 Pass/Fail |
+
+4 个模块一次扫描产出 **9 份报告**（4×2 + 1）。
+
 ## 前置条件
 
 ### 必须安装
 
-1. **Kiro IDE**
-   - 下载地址：https://kiro.dev
-   - 安装后打开，按提示完成初始化
+1. **Kiro IDE** — 下载地址：https://kiro.dev
 
 ### 建议安装（用于补充扫描，非必须）
-
-以下工具可以提供更精确的量化数据，与 Kiro 的智能分析互补：
 
 | 工具 | 用途 | 安装命令 |
 |------|------|---------|
@@ -26,13 +41,9 @@
 | Semgrep | 代码安全扫描 | `pip install semgrep` 或参考 https://semgrep.dev |
 | Checkov | IaC 配置扫描 | `pip install checkov` 或参考 https://checkov.io |
 
-如果不安装这些工具，Kiro 仍然可以独立完成审核，但报告中会标注"未提供工具扫描数据"。
-
 ## 使用步骤
 
 ### 第一步：获取待审核代码
-
-从 GitLab/GitHub 克隆开发团队提交的代码到本地：
 
 ```bash
 git clone <代码仓库地址> /path/to/target-project
@@ -40,43 +51,11 @@ git clone <代码仓库地址> /path/to/target-project
 
 ### 第二步：注入审核工具包
 
-将本工具包的 `.kiro` 目录复制到目标项目的根目录：
-
 ```bash
 cp -r ops-code-review-kit/.kiro /path/to/target-project/
 ```
 
-复制完成后，目标项目的目录结构应该类似：
-
-```
-target-project/
-├── .kiro/                  <-- 这是你刚复制进去的审核工具包
-│   ├── steering.md
-│   ├── rules/
-│   │   ├── security-standards.md
-│   │   ├── reliability-standards.md
-│   │   ├── performance-standards.md
-│   │   ├── maintainability-standards.md
-│   │   ├── sonarqube-java-standards.md
-│   │   ├── sonarqube-javascript-standards.md
-│   │   └── secure-coding-baseline-standards.md
-│   └── skills/
-│       ├── codebase-reverse-engineering/
-│       ├── security-review/
-│       ├── reliability-review/
-│       ├── performance-review/
-│       ├── maintainability-review/
-│       ├── sonarqube-review/
-│       ├── secure-coding-baseline-review/
-│       └── acceptance-report/
-├── src/                    <-- 开发团队的代码
-├── package.json            <-- 开发团队的配置
-└── ...
-```
-
 ### 第三步（可选）：运行补充扫描工具
-
-如果你安装了 Trivy、Semgrep 等工具，可以运行提供的脚本：
 
 ```bash
 cp ops-code-review-kit/run-tool-scans.sh /path/to/target-project/
@@ -84,197 +63,158 @@ cd /path/to/target-project
 bash run-tool-scans.sh
 ```
 
-脚本会自动检测已安装的工具并运行扫描，结果保存到 `tool-reports/` 目录。
-Kiro 审核时会自动读取这些报告。
+### 第四步：用 Kiro 执行审核
 
-### 第四步：用 Kiro 打开项目并执行审核
+1. 用 Kiro IDE 打开目标项目
+2. 在 AI 聊天窗口中执行：
 
-1. 打开 Kiro IDE
-2. 选择 `File > Open Folder`，打开目标项目目录
-3. Kiro 会自动加载 `.kiro/` 中的配置
-
-然后在 Kiro 的 AI 聊天窗口中，**按顺序执行以下命令**：
-
-#### 4.1 理解代码库（必须最先执行）
-
-在聊天窗口输入：
 ```
 @codebase-reverse-engineering
 ```
 
-等待 Kiro 完成分析。完成后检查 `code-review-artifacts/reverse-engineering/` 目录下
-的产出文件，确认 Kiro 对项目的理解是否准确。如有偏差，在聊天窗口中纠正。
-
-#### 4.2 执行四维度审核
-
-依次在聊天窗口输入以下命令（每次等上一个完成后再执行下一个）：
+等待完成后执行一键批量扫描：
 
 ```
-@security-review
-```
-```
-@reliability-review
-```
-```
-@performance-review
-```
-```
-@maintainability-review
+@batch-scan
 ```
 
-每个审核完成后，对应的报告会保存到 `code-review-artifacts/` 对应子目录中。
-
-#### 4.3 执行 SonarQube 规则审核（Java/JavaScript 项目推荐）
-
-如果待审核项目包含 Java 或 JavaScript/TypeScript 代码，**强烈建议**执行此步骤：
-
-```
-@sonarqube-review
-```
-
-此审核基于从组织 SonarQube 系统导出的 222 条 Blocker/High 级别规则（Java 145 条 + JavaScript 77 条），
-覆盖以下检查领域：
-- **安全漏洞**：注入攻击、XSS、硬编码凭据、加密弱点等
-- **可靠性缺陷**：资源泄漏、并发问题、无限循环等
-- **Spring Framework**：Spring 特定的配置和使用问题（仅 Java）
-- **测试质量**：测试完整性、断言正确性等
-- **代码质量**：复杂度、命名、类型安全、现代语法等
-
-如果项目不包含 Java 或 JavaScript，可跳过此步骤。
-
-#### 4.4 执行安全编码基线审核（推荐）
-
-如果组织要求符合 Secure Coding Baseline (BSL 11.1.1.d)，执行此步骤：
-
-```
-@secure-coding-baseline-review
-```
-
-此审核基于组织安全编码基线标准（BSL 11.1.1.d，版本 3，2025年10月），
-包含 **230 条安全控制要求**，覆盖 **17 个安全域**：
-- **认证与密码管理**（31 条）：认证机制、凭据存储、密码策略
-- **通信安全**（8 条）：TLS 配置、加密传输
-- **密码学**（7 条）：加密实现、密钥管理
-- **数据保护**（13 条）：敏感数据处理、缓存控制
-- **数据库安全**（14 条）：参数化查询、连接管理
-- **错误处理与日志**（25 条）：安全错误处理、安全事件日志
-- **文件管理**（14 条）：文件上传安全、路径遍历防护
-- **通用编码实践**（12 条）：命令注入防护、竞态条件
-- **输入验证**（15 条）：服务端验证、白名单验证
-- **逻辑访问控制**（23 条）：授权架构、最小权限
-- **内存管理**（9 条）：缓冲区溢出防护
-- **输出编码**（7 条）：XSS 防护、注入防护
-- **安全设计**（9 条）：威胁建模、安全测试
-- **安全配置**（6 条）：依赖管理、漏洞修复
-- **安全日志**（8 条）：安全监控、审计追踪
-- **会话管理**（15 条）：Cookie 安全、CSRF 防护
-- **系统配置**（12 条）：服务器加固、HTTP 安全头
-
-此审核适用于所有编程语言和应用类型。
-
-#### 4.5 生成准入报告
-
-所有维度审核完成后，执行：
-
-```
-@acceptance-report
-```
-
-这会生成最终的准入决策报告，保存在 `code-review-artifacts/acceptance-report.md`。
+**这一条命令会自动完成：**
+- 识别所有模块
+- 对每个模块生成 Reliability & Maintainability 报告
+- 对每个模块生成 Security 报告
+- 生成全局 Summary 报告
 
 ### 第五步：查看审核结果
 
-打开 `code-review-artifacts/acceptance-report.md`，查看：
-
-- **准入决策**：Accept（通过）/ Conditional Accept（有条件通过）/ Reject（拒绝）
-- **问题清单**：按严重等级分类的所有发现
-- **整改要求**：如果是有条件通过，需要开发团队修复的问题列表
-- **复审条件**：整改后需要重新审核的范围
-
-### 第六步：反馈给开发团队
-
-将 `code-review-artifacts/` 整个目录打包发送给开发团队，其中包含：
+扫描完成后，`code-review-artifacts/` 目录下会生成所有报告：
 
 ```
 code-review-artifacts/
-├── reverse-engineering/         # 系统理解文档（帮助开发团队了解审核视角）
-│   ├── business-overview.md
-│   ├── architecture.md
-│   ├── api-documentation.md
-│   ├── technology-and-dependencies.md
-│   └── code-quality-baseline.md
-├── security-review/
-│   └── security-report.md       # 安全审核详细报告
-├── reliability-review/
-│   └── reliability-report.md    # 可靠性审核详细报告
-├── performance-review/
-│   └── performance-report.md    # 性能审核详细报告
-├── maintainability-review/
-│   └── maintainability-report.md # 可维护性审核详细报告
-├── sonarqube-review/
-│   └── sonarqube-report.md      # SonarQube 规则审核报告（Java/JS 项目）
-├── secure-coding-baseline-review/
-│   └── bsl-report.md            # BSL 11.1.1.d 安全编码基线合规报告
-└── acceptance-report.md          # 最终准入决策报告
+├── reverse-engineering/                              ← 代码库理解文档
+├── Module1_Reliability_Maintainability_Report_2026-04-15.md
+├── Module1_Security_Report_2026-04-15.md
+├── Module2_Reliability_Maintainability_Report_2026-04-15.md
+├── Module2_Security_Report_2026-04-15.md
+├── Module3_Reliability_Maintainability_Report_2026-04-15.md
+├── Module3_Security_Report_2026-04-15.md
+├── Module4_Reliability_Maintainability_Report_2026-04-15.md
+├── Module4_Security_Report_2026-04-15.md
+└── Summary_Report_2026-04-15.md                      ← 汇总报告
 ```
 
-## 准入决策说明
+## 报告结构说明
 
-| 决策 | 含义 | 后续动作 |
-|------|------|---------|
-| **Accept** | 代码质量达标，可以接收进入运维 | 进入运维交接流程 |
-| **Conditional Accept** | 存在需要修复的问题，但不影响短期运行 | 开发团队在约定期限内完成整改，整改后复审 |
-| **Reject** | 存在严重问题，不具备接收条件 | 开发团队完成全面整改后重新提交全量审核 |
+### 分类报告（R&M / Security）
 
-## 审核标准概览
+每份分类报告包含：
 
-本工具包依据以下行业标准进行审核：
+1. **报告抬头** — 仓库/模块名称、扫描日期、审查标准、规则编号格式
+2. **审查概要** — 按类别统计 + 严重程度分布 + 质量门状态
+3. **Issue 详情** — 每个 issue 包含：
+   - 编号（如 BUG-01, SEC-01）
+   - 规则编号 + 规则描述（严格对照 SonarQube / BSL 规则）
+   - 严重程度（Critical / High / Medium）
+   - 问题文件路径 + 代码片段
+   - 问题说明（根因 + 业务影响）
+   - 详尽修复建议（针对具体代码）
+   - 修复优先级（P0/P1/P2/P3）
+   - 不修复的业务影响
+4. **修复优先级汇总**
+5. **附录** — LLM 自发现的、无法映射到规则集的额外问题（不计入质量门）
 
-- **安全性**：OWASP Top 10、CWE Top 25、NIST SSDF
-- **可靠性**：缺陷密度 < 1.0/KLOC、12-Factor App 运维就绪性
-- **性能**：响应时间分级、资源利用率基线、可扩展性评估
-- **可维护性**：可维护性指数、技术债务比率 < 10%、代码异味密度 < 5/KLOC
-- **SonarQube 规则**：222 条 Blocker/High 级别规则（Java 145 + JavaScript 77），
-  覆盖注入攻击、Spring Framework、并发安全、测试质量等
-- **安全编码基线 (BSL 11.1.1.d)**：230 条安全控制要求，覆盖 17 个安全域，
-  包括认证、通信安全、密码学、数据保护、数据库安全、输入验证、访问控制、
-  会话管理等
+### 汇总报告（Summary）
 
-详细标准见 `standards/code-scan-standards.md` 和 `.kiro/rules/` 目录。
+- 各模块 × 各报告类型的 Pass/Fail 汇总
+- 所有模块 issue 合并明细表
+- 全局修复优先级分布
+
+## 质量门判定逻辑
+
+```
+Pass 条件（全部满足）：
+  - 0 个 Critical 问题
+  - 0 个 High 问题
+  - Medium 中没有 P0 优先级的 issue
+
+否则：Fail
+```
+
+## 修复优先级定义
+
+| 优先级 | 含义 | 典型场景 |
+|-------|------|---------|
+| **P0** | 发版前必须修复 | 影响正确性或安全性，含部分 Medium |
+| **P1** | 短期修复（1-2 周） | 高风险但不阻塞当前发版 |
+| **P2** | 中期修复（1 个月内） | 代码质量问题，有一定风险 |
+| **P3** | 长期优化 | 低风险，技术债务 |
+
+Medium 级别 issue 必须明确标注 P0–P3，P0 的 Medium issue 会导致质量门 Fail。
+
+## 规则来源
+
+### SonarQube 规则（Reliability & Maintainability 报告）
+
+- 使用 `sonarqube_rules.json` 中的规则集
+- 当前包含 222 条规则（Java 145 + JavaScript 77）
+- 每个 issue 的规则编号、名称、严重程度严格对照规则定义
+- 无法映射到具体 Rule ID 的问题不列入主报告
+
+### Philips Secure Coding Baseline（Security 报告）
+
+- 使用 BSL 11.1.1.d Version 3（2025年10月）
+- 包含 230 条安全控制要求，覆盖 17 个安全域
+- 每个 issue 映射到具体 BSL Control ID（如 `11.1.1_41`）
+
+### LLM 自发现问题隔离
+
+SonarQube / BSL 规则之外的问题不混入主报告 issue 列表，统一收录至各报告末尾的附录章节，
+不影响质量门判定。
+
+## 也可以逐步执行
+
+如果不使用一键批量扫描，也可以逐步执行：
+
+```
+@codebase-reverse-engineering     ← 1. 理解代码库（必须最先）
+@sonarqube-review                 ← 2. 对指定模块生成 R&M 报告
+@secure-coding-baseline-review    ← 3. 对指定模块生成 Security 报告
+@summary-report                   ← 4. 生成汇总报告
+```
+
+### 可选的补充审核（深度分析）
+
+以下 skill 提供超出两类核心报告的补充分析：
+
+```
+@security-review          ← OWASP/CWE 安全分析
+@reliability-review       ← 12-Factor App 运维就绪性
+@performance-review       ← 性能效率分析
+@maintainability-review   ← 技术债务/可维护性分析
+@acceptance-report        ← 综合准入决策（所有维度）
+```
 
 ## 常见问题
 
 **Q: 开发团队不用 Kiro 怎么办？**
-A: 不需要开发团队使用 Kiro。`.kiro/` 目录是运维团队的审核工具，不需要提交到开发团队的代码仓库。
+A: 不需要开发团队使用 Kiro。`.kiro/` 目录是运维团队的审核工具，不提交到开发团队的代码仓库。
 
-**Q: 审核需要多长时间？**
-A: 取决于代码库规模。每个 skill 执行通常需要几分钟，整套流程（6 个 skill）需要依次执行。
+**Q: 可以只扫描部分模块吗？**
+A: 可以。`@batch-scan module1 module2` 指定模块名即可。也可以用 `@sonarqube-review` 和
+`@secure-coding-baseline-review` 逐模块执行。
 
-**Q: 可以只跑部分审核吗？**
-A: 可以，但 `@codebase-reverse-engineering` 必须最先执行（后续审核依赖它的产出）。
-四个维度审核可以选择性执行，但建议全部执行以获得完整的准入决策。
-`@sonarqube-review` 是可选的，仅适用于 Java/JavaScript 项目。
-`@secure-coding-baseline-review` 是可选的，适用于需要符合 BSL 11.1.1.d 的项目。
+**Q: SonarQube 规则集怎么更新？**
+A: 从组织的 SonarQube 系统导出最新规则配置（JSON 格式），更新
+`.kiro/rules/sonarqube-java-standards.md` 和 `sonarqube_rules.json`。
+当前版本包含 222 条 Blocker + High 级别规则，后续可扩展 Medium 级别规则。
 
-**Q: SonarQube 规则审核和现有四维度审核有什么区别？**
-A: 四维度审核是基于通用行业标准（OWASP、CWE、12-Factor 等）的审核，侧重架构和设计层面。
-SonarQube 规则审核是基于组织现有 SonarQube 质量配置导出的语言特定编码规则，侧重具体代码模式和
-最佳实践。两者互补，SonarQube 审核的发现会自动纳入最终准入决策评分。
+**Q: 报告中的严重程度等级怎么定义的？**
+A: SonarQube Blocker → Critical，High → High，Medium → Medium。
+BSL 报告按安全影响分级：注入/凭据/加密失败 → Critical，访问控制/会话管理 → High，
+配置/编码实践 → Medium。
 
-**Q: BSL 安全编码基线审核和安全维度审核有什么区别？**
-A: 安全维度审核（`@security-review`）基于 OWASP Top 10、CWE Top 25 等通用行业标准，侧重发现安全漏洞。
-BSL 审核（`@secure-coding-baseline-review`）基于组织内部的安全编码基线标准（BSL 11.1.1.d），侧重
-合规性检查，验证代码是否满足组织要求的 230 条最低安全控制措施。两者互补，BSL 审核的发现也会纳入
-最终准入决策。
+**Q: 附录中的问题要不要修？**
+A: 附录中的问题来自 LLM 通用最佳实践发现，不在客户指定规则集内，不影响质量门。
+建议作为参考，酌情处理。
 
-**Q: 整改后需要全部重新审核吗？**
-A: 如果是 Conditional Accept，可以只针对问题相关的维度重新执行对应的 review skill，
-然后重新执行 `@acceptance-report`。如果是 Reject，建议全量重审。
-
-**Q: 如何更新审核标准？**
-A: 修改 `.kiro/rules/` 目录下的对应规则文件即可。建议每季度审查一次行业标准更新。
-
-**Q: 如何更新 SonarQube 规则？**
-A: 从组织的 SonarQube 系统导出最新的规则配置（JSON 格式），然后更新
-`.kiro/rules/sonarqube-java-standards.md` 和 `.kiro/rules/sonarqube-javascript-standards.md`
-中的规则列表。当前版本包含 222 条规则（Blocker + High 级别）。
+**Q: 质量门 Fail 了怎么办？**
+A: 查看 Summary Report 中的 P0 issues 列表，这些是必须修复的。修复后重新执行扫描验证。
