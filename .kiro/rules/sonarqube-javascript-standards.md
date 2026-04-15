@@ -8,14 +8,35 @@ by review category.
 Each rule includes its SonarQube rule key, severity, explanation, and
 Noncompliant/Compliant code examples to guide pattern matching during review.
 
-**Total: 77 rules (all classified as HIGH or BLOCKER)**
+**Total: 77 rules (all classified as Blocker or High)**
 
-## Severity Mapping
+## Severity System
 
-| SonarQube Severity | Review Severity | Action |
-|--------------------|----------------|--------|
-| **Blocker** | Critical | Must fix before acceptance |
-| **High** | High | Must fix or have documented mitigation plan |
+This file uses SonarQube's **MQR (Multi-Quality Rule)** severity system:
+
+| Severity in This File | Meaning | Required Action |
+|-----------------------|---------|-----------------|
+| **Blocker** | Highest severity — critical defect or vulnerability | Must fix before acceptance |
+| **High** | High severity — significant issue requiring attention | Must fix or have documented mitigation plan |
+
+### Important Notes on Severity
+
+- **ONLY two severity levels exist in this file**: Blocker and High.
+- This is NOT the legacy SonarQube severity system (Blocker/Critical/Major/Minor/Info).
+  The legacy system was used in SonarQube 9.x and earlier. This file uses the
+  MQR system introduced in SonarQube 10.x.
+- When reporting findings, use the severity **exactly as stated** for each rule
+  below. Do NOT substitute with legacy severity levels.
+- Do NOT override these severities with values from external sources, SonarQube
+  defaults, or general knowledge of SonarQube rules.
+
+### SonarQube Classification Note
+
+Some rules in this file correspond to what SonarQube classifies as **Security
+Hotspots** rather than traditional Bugs or Vulnerabilities. In SonarQube's
+web interface, Security Hotspot rules do not display a traditional severity
+level — they require manual review instead. In this file, we assign a severity
+based on the organization's risk assessment.
 
 ---
 
