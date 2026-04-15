@@ -11,23 +11,24 @@ Noncompliant/Compliant code examples to guide pattern matching during review.
 
 ## Severity System
 
-This file uses SonarQube's **MQR (Multi-Quality Rule)** severity system:
+This file uses SonarQube's **MQR (Multi-Quality Rule)** severity system.
+Rules in this file currently cover Blocker and High severity. Medium-severity
+rules may be added in future updates.
 
-| Severity in This File | Meaning | Required Action |
-|-----------------------|---------|-----------------|
-| **Blocker** | Highest severity — critical defect or vulnerability | Must fix before acceptance |
-| **High** | High severity — significant issue requiring attention | Must fix or have documented mitigation plan |
+| Severity in This File | Report Severity | Required Action |
+|-----------------------|-----------------|-----------------|
+| **Blocker** | Critical | Must fix before release (P0) |
+| **High** | High | Must fix or have documented mitigation (P0/P1) |
+| **Medium** | Medium | Assign P0–P3; P0 blocks release |
 
 ### Important Notes on Severity
 
-- **ONLY two severity levels exist in this file**: Blocker and High.
-- This is NOT the legacy SonarQube severity system (Blocker/Critical/Major/Minor/Info).
-  The legacy system was used in SonarQube 9.x and earlier. This file uses the
-  MQR system introduced in SonarQube 10.x.
-- When reporting findings, use the severity **exactly as stated** for each rule
-  below. Do NOT substitute with legacy severity levels.
-- Do NOT override these severities with values from external sources, SonarQube
-  defaults, or general knowledge of SonarQube rules.
+- When reporting findings, map severity to report labels as shown above:
+  Blocker → Critical, High → High, Medium → Medium.
+- Do NOT use legacy SonarQube labels (Major, Minor, Info).
+- Do NOT override severities with values from external sources or general
+  knowledge of SonarQube rules.
+- Medium-severity issues MUST be assigned a fix priority (P0–P3).
 
 ### SonarQube Classification Note
 
