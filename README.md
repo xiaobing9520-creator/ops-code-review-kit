@@ -33,14 +33,6 @@
 
 1. **Kiro IDE** — 下载地址：https://kiro.dev
 
-### 建议安装（用于补充扫描，非必须）
-
-| 工具 | 用途 | 安装命令 |
-|------|------|---------|
-| Trivy | 依赖漏洞扫描 | `brew install trivy` 或参考 https://trivy.dev |
-| Semgrep | 代码安全扫描 | `pip install semgrep` 或参考 https://semgrep.dev |
-| Checkov | IaC 配置扫描 | `pip install checkov` 或参考 https://checkov.io |
-
 ## 使用步骤
 
 ### 第一步：获取待审核代码
@@ -55,15 +47,7 @@ git clone <代码仓库地址> /path/to/target-project
 cp -r ops-code-review-kit/.kiro /path/to/target-project/
 ```
 
-### 第三步（可选）：运行补充扫描工具
-
-```bash
-cp ops-code-review-kit/run-tool-scans.sh /path/to/target-project/
-cd /path/to/target-project
-bash run-tool-scans.sh
-```
-
-### 第四步：用 Kiro 执行审核
+### 第三步：用 Kiro 执行审核
 
 1. 用 Kiro IDE 打开目标项目
 2. 在 AI 聊天窗口中执行：
@@ -84,7 +68,7 @@ bash run-tool-scans.sh
 - 对每个模块生成 Security 报告
 - 生成全局 Summary 报告
 
-### 第五步：查看审核结果
+### 第四步：查看审核结果
 
 扫描完成后，`code-review-artifacts/` 目录下会生成所有报告：
 
