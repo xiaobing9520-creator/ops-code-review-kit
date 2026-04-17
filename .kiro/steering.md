@@ -69,14 +69,10 @@ These skills provide supplementary analysis beyond the two core report types:
 | SonarQube JavaScript rules | `.kiro/rules/sonarqube-javascript-standards.md` | R&M Report |
 | Philips BSL 11.1.1.d | `.kiro/rules/secure-coding-baseline-standards.md` | Security Report |
 
-### Supplementary Standards (Used by optional skills)
+### Supplementary Standards (Consolidated)
 
-| Standard | File |
-|----------|------|
-| Security standards | `.kiro/rules/security-standards.md` |
-| Reliability standards | `.kiro/rules/reliability-standards.md` |
-| Performance standards | `.kiro/rules/performance-standards.md` |
-| Maintainability standards | `.kiro/rules/maintainability-standards.md` |
+Security review standards (CVSS v3.1, CVE association, OWASP/CWE checks) are
+consolidated into the BSL file as Appendix A–G. No separate standards files needed.
 
 ## Report Naming Convention
 

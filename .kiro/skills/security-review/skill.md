@@ -46,7 +46,7 @@ If these files do not exist, instruct the user to run `@codebase-reverse-enginee
 
 ### Step 2: Systematic Security Scan
 
-Follow the check matrix defined in `.kiro/rules/security-standards.md`.
+Follow the check matrix defined in `.kiro/rules/secure-coding-baseline-standards.md`.
 For each check category, scan the relevant source files.
 
 #### 2.1 CWE Top 5 Blocking Checks
@@ -112,7 +112,7 @@ If `tool-reports/` exists:
 For each finding identified in Step 2:
 
 1. **Compute CVSS v3.1 Base Score**: evaluate all 8 metrics (AV/AC/PR/UI/S/C/I/A)
-   per the vector definitions in `.kiro/rules/security-standards.md`. Produce the
+   per the vector definitions in `.kiro/rules/secure-coding-baseline-standards.md`. Produce the
    full vector string, e.g. `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`.
 2. **Derive numeric score** from the vector (use standard CVSS v3.1 equations).
 3. **Map to severity** using the Score → Severity table in security-standards.md.
