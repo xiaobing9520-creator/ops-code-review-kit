@@ -4,7 +4,7 @@ description: >
   Performs security-focused code review based on OWASP Top 10, CWE Top 25,
   and other industry security standards. Requires codebase-reverse-engineering
   artifacts to be present. Outputs a structured security report with findings
-  classified by CVSS-aligned severity.
+  classified by CVSS v3.1 Base Score (with vector string) and associated CVE.
 ---
 
 # Security Review
@@ -107,14 +107,25 @@ If `tool-reports/` exists:
   - False positive: note as dismissed with justification
   - Needs investigation: include with "needs manual verification" note
 
-### Step 3: Calculate Security Metrics
+### Step 3: CVSS Scoring & CVE Association
 
-- Total findings by severity (Critical / High / Medium / Low)
+For each finding identified in Step 2:
+
+1. **Compute CVSS v3.1 Base Score**: evaluate all 8 metrics (AV/AC/PR/UI/S/C/I/A)
+   per the vector definitions in `.kiro/rules/security-standards.md`. Produce the
+   full vector string, e.g. `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`.
+2. **Derive numeric score** from the vector (use standard CVSS v3.1 equations).
+3. **Map to severity** using the Score → Severity table in security-standards.md.
+4. **Associate CVE** following the CVE Association Rules in security-standards.md.
+
+### Step 4: Calculate Security Metrics
+
+- Total findings by severity (Critical / High / Medium / Low / Info)
 - Vulnerability density = total findings / KLOC
 - OWASP Top 10 coverage (how many categories checked, how many had issues)
 - CWE Top 25 coverage
 
-### Step 4: Generate Security Report
+### Step 5: Generate Security Report
 
 Create `code-review-artifacts/security-review/security-report.md`:
 
@@ -123,13 +134,14 @@ Create `code-review-artifacts/security-review/security-report.md`:
 
 **Review Date**: [date]
 **Reviewer**: Kiro AI Security Review
-**Standards Applied**: OWASP Top 10 (2021), CWE Top 25 (2025), NIST SSDF PW.7
+**Standards Applied**: OWASP Top 10 (2021), CWE Top 25 (2025), CVSS v3.1, NIST SSDF PW.7
 
 ## Executive Summary
 
 **Security Rating**: [Critical Risk / High Risk / Medium Risk / Low Risk / Acceptable]
 **Blocking Issues**: [count] Critical findings that MUST be fixed
-**Total Findings**: [count] (Critical: [n], High: [n], Medium: [n], Low: [n])
+**Total Findings**: [count] (Critical: [n], High: [n], Medium: [n], Low: [n], Info: [n])
+**关联 CVE 数量**: [n] 个已知 CVE 匹配
 **Vulnerability Density**: [n] per KLOC ([Excellent/Good/Acceptable/Unacceptable])
 
 ## Data Sources
@@ -143,28 +155,40 @@ Create `code-review-artifacts/security-review/security-report.md`:
 ## Critical Findings (Blocking)
 
 ### [SEC-C-001] [Finding Title]
-- **Severity**: Critical (CVSS ~[score])
-- **Category**: [CWE-ID] [CWE Name] / [OWASP ID]
-- **Location**: `[file:line]`
-- **Description**: [What the vulnerability is]
-- **Evidence**: [Code snippet or pattern found]
-- **Impact**: [What an attacker could do]
-- **Remediation**: [Specific fix recommendation]
+- **风险等级**: CRITICAL
+- **CVSS 评估**: [score] ([severity])
+- **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
+- **分类**: [CWE-ID] [CWE Name] / [OWASP ID]
+- **关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+- **文件**: `[file:line]`
+- **描述**: [What the vulnerability is]
+- **证据**: [Code snippet or pattern found]
+- **影响**: [What an attacker could do]
+- **修复建议**: [Specific fix recommendation]
 
 ## High Severity Findings
 
 ### [SEC-H-001] [Finding Title]
-[Same structure as Critical]
+- **风险等级**: HIGH
+- **CVSS 评估**: [score] ([severity])
+- **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
+- **分类**: [CWE-ID] [CWE Name] / [OWASP ID]
+- **关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+- **文件**: `[file:line]`
+- **描述**: [What the vulnerability is]
+- **证据**: [Code snippet or pattern found]
+- **影响**: [What an attacker could do]
+- **修复建议**: [Specific fix recommendation]
 
 ## Medium Severity Findings
 
 ### [SEC-M-001] [Finding Title]
-[Same structure as Critical]
+[Same structure — 风险等级: MEDIUM]
 
 ## Low Severity Findings
 
 ### [SEC-L-001] [Finding Title]
-[Same structure as Critical]
+[Same structure — 风险等级: LOW]
 
 ## OWASP Top 10 Compliance Matrix
 

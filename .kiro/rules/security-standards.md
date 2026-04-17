@@ -3,12 +3,46 @@
 This rule defines the security review criteria. Apply these standards whenever
 reviewing code for security issues.
 
-## Severity Classification (CVSS-aligned)
+## Severity Classification (CVSS v3.1)
 
-- **Critical (CVSS 9.0-10.0)**: Must be fixed before acceptance. Zero tolerance.
-- **High (CVSS 7.0-8.9)**: Must be fixed or have documented mitigation plan.
-- **Medium (CVSS 4.0-6.9)**: Should be fixed. Acceptable with risk acknowledgment.
-- **Low (CVSS 0.1-3.9)**: Recommended fix. Does not block acceptance.
+Severity MUST be determined by computing a CVSS v3.1 Base Score using the
+official vector string. Do NOT estimate scores — evaluate each metric:
+
+| Metric | Values |
+|--------|--------|
+| Attack Vector (AV) | Network / Adjacent / Local / Physical |
+| Attack Complexity (AC) | Low / High |
+| Privileges Required (PR) | None / Low / High |
+| User Interaction (UI) | None / Required |
+| Scope (S) | Unchanged / Changed |
+| Confidentiality (C) | None / Low / High |
+| Integrity (I) | None / Low / High |
+| Availability (A) | None / Low / High |
+
+### Score → Severity Mapping
+
+| Severity | CVSS Range | Disposition |
+|----------|-----------|-------------|
+| Critical | 9.0 – 10.0 | Must be fixed before acceptance. Zero tolerance. |
+| High | 7.0 – 8.9 | Must be fixed or have documented mitigation plan. |
+| Medium | 4.0 – 6.9 | Should be fixed. Acceptable with risk acknowledgment. |
+| Low | 0.1 – 3.9 | Recommended fix. Does not block acceptance. |
+| Info | 0.0 | Informational observation, no security impact. |
+
+### CVE Association Rules
+
+Every finding MUST include a `关联 CVE` field, following these rules:
+
+1. **Known vulnerability pattern** — if the code matches a known CVE's vulnerable
+   pattern (e.g., Shiro hardcoded key → CVE-2016-4437, Log4j JNDI lookup →
+   CVE-2021-44228, Fastjson autoType → CVE-2022-25845), cite the CVE directly.
+2. **Vulnerable dependency** — if a dependency version is known to be affected by
+   a CVE (from Trivy/SCA reports or known advisories), cite all applicable CVEs.
+3. **Code logic flaw** — for custom code vulnerabilities (missing authorization,
+   IDOR, business logic errors) that have no matching CVE, use:
+   `关联 CVE: N/A — 代码逻辑缺陷 (CWE-[ID])`
+4. **Similar pattern** — if the code exhibits a pattern similar to but not exactly
+   matching a known CVE, use: `关联 CVE: CVE-XXXX-XXXXX 模式 (相似漏洞模式)`
 
 ## Vulnerability Density Thresholds
 
