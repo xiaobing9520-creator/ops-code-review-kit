@@ -167,13 +167,10 @@ SonarQube / BSL 规则之外的问题不混入主报告 issue 列表，统一收
 
 ### 可选的补充审核（深度分析）
 
-以下 skill 提供超出两类核心报告的补充分析：
+以下 skill 提供超出两类核心报告的补充分析，使用 BSL 文件中的 Appendix A–G 作为审查标准：
 
 ```
-@security-review          ← OWASP/CWE 安全分析
-@reliability-review       ← 12-Factor App 运维就绪性
-@performance-review       ← 性能效率分析
-@maintainability-review   ← 技术债务/可维护性分析
+@security-review          ← OWASP/CWE 安全分析（CVSS v3.1 评分 + CVE 关联）
 @acceptance-report        ← 综合准入决策（所有维度）
 ```
 
@@ -193,8 +190,9 @@ A: 从组织的 SonarQube 系统导出最新规则配置（JSON 格式），更�
 
 **Q: 报告中的严重程度等级怎么定义的？**
 A: SonarQube Blocker → Critical，High → High，Medium → Medium。
-BSL 报告按安全影响分级：注入/凭据/加密失败 → Critical，访问控制/会话管理 → High，
-配置/编码实践 → Medium。
+BSL Security 报告采用 CVSS v3.1 标准评分：按 8 项度量指标（AV/AC/PR/UI/S/C/I/A）
+计算向量分数，9.0–10.0 → Critical，7.0–8.9 → High，4.0–6.9 → Medium，0.1–3.9 → Low。
+每个安全 issue 均附带完整 CVSS 向量串和关联 CVE 编号。
 
 **Q: 附录中的问题要不要修？**
 A: 附录中的问题来自 LLM 通用最佳实践发现，不在客户指定规则集内，不影响质量门。
