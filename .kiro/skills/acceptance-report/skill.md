@@ -37,7 +37,7 @@ its compliance findings into the acceptance decision.
 
 ### Step 1: Collect All Findings
 
-1. Read all four standard review reports
+1. Read the security review report
 2. Read the SonarQube review report (if it exists)
 3. Read the BSL compliance report (if it exists)
 4. Read the reverse engineering analysis summary
@@ -54,9 +54,6 @@ Compile a unified metrics dashboard:
 | Dimension | Score | Critical | High | Medium | Low |
 |-----------|-------|----------|------|--------|-----|
 | Security | [from security report] | | | | |
-| Reliability | [from reliability report] | | | | |
-| Performance | [from performance report] | | | | |
-| Maintainability | [from maintainability report] | | | | |
 | SonarQube (if applicable) | [from sonarqube report] | | | | |
 | BSL Compliance (if applicable) | [from bsl report] | | | | |
 
@@ -66,25 +63,36 @@ Apply dimension weights to calculate an overall score:
 
 Apply dimension weights to calculate an overall score.
 
-When SonarQube report is **available** (Java/JS projects):
+When SonarQube + BSL reports are **both available**:
 
 | Dimension | Weight | Score | Weighted |
 |-----------|--------|-------|----------|
-| Security | 30% | [n] | [n] |
-| Reliability | 25% | [n] | [n] |
-| Performance | 15% | [n] | [n] |
-| Maintainability | 15% | [n] | [n] |
-| SonarQube | 15% | [n] | [n] |
+| Security (OWASP/CWE) | 40% | [n] | [n] |
+| SonarQube (R&M) | 30% | [n] | [n] |
+| BSL Compliance | 30% | [n] | [n] |
 | **Composite** | **100%** | | **[n]** |
 
-When SonarQube report is **not available** (non-Java/JS projects):
+When only Security report is **available**:
 
 | Dimension | Weight | Score | Weighted |
 |-----------|--------|-------|----------|
-| Security | 35% | [n] | [n] |
-| Reliability | 30% | [n] | [n] |
-| Performance | 15% | [n] | [n] |
-| Maintainability | 20% | [n] | [n] |
+| Security (OWASP/CWE) | 100% | [n] | [n] |
+| **Composite** | **100%** | | **[n]** |
+
+When Security + SonarQube (no BSL):
+
+| Dimension | Weight | Score | Weighted |
+|-----------|--------|-------|----------|
+| Security (OWASP/CWE) | 50% | [n] | [n] |
+| SonarQube (R&M) | 50% | [n] | [n] |
+| **Composite** | **100%** | | **[n]** |
+
+When Security + BSL (no SonarQube):
+
+| Dimension | Weight | Score | Weighted |
+|-----------|--------|-------|----------|
+| Security (OWASP/CWE) | 50% | [n] | [n] |
+| BSL Compliance | 50% | [n] | [n] |
 | **Composite** | **100%** | | **[n]** |
 
 ### Step 4: Apply Acceptance Decision Rules
@@ -94,13 +102,13 @@ Apply the following rules IN ORDER (first matching rule determines decision):
 **REJECT if any of these are true:**
 - Any Critical security finding (CWE Top 5, hardcoded secrets, etc.)
 - Any Critical SonarQube Blocker finding in security category
-- Total Critical findings across all dimensions (including SonarQube) > 0
-- Total High findings across all dimensions (including SonarQube) > 10
+- Total Critical findings across all reports > 0
+- Total High findings across all reports > 10
 - Any single dimension score < 40
 - Security dimension score < 50
 
 **CONDITIONAL ACCEPT if any of these are true:**
-- High findings: 4-10 total (including SonarQube High)
+- High findings: 4-10 total
 - Any single dimension score between 40-60
 - Composite score between 50-70
 - Missing external tool scan data (SCA/SAST)
@@ -108,8 +116,8 @@ Apply the following rules IN ORDER (first matching rule determines decision):
 - Test coverage assessed as "Insufficient" or "None"
 
 **ACCEPT if all of these are true:**
-- No Critical findings (including SonarQube Blocker)
-- High findings <= 3 (including SonarQube High)
+- No Critical findings across all reports
+- High findings <= 3 total
 - All dimension scores >= 70
 - Composite score >= 70
 
@@ -151,39 +159,35 @@ Create `code-review-artifacts/acceptance-report.md`:
 
 | Dimension | Weight | Score | Weighted | Rating |
 |-----------|--------|-------|----------|--------|
-| Security | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
-| Reliability | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
-| Performance | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
-| Maintainability | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
-| SonarQube | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] / N/A |
+| Security (OWASP/CWE) | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] |
+| SonarQube (R&M) | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] / N/A |
+| BSL Compliance | [w]% | [n]/100 | [n] | [Excellent/Good/Fair/Poor] / N/A |
 | **Composite** | **100%** | | **[n]/100** | **[rating]** |
 
-> Note: Weights adjust based on whether SonarQube review is applicable.
-> See Step 3 for weight tables.
+> Note: Weights adjust based on which reports are available. See Step 3 for weight tables.
 
 ## Findings Summary
 
-| Severity | Security | Reliability | Performance | Maintainability | SonarQube | Total |
-|----------|----------|-------------|-------------|-----------------|-----------|-------|
-| Critical | [n] | [n] | [n] | [n] | [n] | [n] |
-| High | [n] | [n] | [n] | [n] | [n] | [n] |
-| Medium | [n] | [n] | [n] | [n] | — | [n] |
-| Low | [n] | [n] | [n] | [n] | — | [n] |
-| **Total** | **[n]** | **[n]** | **[n]** | **[n]** | **[n]** | **[n]** |
+| Severity | Security (OWASP/CWE) | SonarQube (R&M) | BSL Compliance | Total |
+|----------|---------------------|-----------------|----------------|-------|
+| Critical | [n] | [n] | [n] | [n] |
+| High | [n] | [n] | [n] | [n] |
+| Medium | [n] | — | [n] | [n] |
+| Low | [n] | — | [n] | [n] |
+| **Total** | **[n]** | **[n]** | **[n]** | **[n]** |
 
 > Note: SonarQube findings only have Critical (Blocker) and High severity levels.
-> SonarQube column shows "—" if review was not applicable.
+> Columns show "—" or N/A if that report was not applicable.
 
 ## Key Metrics
 
 | Metric | Value | Standard | Status |
 |--------|-------|----------|--------|
 | Vulnerability Density | [n]/KLOC | < 0.5/KLOC | Pass/Fail |
-| Defect Density | [n]/KLOC | < 1.0/KLOC | Pass/Fail |
-| Technical Debt Ratio | [n]% | < 10% | Pass/Fail |
-| Code Smell Density | [n]/KLOC | < 5/KLOC | Pass/Fail |
-| 12-Factor Compliance | [n]/6 | >= 4/6 | Pass/Fail |
-| Maintainability Index | [n]/100 | >= 65 | Pass/Fail |
+| CVSS Max Score | [n] | < 7.0 (no Critical) | Pass/Fail |
+| CVE Matches | [n] | 0 unmitigated | Pass/Fail |
+| SonarQube Blocker Count | [n] | 0 | Pass/Fail / N/A |
+| BSL Compliance Rate | [n]% | >= 90% | Pass/Fail / N/A |
 
 ## Data Completeness
 
@@ -199,30 +203,21 @@ Create `code-review-artifacts/acceptance-report.md`:
 
 ## Critical & High Findings Requiring Remediation
 
-[List ALL Critical and High findings from all four reviews. For each:]
+[List ALL Critical and High findings from all available reports. For each:]
 
-### [ID] [Finding Title] — [Dimension]
+### [ID] [Finding Title] — [Report Source]
 - **Severity**: Critical / High
 - **Location**: `[file:line]`
 - **Issue**: [Brief description]
 - **Required Action**: [What must be done]
 - **Deadline**: Before re-submission / Within 30 days
 
-## Dimension Highlights
+## Report Highlights
 
-### Security
-[2-3 sentence summary of security review findings and key concerns]
+### Security (OWASP/CWE)
+[2-3 sentence summary of security review findings — CVSS scores, CVE matches, key concerns]
 
-### Reliability
-[2-3 sentence summary of reliability review findings and key concerns]
-
-### Performance
-[2-3 sentence summary of performance review findings and key concerns]
-
-### Maintainability
-[2-3 sentence summary of maintainability review findings and key concerns]
-
-### SonarQube (if applicable)
+### SonarQube R&M (if applicable)
 [2-3 sentence summary of SonarQube rule-based review findings. Note the
 SonarQube compliance rate and any Blocker-level violations found.]
 
@@ -234,14 +229,14 @@ security domains with gaps.]
 ## Remediation Plan (if Conditional Accept or Reject)
 
 ### Required Before Acceptance
-| # | Finding ID | Description | Dimension | Priority |
-|---|-----------|-------------|-----------|----------|
-| 1 | [id] | [desc] | [dim] | [1-Critical/2-High] |
+| # | Finding ID | Description | Report Source | Priority |
+|---|-----------|-------------|---------------|----------|
+| 1 | [id] | [desc] | [source] | [1-Critical/2-High] |
 
 ### Required Within 30 Days (Conditional Accept only)
-| # | Finding ID | Description | Dimension | Priority |
-|---|-----------|-------------|-----------|----------|
-| 1 | [id] | [desc] | [dim] | [priority] |
+| # | Finding ID | Description | Report Source | Priority |
+|---|-----------|-------------|---------------|----------|
+| 1 | [id] | [desc] | [source] | [priority] |
 
 ### Re-Review Scope
 - **Re-review type**: Full / Targeted
@@ -254,7 +249,7 @@ security domains with gaps.]
 |----------|------------------|
 | OWASP Top 10 (2021) | [n]/10 categories checked, [n] issues found |
 | CWE Top 25 (2025) | Top 5 blocking checks performed |
-| 12-Factor App | [n]/6 key factors compliant |
+| CVSS v3.1 | All findings scored with vector strings |
 | NIST SSDF PW.7 | Code review performed (this report) |
 | SonarQube Rules | [n]% compliance ([n] violations / [n] applicable rules) or N/A |
 | BSL 11.1.1.d | [n]% compliance ([n] non-compliant / [n] applicable controls) or N/A |
@@ -278,11 +273,9 @@ For full findings and technical details, refer to:
 DECISION: [ACCEPT / CONDITIONAL ACCEPT / REJECT]
 
 Composite Score: [n]/100
-  - Security:        [n]/100 (weight [w]%)
-  - Reliability:     [n]/100 (weight [w]%)
-  - Performance:     [n]/100 (weight [w]%)
-  - Maintainability: [n]/100 (weight [w]%)
-  - SonarQube:       [n]/100 (weight [w]%) [or N/A]
+  - Security (OWASP/CWE): [n]/100 (weight [w]%)
+  - SonarQube (R&M):      [n]/100 (weight [w]%) [or N/A]
+  - BSL Compliance:        [n]/100 (weight [w]%) [or N/A]
 
 Total Findings: [n]
   - Critical: [n]

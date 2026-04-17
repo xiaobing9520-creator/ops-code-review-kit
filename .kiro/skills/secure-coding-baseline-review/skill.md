@@ -44,15 +44,21 @@ Every issue in the main report body MUST map to a specific BSL control in
 - Do NOT report issues with control IDs not found in the standards file
 - Do NOT invent BSL control IDs
 
-### Constraint 2: Severity Classification
+### Constraint 2: Severity Classification (CVSS v3.1)
 
-Assign severity based on the control's security impact:
+Assign severity by computing a CVSS v3.1 Base Score per the definitions in
+`.kiro/rules/secure-coding-baseline-standards.md` (Appendix A). Evaluate all
+8 metrics (AV/AC/PR/UI/S/C/I/A) and produce the full vector string.
 
-| Severity | Criteria |
-|----------|----------|
-| **Critical** | Injection prevention, credential storage, authentication bypass, encryption failures |
-| **High** | Access control, session management, TLS configuration, logging gaps |
-| **Medium** | Configuration, coding practices, design requirements |
+| Severity | CVSS Range | Typical Control Areas |
+|----------|-----------|----------------------|
+| **Critical** | 9.0 – 10.0 | Injection prevention, credential storage, authentication bypass, encryption failures |
+| **High** | 7.0 – 8.9 | Access control, session management, TLS configuration, logging gaps |
+| **Medium** | 4.0 – 6.9 | Configuration, coding practices, design requirements |
+| **Low** | 0.1 – 3.9 | Informational coding practices, minor config gaps |
+
+Every finding MUST also include a `关联 CVE` field per the CVE Association
+Rules in Appendix A of the standards file.
 
 ### Constraint 3: LLM-Discovered Issues Go to Appendix
 
@@ -233,7 +239,10 @@ Otherwise: Fail
 
 - **BSL Control**: `11.1.1_[xx]` — [Control description from standards]
 - **Security Domain**: [domain name]
-- **Severity**: [Critical / High / Medium]
+- **风险等级**: [CRITICAL / HIGH / MEDIUM / LOW]
+- **CVSS 评估**: [score] ([severity])
+- **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
+- **关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
 - **Fix Priority**: [P0 / P1 / P2 / P3]
 - **Location**: `[file/path.java:line]`
 

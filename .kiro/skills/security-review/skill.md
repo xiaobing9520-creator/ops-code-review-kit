@@ -115,8 +115,8 @@ For each finding identified in Step 2:
    per the vector definitions in `.kiro/rules/secure-coding-baseline-standards.md`. Produce the
    full vector string, e.g. `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`.
 2. **Derive numeric score** from the vector (use standard CVSS v3.1 equations).
-3. **Map to severity** using the Score → Severity table in security-standards.md.
-4. **Associate CVE** following the CVE Association Rules in security-standards.md.
+3. **Map to severity** using the Score → Severity table in secure-coding-baseline-standards.md (Appendix A).
+4. **Associate CVE** following the CVE Association Rules in secure-coding-baseline-standards.md (Appendix A).
 
 ### Step 4: Calculate Security Metrics
 

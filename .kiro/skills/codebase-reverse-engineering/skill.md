@@ -368,10 +368,9 @@ Then create `code-review-artifacts/reverse-engineering/analysis-summary.md`:
 3. [Third most important finding]
 
 ## Recommended Review Focus Areas
-- **Security**: [specific areas]
-- **Reliability**: [specific areas]
-- **Performance**: [specific areas]
-- **Maintainability**: [specific areas]
+- **Security (OWASP/CWE)**: [specific areas — injection, auth, crypto, etc.]
+- **SonarQube R&M**: [specific areas — resource leaks, null safety, concurrency, etc.]
+- **BSL Compliance**: [specific areas — credential management, session security, etc.]
 
 ## Next Steps
 1. @security-review
