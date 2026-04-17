@@ -2,9 +2,9 @@
 name: acceptance-report
 description: >
   Generates the final acceptance decision report by aggregating findings from
-  all four dimension-specific reviews (security, reliability, performance,
-  maintainability). Produces a Pass/Conditional/Reject decision with supporting
-  evidence and remediation requirements.
+  security review and optional SonarQube/BSL reports. Produces a
+  Pass/Conditional/Reject decision with supporting evidence and remediation
+  requirements.
 ---
 
 # Acceptance Report
@@ -19,9 +19,6 @@ operations acceptance.
 ALL of the following reports MUST exist before running this skill:
 - `code-review-artifacts/reverse-engineering/analysis-summary.md`
 - `code-review-artifacts/security-review/security-report.md`
-- `code-review-artifacts/reliability-review/reliability-report.md`
-- `code-review-artifacts/performance-review/performance-report.md`
-- `code-review-artifacts/maintainability-review/maintainability-report.md`
 
 The following reports are OPTIONAL:
 - `code-review-artifacts/sonarqube-review/sonarqube-report.md` (Java/JavaScript projects)
@@ -266,9 +263,6 @@ security domains with gaps.]
 
 For full findings and technical details, refer to:
 - [Security Report](security-review/security-report.md)
-- [Reliability Report](reliability-review/reliability-report.md)
-- [Performance Report](performance-review/performance-report.md)
-- [Maintainability Report](maintainability-review/maintainability-report.md)
 - [SonarQube Report](sonarqube-review/sonarqube-report.md) (if applicable)
 - [BSL Compliance Report](secure-coding-baseline-review/bsl-report.md) (if applicable)
 - [Architecture Documentation](reverse-engineering/architecture.md)

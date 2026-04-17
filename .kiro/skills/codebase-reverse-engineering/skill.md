@@ -18,9 +18,6 @@ will reference.
 
 This skill MUST be executed before any of the following review skills:
 - security-review
-- reliability-review
-- performance-review
-- maintainability-review
 - acceptance-report
 
 The artifacts generated here provide the foundation for all subsequent reviews.
@@ -378,10 +375,7 @@ Then create `code-review-artifacts/reverse-engineering/analysis-summary.md`:
 
 ## Next Steps
 1. @security-review
-2. @reliability-review
-3. @performance-review
-4. @maintainability-review
-5. @acceptance-report
+2. @acceptance-report
 ```
 
 ---

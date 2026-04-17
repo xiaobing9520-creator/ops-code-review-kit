@@ -53,10 +53,7 @@ Plus **1 global report**:
 ### Optional (Additional Depth)
 
 These skills provide supplementary analysis beyond the two core report types:
-- `@security-review` — OWASP/CWE-based security analysis
-- `@reliability-review` — 12-Factor App / operational readiness
-- `@performance-review` — Performance efficiency analysis
-- `@maintainability-review` — Technical debt / maintainability analysis
+- `@security-review` — OWASP/CWE security analysis (CVSS v3.1 + CVE association)
 - `@acceptance-report` — Combined acceptance decision (all dimensions)
 
 ## Review Standards

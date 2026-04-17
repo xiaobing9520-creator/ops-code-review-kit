@@ -236,5 +236,5 @@ Critical findings: [n] (blocking issues that must be fixed)
 High findings: [n]
 Total findings: [n]
 
-When ready, proceed with: @reliability-review
+When ready, proceed with: @acceptance-report
 ```
