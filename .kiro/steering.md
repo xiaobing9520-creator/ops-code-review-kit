@@ -22,7 +22,7 @@ Each module produces **2 reports**:
 
 | Report | Standards | Coverage |
 |--------|----------|----------|
-| Reliability & Maintainability | SonarQube Java/JavaScript rules | Blocker / High / Medium |
+| Reliability & Maintainability | SonarQube Java/JavaScript rules (651 rules) | Blocker / High / Medium |
 | Security | Philips Secure Coding Baseline (BSL 11.1.1.d, 230 controls) | 17 security domains |
 
 Plus **1 global report**:

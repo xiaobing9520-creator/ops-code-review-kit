@@ -21,7 +21,7 @@
 
 | 报告 | 审查标准 | 覆盖范围 |
 |------|---------|---------|
-| Reliability & Maintainability | SonarQube Java/JavaScript 规则 | Blocker / High / Medium |
+| Reliability & Maintainability | SonarQube Java/JavaScript 规则 (651 条) | Blocker / High / Medium |
 | Security | Philips Secure Coding Baseline (BSL 11.1.1.d, 230 条) | 17 个安全域 |
 | Summary | 汇总所有模块 | 全局 Pass/Fail |
 
@@ -138,8 +138,9 @@ Medium 级别 issue 必须明确标注 P0–P3，P0 的 Medium issue 会导致�
 
 ### SonarQube 规则（Reliability & Maintainability 报告）
 
-- 使用 `sonarqube_rules.json` 中的规则集
-- 当前包含 222 条规则（Java 145 + JavaScript 77）
+- 使用 `sonarqube_rules.json` / `sonarqube_rules_java_medium.json` / `sonarqube_rules_javascript_medium.json` 中的规则集
+- 当前包含 651 条规则（Java 392 + JavaScript 259）
+- 覆盖 Blocker、High、Medium 三个严重程度级别
 - 每个 issue 的规则编号、名称、严重程度严格对照规则定义
 - 无法映射到具体 Rule ID 的问题不列入主报告
 
@@ -185,8 +186,8 @@ A: 可以。`@batch-scan module1 module2` 指定模块名即可。也可以用 `
 
 **Q: SonarQube 规则集怎么更新？**
 A: 从组织的 SonarQube 系统导出最新规则配置（JSON 格式），更新
-`.kiro/rules/sonarqube-java-standards.md` 和 `sonarqube_rules.json`。
-当前版本包含 222 条 Blocker + High 级别规则，后续可扩展 Medium 级别规则。
+`.kiro/rules/sonarqube-java-standards.md`、`.kiro/rules/sonarqube-javascript-standards.md` 和对应的 JSON 文件。
+当前版本包含 651 条规则，覆盖 Blocker、High、Medium 三个严重程度级别。
 
 **Q: 报告中的严重程度等级怎么定义的？**
 A: SonarQube Blocker → Critical，High → High，Medium → Medium。

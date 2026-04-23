@@ -148,7 +148,7 @@ Create the report using the template below.
 **Repository / Module**: [name]
 **Scan Date**: [YYYY-MM-DD]
 **Review Standards**: SonarQube Java/JavaScript Rules (Organization Quality Profile)
-**Rule ID Format**: `java:Sxxxx` / `javasecurity:Sxxxx` / `javascript:Sxxxx`
+**Rule ID Format**: `java:Sxxxx` / `javasecurity:Sxxxx` / `javabugs:Sxxxx` / `javaarchitecture:Sxxxx` / `javascript:Sxxxx` / `jssecurity:Sxxxx` / `jsarchitecture:Sxxxx`
 
 ---
 
