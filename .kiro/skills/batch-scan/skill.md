@@ -170,7 +170,7 @@ All module reports MUST follow identical formatting to ensure side-by-side
 comparability. Before generating reports, enforce:
 
 1. **Unified Finding Header**: Every finding across ALL modules and report types
-   MUST begin with the same 4-line header block (风险等级/CVSS 评估/文件/关联 CVE).
+   MUST begin with the same 4-line header block (Risk Level / CVSS Score / File / Associated CVE).
    See Constraint 0 in each sub-skill for the exact template.
 
 2. **Identical Section Structure**: Every R&M report has the same sections in the

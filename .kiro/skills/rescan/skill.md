@@ -214,10 +214,10 @@ Otherwise: Fail
 
 ### [Previous Issue ID]: [Brief title]
 
-**风险等级**: [CRITICAL / HIGH / MEDIUM]
-**CVSS 评估**: [score] ([severity]) / N/A — 非安全类规则
-**文件**: `[original file/path.java:line]`
-**关联 CVE**: [from previous report]
+**Risk Level**: [CRITICAL / HIGH / MEDIUM]
+**CVSS Score**: [score] ([severity]) / N/A — non-security rule
+**File**: `[original file/path.java:line]`
+**Associated CVE**: [from previous report]
 
 - **Rule/Control**: [Rule ID from previous report]
 - **Previous Severity**: [severity from previous report]
@@ -248,10 +248,10 @@ explain what remains or what's wrong with the fix.]
 
 ### REG-01: [Brief title]
 
-**风险等级**: [CRITICAL / HIGH / MEDIUM]
-**CVSS 评估**: [score] ([severity]) / N/A — 非安全类规则
-**文件**: `[file/path.java:line]`
-**关联 CVE**: [CVE-ID / N/A]
+**Risk Level**: [CRITICAL / HIGH / MEDIUM]
+**CVSS Score**: [score] ([severity]) / N/A — non-security rule
+**File**: `[file/path.java:line]`
+**Associated CVE**: [CVE-ID / N/A]
 
 - **Rule/Control**: [Rule ID]
 - **Introduced by**: Fix for [previous issue ID]

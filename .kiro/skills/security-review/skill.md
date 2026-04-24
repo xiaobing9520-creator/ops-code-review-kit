@@ -113,10 +113,10 @@ Every finding in this report MUST begin with the following 4-line header block,
 placed immediately after the finding title, before any other fields:
 
 ```
-**风险等级**: CRITICAL / HIGH / MEDIUM / LOW
-**CVSS 评估**: [score] ([severity])
-**文件**: `[file/path:line]`
-**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+**Risk Level**: CRITICAL / HIGH / MEDIUM / LOW
+**CVSS Score**: [score] ([severity])
+**File**: `[file/path:line]`
+**Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
 ```
 
 This header format is shared across ALL report types (R&M, Security, Security Review)
@@ -154,7 +154,7 @@ Create `code-review-artifacts/security-review/security-report.md`:
 **Security Rating**: [Critical Risk / High Risk / Medium Risk / Low Risk / Acceptable]
 **Blocking Issues**: [count] Critical findings that MUST be fixed
 **Total Findings**: [count] (Critical: [n], High: [n], Medium: [n], Low: [n], Info: [n])
-**关联 CVE 数量**: [n] 个已知 CVE 匹配
+**Associated CVE Count**: [n] known CVE matches
 **Vulnerability Density**: [n] per KLOC ([Excellent/Good/Acceptable/Unacceptable])
 
 ## Data Sources
@@ -169,42 +169,42 @@ Create `code-review-artifacts/security-review/security-report.md`:
 
 ### [SEC-C-001] [Finding Title]
 
-**风险等级**: CRITICAL
-**CVSS 评估**: [score] (Critical)
-**文件**: `[file:line]`
-**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+**Risk Level**: CRITICAL
+**CVSS Score**: [score] (Critical)
+**File**: `[file:line]`
+**Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
 
-- **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
-- **分类**: [CWE-ID] [CWE Name] / [OWASP ID]
-- **描述**: [What the vulnerability is]
-- **证据**: [Code snippet or pattern found]
-- **影响**: [What an attacker could do]
-- **修复建议**: [Specific fix recommendation]
+- **CVSS Vector**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
+- **Classification**: [CWE-ID] [CWE Name] / [OWASP ID]
+- **Description**: [What the vulnerability is]
+- **Evidence**: [Code snippet or pattern found]
+- **Impact**: [What an attacker could do]
+- **Fix Recommendation**: [Specific fix recommendation]
 
 ## High Severity Findings
 
 ### [SEC-H-001] [Finding Title]
 
-**风险等级**: HIGH
-**CVSS 评估**: [score] (High)
-**文件**: `[file:line]`
-**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+**Risk Level**: HIGH
+**CVSS Score**: [score] (High)
+**File**: `[file:line]`
+**Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
 
-- **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
-- **分类**: [CWE-ID] [CWE Name] / [OWASP ID]
-- **描述**: [What the vulnerability is]
-- **证据**: [Code snippet or pattern found]
-- **影响**: [What an attacker could do]
-- **修复建议**: [Specific fix recommendation]
+- **CVSS Vector**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
+- **Classification**: [CWE-ID] [CWE Name] / [OWASP ID]
+- **Description**: [What the vulnerability is]
+- **Evidence**: [Code snippet or pattern found]
+- **Impact**: [What an attacker could do]
+- **Fix Recommendation**: [Specific fix recommendation]
 
 ## Medium Severity Findings
 
 ### [SEC-M-001] [Finding Title]
 
-**风险等级**: MEDIUM
-**CVSS 评估**: [score] (Medium)
-**文件**: `[file:line]`
-**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+**Risk Level**: MEDIUM
+**CVSS Score**: [score] (Medium)
+**File**: `[file:line]`
+**Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
 
 [Same remaining structure as above]
 
@@ -212,10 +212,10 @@ Create `code-review-artifacts/security-review/security-report.md`:
 
 ### [SEC-L-001] [Finding Title]
 
-**风险等级**: LOW
-**CVSS 评估**: [score] (Low)
-**文件**: `[file:line]`
-**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+**Risk Level**: LOW
+**CVSS Score**: [score] (Low)
+**File**: `[file:line]`
+**Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
 
 [Same remaining structure as above]
 

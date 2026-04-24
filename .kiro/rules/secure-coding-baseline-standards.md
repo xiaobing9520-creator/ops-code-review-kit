@@ -2004,7 +2004,7 @@ official vector string. Do NOT estimate scores — evaluate each metric:
 
 ### CVE Association Rules
 
-Every finding MUST include a `关联 CVE` field, following these rules:
+Every finding MUST include an `Associated CVE` field, following these rules:
 
 1. **Known vulnerability pattern** — if the code matches a known CVE's vulnerable
    pattern (e.g., Shiro hardcoded key → CVE-2016-4437, Log4j JNDI lookup →
@@ -2013,9 +2013,9 @@ Every finding MUST include a `关联 CVE` field, following these rules:
    a CVE (from Trivy/SCA reports or known advisories), cite all applicable CVEs.
 3. **Code logic flaw** — for custom code vulnerabilities (missing authorization,
    IDOR, business logic errors) that have no matching CVE, use:
-   `关联 CVE: N/A — 代码逻辑缺陷 (CWE-[ID])`
+   `Associated CVE: N/A — code logic defect (CWE-[ID])`
 4. **Similar pattern** — if the code exhibits a pattern similar to but not exactly
-   matching a known CVE, use: `关联 CVE: CVE-XXXX-XXXXX 模式 (相似漏洞模式)`
+   matching a known CVE, use: `Associated CVE: CVE-XXXX-XXXXX pattern (similar vulnerability pattern)`
 
 ## Appendix B: Vulnerability Density Thresholds
 

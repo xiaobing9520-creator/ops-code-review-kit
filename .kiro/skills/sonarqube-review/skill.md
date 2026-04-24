@@ -40,21 +40,21 @@ Every finding in this report MUST begin with the following 4-line header block,
 placed immediately after the finding title, before any other fields:
 
 ```
-**风险等级**: CRITICAL / HIGH / MEDIUM
-**CVSS 评估**: [score] ([severity]) / N/A — 非安全类规则
-**文件**: `[file/path.java:line]`
-**关联 CVE**: [CVE-ID 模式] / N/A — 代码质量规则 (CWE-ID)
+**Risk Level**: CRITICAL / HIGH / MEDIUM
+**CVSS Score**: [score] ([severity]) / N/A — non-security rule
+**File**: `[file/path.java:line]`
+**Associated CVE**: [CVE-ID pattern] / N/A — code quality rule (CWE-ID)
 ```
 
 Rules for each field:
-- **风险等级**: Map from rule severity — Blocker→CRITICAL, High→HIGH, Medium→MEDIUM.
-- **CVSS 评估**: For security-category rules (`javasecurity:*`, `jssecurity:*`, and
+- **Risk Level**: Map from rule severity — Blocker→CRITICAL, High→HIGH, Medium→MEDIUM.
+- **CVSS Score**: For security-category rules (`javasecurity:*`, `jssecurity:*`, and
   Security Rules sections), compute a CVSS v3.1 Base Score with full vector string.
-  For non-security rules (reliability, testing, code quality), use `N/A — 非安全类规则`.
-- **文件**: Exact file path and line number where the issue was found.
-- **关联 CVE**: For security rules, associate a CVE if a known CVE pattern matches
-  (e.g., `CVE-2016-4437 模式`). If no CVE matches, use
-  `N/A — 代码逻辑缺陷 (CWE-xxx)`. For non-security rules, use `N/A — 非安全类规则`.
+  For non-security rules (reliability, testing, code quality), use `N/A — non-security rule`.
+- **File**: Exact file path and line number where the issue was found.
+- **Associated CVE**: For security rules, associate a CVE if a known CVE pattern matches
+  (e.g., `CVE-2016-4437 pattern`). If no CVE matches, use
+  `N/A — code logic defect (CWE-xxx)`. For non-security rules, use `N/A — non-security rule`.
 
 This header format is shared across ALL report types (R&M, Security, Security Review)
 to ensure consistent presentation when reports are compared side-by-side.
@@ -204,10 +204,10 @@ Create the report using the template below.
 
 ### BUG-01: [Brief title]
 
-**风险等级**: [CRITICAL / HIGH / MEDIUM]
-**CVSS 评估**: [score] ([severity]) / N/A — 非安全类规则
-**文件**: `[file/path.java:line]`
-**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID) / N/A — 非安全类规则]
+**Risk Level**: [CRITICAL / HIGH / MEDIUM]
+**CVSS Score**: [score] ([severity]) / N/A — non-security rule
+**File**: `[file/path.java:line]`
+**Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID) / N/A — non-security rule]
 
 - **Rule**: `[java:Sxxxx]` — [Rule description from standards]
 - **Fix Priority**: [P0 / P1 / P2 / P3]

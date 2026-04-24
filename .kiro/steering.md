@@ -122,10 +122,10 @@ ALL findings across ALL report types MUST begin with the same 4-line header
 block immediately after the finding title:
 
 ```
-**风险等级**: CRITICAL / HIGH / MEDIUM / LOW
-**CVSS 评估**: [score] ([severity]) / N/A — 非安全类规则
-**文件**: `[file/path:line]`
-**关联 CVE**: [CVE-ID / N/A — ...]
+**Risk Level**: CRITICAL / HIGH / MEDIUM / LOW
+**CVSS Score**: [score] ([severity]) / N/A — non-security rule
+**File**: `[file/path:line]`
+**Associated CVE**: [CVE-ID / N/A — ...]
 ```
 
 This ensures consistent formatting when reports are reviewed side-by-side.
@@ -165,10 +165,7 @@ code-review-artifacts/
 
 ## Language
 
-Generate all reports in **Chinese (Simplified)** to match the operations
-team's working language. Code references, technical terms, and standard
-names (e.g., OWASP, CWE, SonarQube rule IDs, BSL control IDs) may remain
-in English.
+Generate all reports in **English**.
 
 ## Key Principles
 

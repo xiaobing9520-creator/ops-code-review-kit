@@ -38,19 +38,19 @@ Every finding in this report MUST begin with the following 4-line header block,
 placed immediately after the finding title, before any other fields:
 
 ```
-**风险等级**: CRITICAL / HIGH / MEDIUM / LOW
-**CVSS 评估**: [score] ([severity])
-**文件**: `[file/path.java:line]`
-**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+**Risk Level**: CRITICAL / HIGH / MEDIUM / LOW
+**CVSS Score**: [score] ([severity])
+**File**: `[file/path.java:line]`
+**Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
 ```
 
 Rules for each field:
-- **风险等级**: Derived from the CVSS score (see Constraint 2).
-- **CVSS 评估**: Always computed for Security report findings. Include the full
+- **Risk Level**: Derived from the CVSS score (see Constraint 2).
+- **CVSS Score**: Always computed for Security report findings. Include the full
   CVSS vector string on a separate line below.
-- **文件**: Exact file path and line number where the issue was found.
-- **关联 CVE**: Associate a CVE if a known CVE pattern matches. If no CVE matches,
-  use `N/A — 代码逻辑缺陷 (CWE-xxx)`.
+- **File**: Exact file path and line number where the issue was found.
+- **Associated CVE**: Associate a CVE if a known CVE pattern matches. If no CVE matches,
+  use `N/A — code logic defect (CWE-xxx)`.
 
 This header format is shared across ALL report types (R&M, Security, Security Review)
 to ensure consistent presentation when reports are compared side-by-side.
@@ -80,7 +80,7 @@ Assign severity by computing a CVSS v3.1 Base Score per the definitions in
 | **Medium** | 4.0 – 6.9 | Configuration, coding practices, design requirements |
 | **Low** | 0.1 – 3.9 | Informational coding practices, minor config gaps |
 
-Every finding MUST also include a `关联 CVE` field per the CVE Association
+Every finding MUST also include a `Associated CVE` field per the CVE Association
 Rules in Appendix A of the standards file.
 
 ### Constraint 3: LLM-Discovered Issues Go to Appendix
@@ -260,14 +260,14 @@ Otherwise: Fail
 
 ### SEC-01: [Brief title]
 
-**风险等级**: [CRITICAL / HIGH / MEDIUM / LOW]
-**CVSS 评估**: [score] ([severity])
-**文件**: `[file/path.java:line]`
-**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+**Risk Level**: [CRITICAL / HIGH / MEDIUM / LOW]
+**CVSS Score**: [score] ([severity])
+**File**: `[file/path.java:line]`
+**Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
 
 - **BSL Control**: `11.1.1_[xx]` — [Control description from standards]
 - **Security Domain**: [domain name]
-- **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
+- **CVSS Vector**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
 - **Fix Priority**: [P0 / P1 / P2 / P3]
 
 **Code**:
