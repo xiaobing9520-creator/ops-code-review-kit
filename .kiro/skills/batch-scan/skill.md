@@ -164,6 +164,31 @@ Reports:
 
 ---
 
+## Cross-Module Format Consistency
+
+All module reports MUST follow identical formatting to ensure side-by-side
+comparability. Before generating reports, enforce:
+
+1. **Unified Finding Header**: Every finding across ALL modules and report types
+   MUST begin with the same 4-line header block (风险等级/CVSS 评估/文件/关联 CVE).
+   See Constraint 0 in each sub-skill for the exact template.
+
+2. **Identical Section Structure**: Every R&M report has the same sections in the
+   same order, and every Security report has the same sections in the same order,
+   regardless of the module or its technology stack.
+
+3. **Consistent Severity Labels**: Use only `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`.
+   Never use alternative labels (Blocker, Major, Minor, etc.) in any report.
+
+4. **Consistent Numbering**: Issue IDs within each report type use the same prefix
+   pattern — `BUG-nn`/`VULN-nn`/`SMELL-nn` for R&M, `SEC-nn` for Security.
+
+5. **Self-Validation Step**: After generating all module reports and before
+   generating the Summary Report, spot-check 2 modules to confirm their report
+   structures are identical in section order and finding header format.
+
+---
+
 ## Important Notes
 
 - Each module is processed independently — issues in one module do not

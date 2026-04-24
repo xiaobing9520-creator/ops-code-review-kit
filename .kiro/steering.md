@@ -50,6 +50,18 @@ Plus **1 global report**:
    - `@secure-coding-baseline-review` — Security report
 3. `@summary-report` — Generate the global summary
 
+### Option C: Post-Fix Rescan
+
+After the development team fixes issues from a previous scan:
+
+```
+@rescan                           ← Verify fixes, generate delta report
+```
+
+The rescan workflow does NOT require re-running `@codebase-reverse-engineering`.
+Copy previous reverse-engineering artifacts and scan reports into the new code
+version directory, then run `@rescan`. See the rescan skill for detailed setup.
+
 ### Optional (Additional Depth)
 
 These skills provide supplementary analysis beyond the two core report types:
@@ -104,6 +116,27 @@ The Summary Report's overall gate is Pass only if ALL individual reports Pass.
 
 Medium-severity issues must always have an explicit P0–P3 label.
 
+## Unified Finding Header Policy
+
+ALL findings across ALL report types MUST begin with the same 4-line header
+block immediately after the finding title:
+
+```
+**风险等级**: CRITICAL / HIGH / MEDIUM / LOW
+**CVSS 评估**: [score] ([severity]) / N/A — 非安全类规则
+**文件**: `[file/path:line]`
+**关联 CVE**: [CVE-ID / N/A — ...]
+```
+
+This ensures consistent formatting when reports are reviewed side-by-side.
+See Constraint 0 in each sub-skill for field-specific rules.
+
+## Cross-Module Format Consistency Policy
+
+When generating reports for multiple modules, ALL module reports of the same
+type MUST have identical section structure, finding header format, and severity
+labels. The batch-scan orchestrator verifies this before generating the Summary.
+
 ## Strict Rule Mapping Policy
 
 - **Main report issues**: MUST map to a specific Rule ID in the standards files
@@ -116,6 +149,7 @@ Medium-severity issues must always have an explicit P0–P3 label.
 ```
 code-review-artifacts/
 ├── reverse-engineering/          ← @codebase-reverse-engineering output
+├── previous-scan/                ← previous reports (for @rescan only)
 ├── [Module1]_Reliability_Maintainability_Report_[date].md
 ├── [Module1]_Security_Report_[date].md
 ├── [Module2]_Reliability_Maintainability_Report_[date].md
@@ -124,7 +158,9 @@ code-review-artifacts/
 ├── [Module3]_Security_Report_[date].md
 ├── [Module4]_Reliability_Maintainability_Report_[date].md
 ├── [Module4]_Security_Report_[date].md
-└── Summary_Report_[date].md
+├── Summary_Report_[date].md
+├── [Module]_Rescan_Report_[date].md          ← @rescan output
+└── Rescan_Summary_Report_[date].md           ← @rescan output
 ```
 
 ## Language

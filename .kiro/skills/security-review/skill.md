@@ -107,7 +107,20 @@ If `tool-reports/` exists:
   - False positive: note as dismissed with justification
   - Needs investigation: include with "needs manual verification" note
 
-### Step 3: CVSS Scoring & CVE Association
+### Step 3: Unified Finding Header & CVSS Scoring
+
+Every finding in this report MUST begin with the following 4-line header block,
+placed immediately after the finding title, before any other fields:
+
+```
+**风险等级**: CRITICAL / HIGH / MEDIUM / LOW
+**CVSS 评估**: [score] ([severity])
+**文件**: `[file/path:line]`
+**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+```
+
+This header format is shared across ALL report types (R&M, Security, Security Review)
+to ensure consistent presentation when reports are compared side-by-side.
 
 For each finding identified in Step 2:
 
@@ -155,12 +168,14 @@ Create `code-review-artifacts/security-review/security-report.md`:
 ## Critical Findings (Blocking)
 
 ### [SEC-C-001] [Finding Title]
-- **风险等级**: CRITICAL
-- **CVSS 评估**: [score] ([severity])
+
+**风险等级**: CRITICAL
+**CVSS 评估**: [score] (Critical)
+**文件**: `[file:line]`
+**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+
 - **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
 - **分类**: [CWE-ID] [CWE Name] / [OWASP ID]
-- **关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
-- **文件**: `[file:line]`
 - **描述**: [What the vulnerability is]
 - **证据**: [Code snippet or pattern found]
 - **影响**: [What an attacker could do]
@@ -169,12 +184,14 @@ Create `code-review-artifacts/security-review/security-report.md`:
 ## High Severity Findings
 
 ### [SEC-H-001] [Finding Title]
-- **风险等级**: HIGH
-- **CVSS 评估**: [score] ([severity])
+
+**风险等级**: HIGH
+**CVSS 评估**: [score] (High)
+**文件**: `[file:line]`
+**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+
 - **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
 - **分类**: [CWE-ID] [CWE Name] / [OWASP ID]
-- **关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
-- **文件**: `[file:line]`
 - **描述**: [What the vulnerability is]
 - **证据**: [Code snippet or pattern found]
 - **影响**: [What an attacker could do]
@@ -183,12 +200,24 @@ Create `code-review-artifacts/security-review/security-report.md`:
 ## Medium Severity Findings
 
 ### [SEC-M-001] [Finding Title]
-[Same structure — 风险等级: MEDIUM]
+
+**风险等级**: MEDIUM
+**CVSS 评估**: [score] (Medium)
+**文件**: `[file:line]`
+**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+
+[Same remaining structure as above]
 
 ## Low Severity Findings
 
 ### [SEC-L-001] [Finding Title]
-[Same structure — 风险等级: LOW]
+
+**风险等级**: LOW
+**CVSS 评估**: [score] (Low)
+**文件**: `[file:line]`
+**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+
+[Same remaining structure as above]
 
 ## OWASP Top 10 Compliance Matrix
 

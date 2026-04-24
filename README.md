@@ -88,6 +88,18 @@ code-review-artifacts/
 
 ## 报告结构说明
 
+### 统一 Finding 头部格式
+
+所有报告类型（R&M / Security / Security Review / Rescan）中的每个 finding 都以
+相同的 4 行头部信息开头，确保跨报告对比时格式一致：
+
+```
+**风险等级**: CRITICAL / HIGH / MEDIUM
+**CVSS 评估**: 9.8 (Critical) / N/A — 非安全类规则
+**文件**: `src/main/java/com/example/Config.java:42`
+**关联 CVE**: CVE-2016-4437 模式 / N/A — 代码逻辑缺陷 (CWE-xxx)
+```
+
 ### 分类报告（R&M / Security）
 
 每份分类报告包含：
@@ -95,9 +107,9 @@ code-review-artifacts/
 1. **报告抬头** — 仓库/模块名称、扫描日期、审查标准、规则编号格式
 2. **审查概要** — 按类别统计 + 严重程度分布 + 质量门状态
 3. **Issue 详情** — 每个 issue 包含：
+   - 统一头部（风险等级 / CVSS 评估 / 文件 / 关联 CVE）
    - 编号（如 BUG-01, SEC-01）
    - 规则编号 + 规则描述（严格对照 SonarQube / BSL 规则）
-   - 严重程度（Critical / High / Medium）
    - 问题文件路径 + 代码片段
    - 问题说明（根因 + 业务影响）
    - 详尽修复建议（针对具体代码）
@@ -105,6 +117,16 @@ code-review-artifacts/
    - 不修复的业务影响
 4. **修复优先级汇总**
 5. **附录** — LLM 自发现的、无法映射到规则集的额外问题（不计入质量门）
+
+### 二次扫描报告（Rescan）
+
+每份 Rescan 报告包含：
+
+1. **修复验证结果** — 按 FIXED / PARTIALLY FIXED / NOT FIXED / REGRESSED 分类统计
+2. **修复率** — 总问题数、已修复数、修复百分比
+3. **逐项核查详情** — 每个之前的 finding 的修复状态和评估
+4. **回归问题** — 修复过程中引入的新问题
+5. **剩余未修复问题清单**
 
 ### 汇总报告（Summary）
 
@@ -164,7 +186,41 @@ SonarQube / BSL 规则之外的问题不混入主报告 issue 列表，统一收
 @sonarqube-review                 ← 2. 对指定模块生成 R&M 报告
 @secure-coding-baseline-review    ← 3. 对指定模块生成 Security 报告
 @summary-report                   ← 4. 生成汇总报告
+@rescan                           ← 5. 修复后二次扫描（可选，修复后使用）
 ```
+
+### 第五步：修复后二次扫描（Rescan）
+
+当开发团队修复了首次扫描发现的问题后，使用 `@rescan` 进行验证：
+
+**1. 准备工作（在新版本代码目录中执行）：**
+
+```bash
+# 复制上一次的 reverse-engineering 文档（无需重新执行）
+cp -r /path/to/previous-version/code-review-artifacts/reverse-engineering/ \
+      /path/to/new-version/code-review-artifacts/reverse-engineering/
+
+# 复制上一次的扫描报告作为对比基线
+cp /path/to/previous-version/code-review-artifacts/*_Report_*.md \
+   /path/to/new-version/code-review-artifacts/previous-scan/
+```
+
+**2. 执行二次扫描：**
+
+```
+@rescan
+```
+
+**二次扫描会自动完成：**
+- 逐项核查之前报告中的每个问题是否已修复
+- 评估修复的完整性和正确性（是否治标又治本）
+- 检查修复代码是否引入了新问题（回归）
+- 生成 Delta 报告（FIXED / PARTIALLY FIXED / NOT FIXED / REGRESSED）
+- 重新评估质量门状态
+
+**注意**：二次扫描不需要重新执行 `@codebase-reverse-engineering`，因为系统架构、
+技术栈等信息在修复周期内通常不会变化。如果新版本包含重大架构变更（不仅是 bug 修复），
+则应重新执行 `@codebase-reverse-engineering`。
 
 ### 可选的补充审核（深度分析）
 
@@ -200,4 +256,13 @@ A: 附录中的问题来自 LLM 通用最佳实践发现，不在客户指定规
 建议作为参考，酌情处理。
 
 **Q: 质量门 Fail 了怎么办？**
-A: 查看 Summary Report 中的 P0 issues 列表，这些是必须修复的。修复后重新执行扫描验证。
+A: 查看 Summary Report 中的 P0 issues 列表，这些是必须修复的。修复后使用 `@rescan`
+进行二次扫描验证（无需重新执行 `@codebase-reverse-engineering`）。
+
+**Q: 修复后二次扫描需要重新执行 reverse engineering 吗？**
+A: 不需要。将上一次的 `code-review-artifacts/reverse-engineering/` 目录复制到新版本代码目录下即可。
+`@rescan` 会自动使用这些文档。只有当新版本包含重大架构变更时才需要重新执行。
+
+**Q: 二次扫描和首次扫描有什么区别？**
+A: `@rescan` 聚焦于修复验证，不是全量重扫。它逐项核查之前的 finding 是否修复，评估修复的
+完整性和正确性，并检查修复是否引入回归问题。产出 Delta 报告而非全量报告。

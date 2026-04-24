@@ -34,6 +34,31 @@ If the module contains neither, output a short "Not applicable" report.
 
 ## CRITICAL CONSTRAINTS
 
+### Constraint 0: Unified Finding Header
+
+Every finding in this report MUST begin with the following 4-line header block,
+placed immediately after the finding title, before any other fields:
+
+```
+**风险等级**: CRITICAL / HIGH / MEDIUM
+**CVSS 评估**: [score] ([severity]) / N/A — 非安全类规则
+**文件**: `[file/path.java:line]`
+**关联 CVE**: [CVE-ID 模式] / N/A — 代码质量规则 (CWE-ID)
+```
+
+Rules for each field:
+- **风险等级**: Map from rule severity — Blocker→CRITICAL, High→HIGH, Medium→MEDIUM.
+- **CVSS 评估**: For security-category rules (`javasecurity:*`, `jssecurity:*`, and
+  Security Rules sections), compute a CVSS v3.1 Base Score with full vector string.
+  For non-security rules (reliability, testing, code quality), use `N/A — 非安全类规则`.
+- **文件**: Exact file path and line number where the issue was found.
+- **关联 CVE**: For security rules, associate a CVE if a known CVE pattern matches
+  (e.g., `CVE-2016-4437 模式`). If no CVE matches, use
+  `N/A — 代码逻辑缺陷 (CWE-xxx)`. For non-security rules, use `N/A — 非安全类规则`.
+
+This header format is shared across ALL report types (R&M, Security, Security Review)
+to ensure consistent presentation when reports are compared side-by-side.
+
 ### Constraint 1: Strict Rule-to-ID Mapping
 
 Every issue in the main report body MUST map to a specific rule in the
@@ -179,10 +204,13 @@ Create the report using the template below.
 
 ### BUG-01: [Brief title]
 
+**风险等级**: [CRITICAL / HIGH / MEDIUM]
+**CVSS 评估**: [score] ([severity]) / N/A — 非安全类规则
+**文件**: `[file/path.java:line]`
+**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID) / N/A — 非安全类规则]
+
 - **Rule**: `[java:Sxxxx]` — [Rule description from standards]
-- **Severity**: [Critical / High / Medium]
 - **Fix Priority**: [P0 / P1 / P2 / P3]
-- **Location**: `[file/path.java:line]`
 
 **Code**:
 ```java

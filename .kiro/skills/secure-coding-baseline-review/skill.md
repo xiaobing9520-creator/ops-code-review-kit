@@ -32,6 +32,29 @@ inapplicable controls as N/A with justification.
 
 ## CRITICAL CONSTRAINTS
 
+### Constraint 0: Unified Finding Header
+
+Every finding in this report MUST begin with the following 4-line header block,
+placed immediately after the finding title, before any other fields:
+
+```
+**风险等级**: CRITICAL / HIGH / MEDIUM / LOW
+**CVSS 评估**: [score] ([severity])
+**文件**: `[file/path.java:line]`
+**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+```
+
+Rules for each field:
+- **风险等级**: Derived from the CVSS score (see Constraint 2).
+- **CVSS 评估**: Always computed for Security report findings. Include the full
+  CVSS vector string on a separate line below.
+- **文件**: Exact file path and line number where the issue was found.
+- **关联 CVE**: Associate a CVE if a known CVE pattern matches. If no CVE matches,
+  use `N/A — 代码逻辑缺陷 (CWE-xxx)`.
+
+This header format is shared across ALL report types (R&M, Security, Security Review)
+to ensure consistent presentation when reports are compared side-by-side.
+
 ### Constraint 1: Strict Control-to-ID Mapping
 
 Every issue in the main report body MUST map to a specific BSL control in
@@ -237,14 +260,15 @@ Otherwise: Fail
 
 ### SEC-01: [Brief title]
 
+**风险等级**: [CRITICAL / HIGH / MEDIUM / LOW]
+**CVSS 评估**: [score] ([severity])
+**文件**: `[file/path.java:line]`
+**关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
+
 - **BSL Control**: `11.1.1_[xx]` — [Control description from standards]
 - **Security Domain**: [domain name]
-- **风险等级**: [CRITICAL / HIGH / MEDIUM / LOW]
-- **CVSS 评估**: [score] ([severity])
 - **CVSS 向量**: `CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_`
-- **关联 CVE**: [CVE-ID / CVE-ID 模式 / N/A — 代码逻辑缺陷 (CWE-ID)]
 - **Fix Priority**: [P0 / P1 / P2 / P3]
-- **Location**: `[file/path.java:line]`
 
 **Code**:
 ```java
