@@ -15,14 +15,16 @@ All review work is performed by the operations team in their own environment.
 - **2 reports per module**: Reliability & Maintainability + Security
 - **Global summary report**: Merges all module scan results with overall Pass/Fail determination
 - **Strict rule mapping**: Every issue must map to a specific Rule ID — no ad-hoc adjustments
-- **Quality gate**: Automatic Pass/Fail based on Critical/High/Medium(P0) thresholds
+- **Quality gate**: Automatic Pass/Fail based on severity thresholds
 - **Fix priorities**: P0–P3 classification with defined remediation timelines
+- **AI-suggested fix code**: Each finding includes AI-generated corrective code where applicable
+- **Word output**: Reports generated in both Markdown and Word (.docx) format
 
 ## Report Types
 
 | Report | Review Standards | Coverage |
 |--------|-----------------|----------|
-| Reliability & Maintainability | SonarQube Java/JavaScript rules (651 rules) | Blocker / High / Medium |
+| Reliability & Maintainability | SonarQube Java/JavaScript rules (Bug category only; excludes Security & Code Smell) | Blocker / High / Medium |
 | Security | Philips Secure Coding Baseline (BSL 11.1.1.d, 230 controls) | 17 security domains |
 | Summary | Aggregates all modules | Global Pass/Fail |
 
@@ -150,6 +152,7 @@ Each category report contains:
    - File path + code snippet
    - Root cause & business impact
    - Detailed fix recommendation (code-specific)
+   - AI-suggested fix code (corrected code snippet, where applicable)
    - Fix priority (P0/P1/P2/P3)
    - Impact of not fixing
 4. **Fix priority summary**
@@ -173,13 +176,22 @@ Each rescan report contains:
 
 ## Quality Gate
 
+### Reliability & Maintainability Report
 ```
 Pass conditions (ALL must be true):
   - 0 Critical issues
   - 0 High issues
   - 0 Medium issues with P0 priority
-
 Otherwise: Fail
+```
+
+### Security Report
+```
+Pass conditions (ALL must be true):
+  - 0 Critical issues
+  - 0 High issues with P0 priority
+Otherwise: Fail
+(Medium issues are tracked but have no gate threshold)
 ```
 
 ## Fix Priority Definitions
@@ -200,6 +212,7 @@ rated P0 will cause the quality gate to Fail.
 
 - Source files: `sonarqube_rules.json` / `sonarqube_rules_java_medium.json` / `sonarqube_rules_javascript_medium.json`
 - Current total: 651 rules (Java 392 + JavaScript 259)
+- **Scope**: Bug category only — Security rules and Code Smell rules are excluded
 - Covers Blocker, High, and Medium severity levels
 - Every issue's rule ID, name, and severity strictly follows the rule definition
 - Issues that cannot map to a specific Rule ID are excluded from the main report
@@ -237,6 +250,27 @@ Appendix A–G as review standards:
 @security-review          ← OWASP/CWE security analysis (CVSS v3.1 scoring + CVE association)
 @acceptance-report        ← Combined acceptance decision (all dimensions)
 ```
+
+## Output Format
+
+Reports are generated in **both Markdown and Word (.docx)** format:
+
+- Markdown: Primary working format, viewable in Kiro / GitHub / any editor
+- Word (.docx): Final deliverable for stakeholders, generated via `pandoc`
+
+**Prerequisite for Word output**: Install [pandoc](https://pandoc.org/installing.html):
+```bash
+# macOS
+brew install pandoc
+
+# Ubuntu / Debian
+sudo apt install pandoc
+
+# Amazon Linux
+sudo yum install pandoc
+```
+
+If `pandoc` is not available, the scan completes normally but Word conversion is skipped.
 
 ## FAQ
 

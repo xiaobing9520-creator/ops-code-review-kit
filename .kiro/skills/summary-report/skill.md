@@ -50,6 +50,13 @@ individual module scans first.
 
 ---
 
+## Important Notes
+
+- Do NOT include any disclaimer about server-side security controls not being
+  assessed. The security scan via BSL covers all applicable controls including
+  server-side aspects.
+- Do NOT add caveats about review scope limitations at the end of the report.
+
 ## Report Template
 
 ```markdown
@@ -98,11 +105,11 @@ individual module scans first.
 The table below merges issues from all modules and all report types
 (SonarQube R&M + BSL Security).
 
-| Issue ID | Module | Severity | Description | Standard | Fix Priority | Rule ID | Rule Description | Fix Recommendation | Impact of Not Fixing |
-|----------|--------|----------|-------------|----------|-------------|---------|------------------|-------------------|---------------------|
-| BUG-01 | [Module 1] | Critical | [brief] | SonarQube | P0 | java:S2095 | Resources should be closed | [specific fix] | [risk] |
-| SEC-01 | [Module 1] | Critical | [brief] | Philips BSL | P0 | 11.1.1_41 | No crypto keys in source | [specific fix] | [risk] |
-| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
+| Issue ID | Module | Severity | Description | Standard | Fix Priority | Rule ID | Rule Description | Fix Recommendation | Suggested Fix Code | Impact of Not Fixing |
+|----------|--------|----------|-------------|----------|-------------|---------|------------------|-------------------|--------------------|---------------------|
+| BUG-01 | [Module 1] | Critical | [brief] | SonarQube | P0 | java:S2095 | Resources should be closed | [specific fix] | [code snippet / N/A] | [risk] |
+| SEC-01 | [Module 1] | Critical | [brief] | Philips BSL | P0 | 11.1.1_41 | No crypto keys in source | [specific fix] | [code snippet / N/A] | [risk] |
+| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
 
 ---
 

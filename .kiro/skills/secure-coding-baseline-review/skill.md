@@ -198,9 +198,11 @@ A Medium issue rated P0 causes the quality gate to **Fail**.
 ```
 Pass conditions (ALL must be true):
   - 0 Critical issues
-  - 0 High issues
-  - 0 Medium issues with priority P0
+  - 0 High issues with priority P0
 Otherwise: Fail
+
+Note: Medium issues are tracked but do NOT have a quality gate threshold.
+High issues without P0 priority do NOT block the quality gate.
 ```
 
 ### Step 6: Generate Report
@@ -251,8 +253,7 @@ Otherwise: Fail
 | Criteria | Threshold | Actual | Result |
 |----------|-----------|--------|--------|
 | Critical issues | 0 | [n] | Pass/Fail |
-| High issues | 0 | [n] | Pass/Fail |
-| Medium issues with P0 priority | 0 | [n] | Pass/Fail |
+| High issues with P0 priority | 0 | [n] | Pass/Fail |
 
 ---
 
@@ -281,6 +282,12 @@ Otherwise: Fail
 **Fix Recommendation**:
 [Specific, actionable fix for THIS code — not generic advice]
 
+**Suggested Fix Code (AI-generated)**:
+```java
+// AI-suggested corrected code (if applicable)
+```
+> If no code-level fix can be demonstrated, state: "N/A — requires architectural or configuration change."
+
 **Impact of Not Fixing**:
 [What happens if this issue is left unresolved — security risk description]
 
@@ -307,16 +314,15 @@ Otherwise: Fail
 
 ---
 
-## 4. BSL Compliance Summary
+## 4. Rule Coverage
 
 | Metric | Value |
 |--------|-------|
 | Total BSL controls | 230 |
-| Applicable controls | [n] |
-| Compliant (Pass) | [n] |
-| Non-compliant (Fail) | [n] |
-| Not applicable (N/A) | [n] |
-| Compliance rate | [n]% |
+| Controls checked | [n] |
+| Controls with findings (Fail) | [n] |
+| Controls passed (Pass) | [n] |
+| Controls not applicable (N/A) | [n] |
 
 ---
 
@@ -343,6 +349,6 @@ Security report generated.
 Output: code-review-artifacts/[MODULE]_Security_Report_[DATE].md
 
 Quality Gate: [PASS / FAIL]
-Issues: Critical=[n], High=[n], Medium=[n] (P0=[n])
-BSL Compliance: [n]% ([n] applicable controls checked)
+Issues: Critical=[n], High=[n] (P0=[n]), Medium=[n]
+BSL Controls checked: [n], Findings: [n]
 ```

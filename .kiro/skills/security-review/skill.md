@@ -180,6 +180,11 @@ Create `code-review-artifacts/security-review/security-report.md`:
 - **Evidence**: [Code snippet or pattern found]
 - **Impact**: [What an attacker could do]
 - **Fix Recommendation**: [Specific fix recommendation]
+- **Suggested Fix Code (AI-generated)**:
+```java
+// AI-suggested corrected code (if applicable)
+```
+> If no code-level fix can be demonstrated, state: "N/A — requires architectural or configuration change."
 
 ## High Severity Findings
 
@@ -196,6 +201,11 @@ Create `code-review-artifacts/security-review/security-report.md`:
 - **Evidence**: [Code snippet or pattern found]
 - **Impact**: [What an attacker could do]
 - **Fix Recommendation**: [Specific fix recommendation]
+- **Suggested Fix Code (AI-generated)**:
+```java
+// AI-suggested corrected code (if applicable)
+```
+> If no code-level fix can be demonstrated, state: "N/A — requires architectural or configuration change."
 
 ## Medium Severity Findings
 

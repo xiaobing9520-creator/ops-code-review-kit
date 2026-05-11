@@ -2,9 +2,9 @@
 name: sonarqube-review
 description: >
   Generates a Reliability & Maintainability report for a single module based on
-  SonarQube Java/JavaScript rules (Blocker/High/Medium). Strict rule-to-ID
-  mapping, quality gate, fix priorities (P0–P3), and LLM-discovered issues
-  isolated in appendix.
+  SonarQube Java/JavaScript rules (Blocker/High/Medium). Excludes security rules
+  and code smell rules. Strict rule-to-ID mapping, quality gate, fix priorities
+  (P0–P3), and LLM-discovered issues isolated in appendix.
 ---
 
 # Reliability & Maintainability Review (SonarQube Rules)
@@ -12,6 +12,10 @@ description: >
 You are a senior code quality engineer. Generate a **Reliability &
 Maintainability** report for the specified module by checking it against the
 organization's SonarQube rule set.
+
+**Scope**: This report covers reliability (Bug) rules only. Security rules and
+Code Smell rules are excluded — security is handled by the separate Security
+report (`@secure-coding-baseline-review`).
 
 ## Prerequisites
 
@@ -48,13 +52,9 @@ placed immediately after the finding title, before any other fields:
 
 Rules for each field:
 - **Risk Level**: Map from rule severity — Blocker→CRITICAL, High→HIGH, Medium→MEDIUM.
-- **CVSS Score**: For security-category rules (`javasecurity:*`, `jssecurity:*`, and
-  Security Rules sections), compute a CVSS v3.1 Base Score with full vector string.
-  For non-security rules (reliability, testing, code quality), use `N/A — non-security rule`.
+- **CVSS Score**: Always `N/A — non-security rule` (security rules are excluded from this report).
 - **File**: Exact file path and line number where the issue was found.
-- **Associated CVE**: For security rules, associate a CVE if a known CVE pattern matches
-  (e.g., `CVE-2016-4437 pattern`). If no CVE matches, use
-  `N/A — code logic defect (CWE-xxx)`. For non-security rules, use `N/A — non-security rule`.
+- **Associated CVE**: Always `N/A — non-security rule` (security rules are excluded from this report).
 
 This header format is shared across ALL report types (R&M, Security, Security Review)
 to ensure consistent presentation when reports are compared side-by-side.
@@ -113,11 +113,13 @@ For each rule in the standards file:
 4. If no violation: mark as Pass or N/A
 
 Process rules by category in this order:
-1. Security-related rules (injection, credentials, crypto)
-2. Reliability rules (resource leaks, concurrency, null safety)
-3. Spring Framework rules (if applicable)
-4. Testing quality rules
-5. Code quality / maintainability rules
+1. Reliability rules (resource leaks, concurrency, null safety)
+2. Spring Framework rules (if applicable)
+3. Testing quality rules
+
+**EXCLUSION**: Do NOT scan security-category rules (`javasecurity:*`,
+`jssecurity:*`, and rules in the "Security Rules" sections of the standards
+files). Security scanning is performed separately via `@secure-coding-baseline-review`.
 
 ### Step 3: Assign Fix Priority
 
@@ -173,7 +175,7 @@ Create the report using the template below.
 **Repository / Module**: [name]
 **Scan Date**: [YYYY-MM-DD]
 **Review Standards**: SonarQube Java/JavaScript Rules (Organization Quality Profile)
-**Rule ID Format**: `java:Sxxxx` / `javasecurity:Sxxxx` / `javabugs:Sxxxx` / `javaarchitecture:Sxxxx` / `javascript:Sxxxx` / `jssecurity:Sxxxx` / `jsarchitecture:Sxxxx`
+**Rule ID Format**: `java:Sxxxx` / `javabugs:Sxxxx` / `javaarchitecture:Sxxxx` / `javascript:Sxxxx` / `jsarchitecture:Sxxxx`
 
 ---
 
@@ -181,12 +183,12 @@ Create the report using the template below.
 
 ### 1.1 Issue Statistics by Category
 
-| Category | Bug | Vulnerability | Code Smell | Total |
-|----------|-----|---------------|------------|-------|
-| Critical | [n] | [n] | [n] | [n] |
-| High | [n] | [n] | [n] | [n] |
-| Medium | [n] | [n] | [n] | [n] |
-| **Total** | **[n]** | **[n]** | **[n]** | **[n]** |
+| Category | Bug | Total |
+|----------|-----|-------|
+| Critical | [n] | [n] |
+| High | [n] | [n] |
+| Medium | [n] | [n] |
+| **Total** | **[n]** | **[n]** |
 
 ### 1.2 Quality Gate
 
@@ -223,12 +225,18 @@ Create the report using the template below.
 **Fix Recommendation**:
 [Specific, actionable fix for THIS code — not generic advice]
 
+**Suggested Fix Code (AI-generated)**:
+```java
+// AI-suggested corrected code (if applicable)
+```
+> If no code-level fix can be demonstrated, state: "N/A — requires architectural or configuration change."
+
 **Impact of Not Fixing**:
 [What happens if this issue is left unresolved]
 
 ---
 
-[Repeat for each issue: BUG-02, VULN-01, SMELL-01, etc.]
+[Repeat for each issue: BUG-02, BUG-03, etc.]
 
 ---
 

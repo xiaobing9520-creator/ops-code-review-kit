@@ -22,7 +22,7 @@ Each module produces **2 reports**:
 
 | Report | Standards | Coverage |
 |--------|----------|----------|
-| Reliability & Maintainability | SonarQube Java/JavaScript rules (651 rules) | Blocker / High / Medium |
+| Reliability & Maintainability | SonarQube Java/JavaScript rules (Bug category only, excludes Security & Code Smell) | Blocker / High / Medium |
 | Security | Philips Secure Coding Baseline (BSL 11.1.1.d, 230 controls) | 17 security domains |
 
 Plus **1 global report**:
@@ -83,24 +83,57 @@ These skills provide supplementary analysis beyond the two core report types:
 Security review standards (CVSS v3.1, CVE association, OWASP/CWE checks) are
 consolidated into the BSL file as Appendix A–G. No separate standards files needed.
 
+## Report Output Format
+
+Reports are generated in **two formats**:
+
+1. **Markdown** (`.md`) — Primary working format, used during review
+2. **Word** (`.docx`) — Final deliverable format for stakeholders
+
+After generating all Markdown reports, convert each report to Word format using
+`pandoc`. The Word files are saved alongside their Markdown counterparts.
+
+```bash
+# Convert all reports to Word format
+for f in code-review-artifacts/*.md; do
+  pandoc "$f" -o "${f%.md}.docx" --reference-doc=.kiro/reference.docx 2>/dev/null || \
+  pandoc "$f" -o "${f%.md}.docx"
+done
+```
+
+If `pandoc` is not available in the environment, instruct the user to install it
+(`sudo apt install pandoc` / `brew install pandoc`) or note that Word conversion
+was skipped and the Markdown files are the deliverable.
+
 ## Report Naming Convention
 
 ```
-[ModuleName]_Reliability_Maintainability_Report_[YYYY-MM-DD].md
-[ModuleName]_Security_Report_[YYYY-MM-DD].md
-Summary_Report_[YYYY-MM-DD].md
+[ModuleName]_Reliability_Maintainability_Report_[YYYY-MM-DD].md / .docx
+[ModuleName]_Security_Report_[YYYY-MM-DD].md / .docx
+Summary_Report_[YYYY-MM-DD].md / .docx
 ```
 
 ## Quality Gate
 
-Each report has an independent quality gate:
+Each report type has its own quality gate:
 
+### Reliability & Maintainability Report
 ```
 Pass conditions (ALL must be true):
   - 0 Critical (Blocker) issues
   - 0 High issues
   - 0 Medium issues with fix priority P0
 Otherwise: Fail
+```
+
+### Security Report
+```
+Pass conditions (ALL must be true):
+  - 0 Critical issues
+  - 0 High issues with fix priority P0
+Otherwise: Fail
+
+Note: Medium issues have no gate threshold in Security reports.
 ```
 
 The Summary Report's overall gate is Pass only if ALL individual reports Pass.
@@ -150,17 +183,17 @@ labels. The batch-scan orchestrator verifies this before generating the Summary.
 code-review-artifacts/
 ├── reverse-engineering/          ← @codebase-reverse-engineering output
 ├── previous-scan/                ← previous reports (for @rescan only)
-├── [Module1]_Reliability_Maintainability_Report_[date].md
-├── [Module1]_Security_Report_[date].md
-├── [Module2]_Reliability_Maintainability_Report_[date].md
-├── [Module2]_Security_Report_[date].md
-├── [Module3]_Reliability_Maintainability_Report_[date].md
-├── [Module3]_Security_Report_[date].md
-├── [Module4]_Reliability_Maintainability_Report_[date].md
-├── [Module4]_Security_Report_[date].md
-├── Summary_Report_[date].md
-├── [Module]_Rescan_Report_[date].md          ← @rescan output
-└── Rescan_Summary_Report_[date].md           ← @rescan output
+├── [Module1]_Reliability_Maintainability_Report_[date].md / .docx
+├── [Module1]_Security_Report_[date].md / .docx
+├── [Module2]_Reliability_Maintainability_Report_[date].md / .docx
+├── [Module2]_Security_Report_[date].md / .docx
+├── [Module3]_Reliability_Maintainability_Report_[date].md / .docx
+├── [Module3]_Security_Report_[date].md / .docx
+├── [Module4]_Reliability_Maintainability_Report_[date].md / .docx
+├── [Module4]_Security_Report_[date].md / .docx
+├── Summary_Report_[date].md / .docx
+├── [Module]_Rescan_Report_[date].md / .docx          ← @rescan output
+└── Rescan_Summary_Report_[date].md / .docx           ← @rescan output
 ```
 
 ## Language

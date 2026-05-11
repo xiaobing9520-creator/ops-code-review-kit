@@ -125,7 +125,21 @@ After all modules are processed, apply the `@summary-report` skill logic:
 - Aggregate into Summary_Report_[date].md
 - Compute overall quality gate
 
-### Step 4: Final Output
+### Step 4: Convert to Word Format
+
+After all Markdown reports are generated, convert each to Word (`.docx`) format:
+
+```bash
+for f in code-review-artifacts/*.md; do
+  pandoc "$f" -o "${f%.md}.docx" --reference-doc=.kiro/reference.docx 2>/dev/null || \
+  pandoc "$f" -o "${f%.md}.docx"
+done
+```
+
+If `pandoc` is not available, report that Word conversion was skipped and
+instruct the user to install it.
+
+### Step 5: Final Output
 
 ```
 ============================================
@@ -133,7 +147,7 @@ After all modules are processed, apply the `@summary-report` skill logic:
 ============================================
 
 Modules scanned: [n]
-Reports generated: [2n + 1]
+Reports generated: [2n + 1] (Markdown + Word)
 
 Overall Quality Gate: [PASS / FAIL]
 
@@ -149,16 +163,18 @@ Total Issues: [n]
   Medium:   [n]
   P0 (release blockers): [n]
 
-Reports:
-  code-review-artifacts/[Module1]_Reliability_Maintainability_Report_[date].md
-  code-review-artifacts/[Module1]_Security_Report_[date].md
-  code-review-artifacts/[Module2]_Reliability_Maintainability_Report_[date].md
-  code-review-artifacts/[Module2]_Security_Report_[date].md
-  code-review-artifacts/[Module3]_Reliability_Maintainability_Report_[date].md
-  code-review-artifacts/[Module3]_Security_Report_[date].md
-  code-review-artifacts/[Module4]_Reliability_Maintainability_Report_[date].md
-  code-review-artifacts/[Module4]_Security_Report_[date].md
-  code-review-artifacts/Summary_Report_[date].md
+Reports (Markdown + Word):
+  code-review-artifacts/[Module1]_Reliability_Maintainability_Report_[date].md (.docx)
+  code-review-artifacts/[Module1]_Security_Report_[date].md (.docx)
+  code-review-artifacts/[Module2]_Reliability_Maintainability_Report_[date].md (.docx)
+  code-review-artifacts/[Module2]_Security_Report_[date].md (.docx)
+  code-review-artifacts/[Module3]_Reliability_Maintainability_Report_[date].md (.docx)
+  code-review-artifacts/[Module3]_Security_Report_[date].md (.docx)
+  code-review-artifacts/[Module4]_Reliability_Maintainability_Report_[date].md (.docx)
+  code-review-artifacts/[Module4]_Security_Report_[date].md (.docx)
+  code-review-artifacts/Summary_Report_[date].md (.docx)
+
+Word conversion: [Completed / Skipped — pandoc not available]
 ============================================
 ```
 
@@ -181,7 +197,7 @@ comparability. Before generating reports, enforce:
    Never use alternative labels (Blocker, Major, Minor, etc.) in any report.
 
 4. **Consistent Numbering**: Issue IDs within each report type use the same prefix
-   pattern — `BUG-nn`/`VULN-nn`/`SMELL-nn` for R&M, `SEC-nn` for Security.
+   pattern — `BUG-nn` for R&M, `SEC-nn` for Security.
 
 5. **Self-Validation Step**: After generating all module reports and before
    generating the Summary Report, spot-check 2 modules to confirm their report
