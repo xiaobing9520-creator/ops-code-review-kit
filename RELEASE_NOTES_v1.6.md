@@ -88,6 +88,67 @@ with a notification.
 
 ---
 
+## Appendix: Severity & Priority Classification Logic
+
+### Two Orthogonal Dimensions
+
+| Dimension | Source | Question It Answers |
+|-----------|--------|---------------------|
+| **Severity** (Risk Level) | CVSS v3.1 Base Score (8 metrics) | "If exploited, how bad is the impact?" |
+| **Priority** (Fix Priority) | Business context judgment | "How urgently must this be fixed?" |
+
+These dimensions are independent. A finding can be High severity but P2 priority
+(serious but not urgent), or Medium severity but P0 priority (limited blast
+radius but on a critical business path).
+
+### Severity Classification
+
+Derived from CVSS v3.1 score calculation (Attack Vector, Attack Complexity,
+Privileges Required, User Interaction, Scope, Confidentiality/Integrity/Availability):
+
+| Severity | CVSS Range | Meaning |
+|----------|-----------|---------|
+| **Critical** | 9.0 – 10.0 | Trivially exploitable, catastrophic impact |
+| **High** | 7.0 – 8.9 | Exploitable with some conditions, serious impact |
+| **Medium** | 4.0 – 6.9 | Exploitation requires specific preconditions (local access, user interaction, etc.) |
+| **Low** | 0.1 – 3.9 | Limited impact even if exploited |
+
+For R&M reports (non-security), severity maps from SonarQube rule definition:
+Blocker → Critical, High → High, Medium → Medium.
+
+### Priority Classification
+
+Assigned based on business context, deployment environment, and fix cost:
+
+| Priority | Meaning | Typical Scenarios |
+|----------|---------|-------------------|
+| **P0** | Must fix before release | On critical path (auth/payment), compliance-mandated, trivial to fix |
+| **P1** | Fix within 1–2 weeks | High risk but mitigated by other controls, not blocking release |
+| **P2** | Fix within 1 month | Some risk, acceptable short-term given other safeguards |
+| **P3** | Long-term optimization | Minimal practical risk, technical debt |
+
+### Why Medium + P0 Exists
+
+A CVSS Medium (4.0–6.9) means exploitation requires preconditions — the
+vulnerability is not trivially exploitable. But P0 can still apply when:
+
+- The vulnerable code sits on a critical business path (e.g., payment, admin)
+- Compliance explicitly requires the control regardless of CVSS
+- The fix is trivial (no reason to carry the risk into production)
+- Deployment context amplifies the real-world risk beyond what base CVSS reflects
+
+### Quality Gate Logic by Report Type
+
+| Report | Gate Criteria | Rationale |
+|--------|--------------|-----------|
+| **R&M** | Critical=0, High=0, Medium(P0)=0 | Bugs are deterministic — a resource leak or null pointer WILL fire in production, no "exploitation conditions" buffer |
+| **Security** | Critical=0, High(P0)=0 | Security Medium has inherent exploitation preconditions (CVSS guarantees this); even P0 Medium is trackable post-release. High without P0 means serious but mitigated/deferrable. |
+
+**In short**: R&M defects are certainties (will happen), security defects are
+probabilities (may happen given conditions). The gate reflects this difference.
+
+---
+
 ## Migration from v1.5
 
 No manual migration required. Simply replace the `.kiro/` directory in your
