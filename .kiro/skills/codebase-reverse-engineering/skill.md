@@ -1,13 +1,14 @@
 ---
 name: codebase-reverse-engineering
 description: >
-  Performs comprehensive reverse engineering analysis of an existing codebase
-  before code review. Use as the FIRST step before running any dimension-specific
-  review. Generates architecture docs, code structure, API inventory, dependency
-  map, technology stack, and code quality baseline.
+  Performs deterministic reverse engineering analysis of an existing codebase
+  before code review. Use as the FIRST step before running any review skill.
+  Generates architecture docs, API inventory, dependency map, technology stack,
+  and code quality baseline. Designed for reproducible output: same code + same
+  skill + same model = same architecture output.
 ---
 
-# Codebase Reverse Engineering
+# Codebase Reverse Engineering (v1.7 — Deterministic)
 
 You are a senior software architect performing comprehensive reverse engineering
 of a codebase. Your goal is to deeply understand the system before any code
@@ -18,6 +19,9 @@ will reference.
 
 This skill MUST be executed before any of the following review skills:
 - security-review
+- secure-coding-baseline-review
+- sonarqube-review
+- batch-scan
 - acceptance-report
 
 The artifacts generated here provide the foundation for all subsequent reviews.
@@ -27,112 +31,247 @@ The artifacts generated here provide the foundation for all subsequent reviews.
 All artifacts are saved to `code-review-artifacts/reverse-engineering/` in the
 project root.
 
+---
+
+## DETERMINISM RULES (v1.7)
+
+These rules ensure that running this skill on the SAME codebase produces the
+SAME output regardless of when or how many times it is run.
+
+### D1: Canonical File Discovery Order
+
+All file discovery MUST use explicit, sorted listings:
+- Use `find . -type f | sort` (or language equivalent) for all directory scans
+- NEVER rely on raw filesystem order (readdir, glob without sort)
+- When listing directories: always `ls -1 | sort` or equivalent
+- Result: every file list in every artifact is alphabetically sorted
+
+### D2: Deterministic Read Order
+
+Files MUST be read in the following fixed priority order:
+1. Build config files (pom.xml, build.gradle, package.json, go.mod, Cargo.toml,
+   pyproject.toml) — sorted alphabetically by path
+2. Entry points (main.*, index.*, app.*, Application.*, server.*, handler.*) —
+   sorted alphabetically by path
+3. Configuration files (application.yml, .env.example, config/*) — sorted
+   alphabetically by path
+4. API definitions (OpenAPI, GraphQL schemas, proto files, route files) —
+   sorted alphabetically by path
+5. Infrastructure files (Dockerfile, *.tf, docker-compose.yml, CI configs) —
+   sorted alphabetically by path
+6. Source files by module — modules sorted alphabetically, files within each
+   module sorted alphabetically by path
+
+Within each priority group, always process files in **alphabetical path order**.
+
+### D3: Explicit Scope Boundaries
+
+**ALWAYS include** (if they exist):
+- All files matching the build config patterns above
+- All files in `src/main/` or equivalent source root
+- All files defining public APIs (controllers, routes, handlers, resolvers)
+- All configuration and property files
+
+**NEVER include** (even if present):
+- `node_modules/`, `vendor/`, `.gradle/`, `target/`, `build/`, `dist/`, `out/`
+- `.git/` contents
+- Binary files (images, compiled artifacts, archives)
+- Lock files contents (package-lock.json, yarn.lock, pnpm-lock.yaml, go.sum) —
+  note their EXISTENCE but do not parse contents
+- Generated code directories (if clearly marked as generated)
+- Test fixture data files (large JSON/XML test data)
+
+### D4: Deterministic Table Ordering
+
+ALL tables in ALL output artifacts MUST be sorted by a defined key:
+
+| Table Type | Sort Key | Direction |
+|-----------|----------|-----------|
+| Component Catalog | Component/package name | A→Z |
+| Dependency tables | Dependency name | A→Z |
+| Framework/library tables | Library name | A→Z |
+| API endpoint tables | HTTP method + path (REST), operation name (GraphQL/gRPC) | A→Z |
+| Infrastructure services | Service name | A→Z |
+| Business transactions | Transaction name | A→Z |
+| Design patterns | Pattern name | A→Z |
+| Metrics tables | Metric name | A→Z |
+
+### D5: Factual Content Only — No Subjective Assessments
+
+**PROHIBITED in output artifacts**:
+- Subjective quality judgments ("well-structured", "could be improved", "notable")
+- Ranked "key findings" or "top observations" (ordering is subjective)
+- Recommendations or suggestions (that's for review skills, not reverse engineering)
+- Comparative statements ("more than expected", "unusual amount of")
+- Future-looking statements ("should consider", "would benefit from")
+
+**REQUIRED instead**:
+- State facts: counts, names, versions, paths, relationships
+- Use "Present / Absent / Not Found" — not quality adjectives
+- List ALL findings in sorted order rather than selecting "top N"
+
+### D6: Fixed Template Completion Rules
+
+For every template field:
+- If the information EXISTS in the code: extract it verbatim or compute it
+  deterministically (counts, sorted lists)
+- If the information DOES NOT EXIST: write exactly `Not Found — [reason]`
+- NEVER paraphrase differently across runs — use the exact field labels from
+  the templates below
+- NEVER add extra sections beyond what the template defines
+- NEVER omit template sections — mark as "Not Found" or "N/A" if empty
+
+### D7: No Context Leakage
+
+- Do NOT reference previous runs, prior artifacts, or cached results
+- Do NOT let conversation context influence output — only the source code matters
+- If `code-review-artifacts/reverse-engineering/` already exists, overwrite it
+  completely (do not merge with previous output)
+- Each run is independent and self-contained
+
+---
+
 ## General Rules
 
 - If information for a section cannot be determined or does not exist, mark it
-  as **"Not Found"** with a brief reason. Never guess or fabricate content.
+  as **"Not Found — [specific reason]"**. Never guess or fabricate content.
 - Use cross-references (`See [architecture.md](architecture.md)`) instead of
   duplicating information across artifacts.
-- Adapt depth of analysis to codebase scale (see Step 0).
+- Adapt depth of analysis to codebase scale (see Step 0), but apply the same
+  DETERMINISM RULES at every scale.
 
 ---
 
 ## Reverse Engineering Process
 
-### Step 0: Scale Assessment & Exploration Strategy
+### Step 0: Scale Assessment & Scope Definition
 
-Before diving into analysis, assess the codebase scale and plan your approach.
+#### 0.1 Scale Assessment (Deterministic)
 
-#### 0.1 Quick Scale Assessment
+Run a file count to classify the codebase:
 
-Run a top-level scan to classify the codebase:
+```bash
+# Count source files (exclude node_modules, vendor, .git, build, dist, target, out)
+find . -type f \
+  -not -path '*/node_modules/*' \
+  -not -path '*/vendor/*' \
+  -not -path '*/.git/*' \
+  -not -path '*/build/*' \
+  -not -path '*/dist/*' \
+  -not -path '*/target/*' \
+  -not -path '*/out/*' \
+  -not -path '*/.gradle/*' \
+  -name '*.java' -o -name '*.js' -o -name '*.ts' -o -name '*.jsx' -o \
+  -name '*.tsx' -o -name '*.py' -o -name '*.go' -o -name '*.rs' -o \
+  -name '*.kt' -o -name '*.scala' -o -name '*.rb' -o -name '*.cs' -o \
+  -name '*.php' -o -name '*.swift' -o -name '*.c' -o -name '*.cpp' -o \
+  -name '*.h' | sort | wc -l
+```
 
-| Scale | File Count | Strategy |
-|-------|-----------|----------|
-| **Small** | < 50 source files | Full analysis — read all key files |
-| **Medium** | 50-500 source files | Module-level analysis — read entry points, configs, and core logic per module; sample non-critical files |
-| **Large** | > 500 source files | Skeleton analysis — focus on architecture, entry points, configs, public APIs; skip internal implementation details |
+| Scale | File Count | Scope |
+|-------|-----------|-------|
+| **Small** | < 50 source files | Read ALL source files |
+| **Medium** | 50–500 source files | Read all files in priority groups D2.1–D2.5, plus all public API source files; sample internal implementation (first file alphabetically per package) |
+| **Large** | > 500 source files | Read all files in priority groups D2.1–D2.5; for source (D2.6), read only entry points, controllers, service layer entry classes (first 3 files alphabetically per package) |
 
-Record the assessed scale in the analysis summary. All subsequent steps should
-respect this scale classification.
+The scale classification determines which files are read, NOT how they are
+reported. Output artifact structure is identical at all scales.
 
-#### 0.2 Exploration Strategy
+#### 0.2 File Manifest (Required)
 
-Follow this order to efficiently understand the codebase:
+Before any analysis, produce a sorted file manifest:
 
-1. **Root-level scan**: List root directory contents; read top-level config files
-   (package.json, pom.xml, build.gradle, go.mod, Cargo.toml, pyproject.toml,
-   Makefile, docker-compose.yml, etc.)
-2. **Workspace/monorepo detection**: Check for monorepo tooling (Nx, Turborepo,
-   Lerna, pnpm workspaces, Bazel, Gradle multi-project, Maven multi-module).
-   If present, read workspace config to discover all packages.
-3. **Entry point identification**: Locate main entry files (main.*, index.*,
-   app.*, handler.*, server.*) using glob patterns.
-4. **Config & infra scan**: Glob for `**/Dockerfile`, `**/*.tf`, `**/template.yaml`,
-   `**/.github/workflows/*`, `**/Jenkinsfile`, `**/*.pipeline.*`.
-5. **API surface scan**: Glob for OpenAPI/Swagger specs, GraphQL schemas, gRPC
-   proto files, Smithy models, route definitions.
-6. **Targeted deep reads**: Based on discoveries above, read specific files that
-   are critical for understanding architecture and business logic.
+```bash
+find . -type f \
+  -not -path '*/node_modules/*' \
+  -not -path '*/vendor/*' \
+  -not -path '*/.git/*' \
+  -not -path '*/build/*' \
+  -not -path '*/dist/*' \
+  -not -path '*/target/*' \
+  -not -path '*/out/*' \
+  -not -path '*/.gradle/*' \
+  | sort
+```
 
-Do NOT read files sequentially or exhaustively. Use glob and grep to discover,
-then read selectively.
+This manifest is the CANONICAL source for all file references in the output.
+Only files in this manifest may appear in the artifacts.
+
+#### 0.3 Module Discovery (Deterministic)
+
+Detect modules using this fixed priority chain (stop at first match):
+
+1. **Maven**: Parse `<modules>` in root `pom.xml` → sort alphabetically
+2. **Gradle**: Parse `include` in `settings.gradle(.kts)` → sort alphabetically
+3. **npm/pnpm/yarn workspaces**: Parse `workspaces` in root `package.json` → sort alphabetically
+4. **Nx/Turborepo/Lerna**: Parse workspace config → sort alphabetically
+5. **Go workspace**: Parse `go.work` → sort alphabetically
+6. **Directory heuristic**: Subdirectories with their own build file → sort alphabetically
+
+The module list is FIXED after this step. All subsequent per-module processing
+uses this exact sorted list.
 
 ---
 
-### Step 1: Multi-Package Discovery
+### Step 1: Structured Discovery (Fixed Order)
 
-#### 1.1 Scan Workspace
+Process the following in EXACT sequence. Do not skip steps. Do not reorder.
 
-- Discover ALL packages, modules, and sub-projects (not just top-level)
-- Identify package relationships via config files
-- Classify package types: Application, Infrastructure, Models/Shared, Clients, Tests
-- **Monorepo handling**: If a monorepo tool is detected (Nx, Turborepo, Lerna,
-  pnpm workspaces, Bazel, etc.), document:
-  - Workspace configuration and package discovery mechanism
-  - Build orchestration and task pipeline
-  - Shared configuration (tsconfig, eslint, etc.)
-  - Package dependency graph within the monorepo
+#### 1.1 Build System Identification
 
-#### 1.2 Understand Business Context
+For each module (in alphabetical order):
+1. Read the build config file (pom.xml / build.gradle / package.json / etc.)
+2. Extract: group/artifact ID, version, declared dependencies, plugins
+3. Record build system type and version
 
-- Identify the core business domain the system implements
-- Determine the business purpose of every package/module
-- List business transactions/workflows implemented in the system
+#### 1.2 Language & Framework Detection
 
-#### 1.3 Infrastructure Discovery
+From build configs and file extensions (using the sorted file manifest):
+1. Count files per extension → determine primary/secondary languages
+2. Extract framework declarations from dependencies (Spring Boot, Express,
+   React, Django, FastAPI, Gin, etc.)
+3. Extract framework versions from config/lock files
 
-- IaC packages: CDK, Terraform (.tf), CloudFormation, Pulumi, Ansible
-- Container configurations: Dockerfile, docker-compose, Kubernetes manifests
-- Deployment scripts and CI/CD pipelines (.github/workflows, Jenkinsfile,
-  .gitlab-ci.yml, buildspec.yml, etc.)
+#### 1.3 Entry Point Identification
 
-#### 1.4 Build System Discovery
+Search in this fixed order:
+1. `**/src/main/**/Application.java` or `**/*Application.java`
+2. `**/src/main/**/Main.java` or `**/main.go` or `**/cmd/*/main.go`
+3. `**/index.ts` or `**/index.js` or `**/main.ts` or `**/main.js`
+4. `**/app.py` or `**/main.py` or `**/manage.py`
+5. `**/src/main.rs` or `**/src/lib.rs`
+6. Custom entry points declared in build configs (`mainClass`, `entry`, `bin`)
 
-- Identify build systems: Maven, Gradle, npm/yarn/pnpm, pip/poetry, Go modules,
-  Cargo, Bazel, Make, etc.
-- Map config files and build-system declarations
-- Trace build dependencies between packages
+Sort results alphabetically. These are the confirmed entry points.
 
-#### 1.5 Service Architecture Discovery
+#### 1.4 API Surface Discovery
 
-- **Serverless functions**: AWS Lambda, Azure Functions, GCP Cloud Functions,
-  Cloudflare Workers, etc.
-- **Container services**: Docker/ECS/Kubernetes/Cloud Run, etc.
-- **API definitions**: OpenAPI/Swagger, GraphQL, gRPC/Protobuf, Smithy, REST
-  route definitions
-- **Data stores**: Relational DBs, NoSQL, caches (Redis/Memcached), object
-  storage (S3/GCS/Azure Blob)
-- **Message & event systems**: Kafka, RabbitMQ, SQS/SNS, EventBridge, NATS,
-  Pub/Sub, etc.
+Search in this fixed order (sort results alphabetically):
+1. OpenAPI/Swagger: `**/*swagger*`, `**/*openapi*`, `**/api-docs*`
+2. GraphQL: `**/*.graphql`, `**/*.gql`, `**/schema.*`
+3. gRPC/Protobuf: `**/*.proto`
+4. REST Controllers: `**/*Controller.*`, `**/*Resource.*`, `**/routes/*`,
+   `**/router.*`, `**/*Handler.*`
+5. Route registrations: grep for `@RequestMapping`, `@GetMapping`,
+   `@PostMapping`, `router.get`, `app.get`, `@app.route`, etc.
 
-#### 1.6 Code Metrics Baseline
+#### 1.5 Infrastructure Discovery
 
-- Count lines of code per language (KLOC)
-- Count files per package/module
-- Identify programming languages and frameworks
-- Note test coverage indicators (coverage config, reports if present)
-- Note linting/formatting configurations
+Search in this fixed order (sort results alphabetically):
+1. Containers: `**/Dockerfile*`, `**/docker-compose*`
+2. IaC: `**/*.tf`, `**/cdk.json`, `**/template.yaml`, `**/serverless.yml`
+3. CI/CD: `**/.github/workflows/*`, `**/Jenkinsfile`, `**/.gitlab-ci.yml`,
+   `**/buildspec.yml`, `**/*.pipeline.*`
+4. K8s: `**/k8s/**`, `**/kubernetes/**`, `**/helm/**`, `**/*deployment*`,
+   `**/*service.yaml`
+
+#### 1.6 Data Store & Integration Discovery
+
+Search in this fixed order (sort results alphabetically):
+1. Database configs: connection strings, ORM configs, migration directories
+2. Cache configs: Redis, Memcached, Hazelcast configurations
+3. Message systems: Kafka, RabbitMQ, SQS/SNS, EventBridge configs
+4. External service clients: HTTP clients, SDK initializations, API keys
 
 ---
 
@@ -143,20 +282,37 @@ Create `code-review-artifacts/reverse-engineering/business-overview.md`:
 ```markdown
 # Business Overview
 
-## Business Context
-- **System Purpose**: [Overall description of what the system does]
-- **Business Domain**: [Domain area]
-- **Codebase Scale**: Small / Medium / Large ([N] source files)
+**Generated by**: @codebase-reverse-engineering v1.7
+**Codebase Scale**: [Small / Medium / Large] ([N] source files)
+
+## System Purpose
+
+[Single paragraph: what this system does. Derived from README, build config
+descriptions, and entry point analysis. State only what the code proves.]
+
+## Modules
+
+| # | Module Name | Path | Type | Primary Language |
+|---|-------------|------|------|-----------------|
+| 1 | [name] | [path] | [Application/Library/Infrastructure/Shared] | [lang] |
+
+(Sorted alphabetically by Module Name)
 
 ## Business Transactions
-| # | Transaction | Description | Components Involved |
-|---|------------|-------------|---------------------|
-| 1 | [name]     | [description] | [list]            |
 
-## Business Dictionary
-| Term   | Meaning      |
-|--------|-------------|
-| [term] | [definition] |
+| # | Transaction Name | Description | Entry Point | Modules Involved |
+|---|-----------------|-------------|-------------|-----------------|
+| 1 | [name] | [what it does] | [file:class/function] | [module list] |
+
+(Sorted alphabetically by Transaction Name)
+
+## Domain Terminology
+
+| Term | Definition | Source |
+|------|-----------|--------|
+| [term] | [definition] | [file where found] |
+
+(Sorted alphabetically by Term)
 ```
 
 ---
@@ -165,43 +321,214 @@ Create `code-review-artifacts/reverse-engineering/business-overview.md`:
 
 Create `code-review-artifacts/reverse-engineering/architecture.md`:
 
-This is the **single source of truth** for component descriptions, data flow,
-and integration points. Other artifacts should reference this file instead of
-repeating architectural details.
-
 ```markdown
 # System Architecture
 
-## System Overview
-[High-level description of the system]
+**Generated by**: @codebase-reverse-engineering v1.7
 
-## Architecture Diagram
-[Describe the architecture in text form: components, connections, data flow.
-Use a Mermaid diagram if the structure is complex enough to warrant one.]
+## System Overview
+
+[1–3 factual sentences describing the system type and deployment model.
+No quality judgments.]
+
+## Architecture Pattern
+
+**Pattern**: [Monolith / Microservices / Serverless / Modular Monolith / Hybrid]
+**Evidence**: [file path(s) proving this classification]
 
 ## Component Catalog
-### [Package/Component Name]
-- **Purpose**: [What it does]
-- **Responsibilities**: [Key responsibilities]
-- **Type**: Application / Infrastructure / Model / Client / Test
-- **Internal Dependencies**: [Other components in this codebase it depends on]
-- **External Dependencies**: [Third-party services or libraries it depends on]
+
+(Sorted alphabetically by Component Name)
+
+### [Component Name]
+
+- **Path**: `[exact path]`
+- **Type**: Application / Infrastructure / Library / Shared / Test
+- **Purpose**: [1 sentence — what it does]
+- **Primary Language**: [language]
+- **Framework**: [framework and version, or "None"]
+- **Entry Point**: `[file path]`
+- **Internal Dependencies**: [sorted list of other components, or "None"]
+- **External Dependencies**: [sorted list of external services consumed, or "None"]
 
 ## Data Flow
-[Describe key data flows through the system]
+
+(For each data flow, sorted alphabetically by flow name)
+
+### [Flow Name]
+
+```
+[Component A] → [protocol/mechanism] → [Component B] → ... → [Component N]
+```
+
+- **Trigger**: [what initiates this flow]
+- **Data**: [what data moves]
 
 ## Integration Points
-- **External APIs**: [List with purposes]
-- **Databases**: [List with purposes and types]
-- **Third-party Services**: [List with purposes]
-- **Message Queues/Events**: [List with purposes]
+
+### External APIs Consumed
+
+| Service Name | Protocol | Config Location |
+|-------------|----------|----------------|
+| [name] | [REST/gRPC/SOAP/SDK] | [file path] |
+
+(Sorted alphabetically by Service Name)
+
+### Databases
+
+| Name/Identifier | Type | Config Location |
+|----------------|------|----------------|
+| [name] | [PostgreSQL/MySQL/MongoDB/DynamoDB/...] | [file path] |
+
+(Sorted alphabetically by Name)
+
+### Message Systems
+
+| Name/Identifier | Type | Config Location | Role |
+|----------------|------|----------------|------|
+| [name] | [Kafka/RabbitMQ/SQS/...] | [file path] | [Producer/Consumer/Both] |
+
+(Sorted alphabetically by Name)
+
+### Cache Systems
+
+| Name/Identifier | Type | Config Location |
+|----------------|------|----------------|
+| [name] | [Redis/Memcached/...] | [file path] |
+
+(Sorted alphabetically by Name)
 
 ## Infrastructure
-- **IaC Approach**: [CDK/Terraform/CloudFormation/Pulumi/None]
-- **Deployment Model**: [Containers, Serverless, VMs, Hybrid, etc.]
-- **CI/CD**: [Pipeline tool and config location]
-- **Networking**: [VPC, subnets, security groups if applicable]
+
+- **IaC Approach**: [CDK / Terraform / CloudFormation / Pulumi / None]
+- **IaC Location**: `[path]`
+- **Deployment Model**: [Containers / Serverless / VMs / Hybrid]
+- **Container Runtime**: [Docker / Podman / None]
+- **Orchestrator**: [Kubernetes / ECS / Cloud Run / None]
+- **CI/CD Tool**: [GitHub Actions / Jenkins / GitLab CI / None]
+- **CI/CD Config**: `[path]`
 ```
+
+#### Architecture Diagrams in Markdown
+
+The `architecture.md` file MUST include Mermaid diagrams in fenced code blocks.
+Include the following diagrams (as applicable):
+
+1. **System Overview** — `graph LR` showing all modules/components and their
+   connections to shared infrastructure
+2. **Microservices Detail** (if applicable) — `graph LR` showing internal
+   services grouped by domain
+3. **Authentication Flows** (if applicable) — `sequenceDiagram` showing how
+   users authenticate and how tokens are validated
+
+Mermaid diagram rules:
+- Use `graph LR` for architecture diagrams (left-to-right flow)
+- Use `sequenceDiagram` for interaction flows
+- Use `subgraph` to group related components
+- Label all edges with protocol/mechanism
+- Keep node labels concise (component name + 1-line role)
+- Sort nodes alphabetically within each subgraph
+- Do NOT use emoji characters in Mermaid node labels (breaks some renderers)
+
+---
+
+### Step 3b: Generate Architecture HTML (Diagram Preview)
+
+Create `code-review-artifacts/reverse-engineering/architecture-preview.html`:
+
+This file renders the same Mermaid diagrams from `architecture.md` as visual
+graphics in a browser. Users can open it in any browser, then copy/paste or
+print-to-PDF for Word documents.
+
+**Template**:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>[Project Name] — System Architecture</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    background: #fff;
+    color: #1a1a1a;
+    line-height: 1.6;
+  }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+  h2 { border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 40px; }
+  h3 { margin-top: 30px; }
+  .diagram-container {
+    margin: 24px 0;
+    padding: 20px;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+  .export-instructions {
+    background: #e8f4fd;
+    border: 1px solid #b3d9f2;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 30px;
+  }
+  @media print {
+    .export-instructions { display: none; }
+    body { padding: 0; }
+    .diagram-container { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="export-instructions">
+  <strong>Export to Word:</strong> Open in browser → Ctrl+A → Copy → Paste into Word.
+  Or use Print → Save as PDF. Diagrams render as images that paste cleanly.
+</div>
+
+<h1>[Project Name] — System Architecture</h1>
+
+<!-- Repeat for each diagram in architecture.md -->
+<h3>[Diagram Title]</h3>
+<p>[Diagram description]</p>
+<div class="diagram-container">
+<pre class="mermaid">
+[Mermaid code from architecture.md — IDENTICAL content]
+</pre>
+</div>
+
+<!-- Include Component Catalog, Data Flow, Integration Points as HTML -->
+<!-- Mirror the content from architecture.md in HTML format -->
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true }
+  });
+</script>
+</body>
+</html>
+```
+
+**Generation rules**:
+- The Mermaid code in the HTML MUST be identical to the code in `architecture.md`
+  (single source of truth — copy verbatim)
+- Convert all other sections from `architecture.md` to semantic HTML (tables,
+  lists, headings) so the full architecture document is viewable in the browser
+- The HTML file is self-contained except for the Mermaid JS CDN reference
+- If the review environment is offline, add a comment noting the user should
+  download `mermaid.min.js` locally
 
 ---
 
@@ -212,33 +539,58 @@ Create `code-review-artifacts/reverse-engineering/api-documentation.md`:
 ```markdown
 # API & Interface Documentation
 
-## External APIs (REST / GraphQL / gRPC)
-### [Endpoint or Service Name]
-- **Protocol**: REST / GraphQL / gRPC
-- **Method/Operation**: GET /path | Query name | RPC name
-- **Purpose**: [What it does]
-- **Request**: [Request format/body summary]
-- **Response**: [Response format/body summary]
-- **Authentication**: [Auth method]
+**Generated by**: @codebase-reverse-engineering v1.7
+
+## REST APIs
+
+(Sorted by: HTTP Method alphabetically, then Path alphabetically)
+
+| Method | Path | Handler | Module | Auth Required |
+|--------|------|---------|--------|--------------|
+| [GET/POST/...] | [/path] | [Class.method or file:function] | [module] | [Yes/No/Unknown] |
+
+## GraphQL Operations
+
+(Sorted alphabetically by Operation Name)
+
+| Type | Operation Name | Resolver Location |
+|------|---------------|-------------------|
+| [Query/Mutation/Subscription] | [name] | [file:line] |
+
+## gRPC Services
+
+(Sorted alphabetically by Service Name)
+
+| Service | Method | Proto File | Implementation |
+|---------|--------|-----------|----------------|
+| [service] | [method] | [file path] | [file path] |
 
 ## Event Contracts
-### [Event Name]
-- **Source**: [Producer component - see [architecture.md](architecture.md)]
-- **Consumers**: [List]
-- **Payload Schema**: [Summary or reference]
+
+(Sorted alphabetically by Event Name)
+
+| Event Name | Producer | Consumer(s) | Payload Location |
+|-----------|----------|-------------|-----------------|
+| [name] | [component] | [component list] | [schema file or class] |
 
 ## Key Data Models
-### [Model Name]
-- **Fields**: [Field descriptions with types]
-- **Relationships**: [Related models]
-- **Validation**: [Validation rules]
 
-## Internal Interfaces
-[Document only interfaces that cross package boundaries.]
-### [Interface Name]
-- **Package**: [Where defined]
-- **Consumed by**: [Which packages use it]
-- **Key Methods**: [Signatures]
+(Sorted alphabetically by Model Name)
+
+### [Model Name]
+
+- **Location**: `[file path]`
+- **Fields**: [field list with types]
+- **Relationships**: [related models]
+- **Used By**: [sorted list of modules/components]
+
+## Internal Interfaces (Cross-Module)
+
+(Sorted alphabetically by Interface Name)
+
+| Interface/Class | Defined In | Consumed By |
+|----------------|-----------|-------------|
+| [name] | [module/path] | [sorted module list] |
 ```
 
 ---
@@ -250,41 +602,56 @@ Create `code-review-artifacts/reverse-engineering/technology-and-dependencies.md
 ```markdown
 # Technology & Dependencies
 
-## Programming Languages
-| Language | Version | Usage Area | KLOC |
-|----------|---------|-----------|------|
-| [lang]   | [ver]   | [usage]   | [kloc] |
+**Generated by**: @codebase-reverse-engineering v1.7
 
-## Frameworks & Libraries
-| Name | Version | Purpose | Package(s) Using It |
-|------|---------|---------|---------------------|
-| [name] | [ver] | [purpose] | [packages] |
+## Programming Languages
+
+(Sorted alphabetically by Language)
+
+| Language | Version | File Count | KLOC | Modules Using |
+|----------|---------|-----------|------|---------------|
+| [lang] | [ver or "Not specified"] | [n] | [n] | [sorted list] |
+
+## Frameworks & Libraries (Key)
+
+(Sorted alphabetically by Name. Include only: frameworks, major libraries
+declared in build configs. Do NOT list transitive dependencies.)
+
+| Name | Version | Category | Modules Using |
+|------|---------|----------|---------------|
+| [name] | [ver] | [Web/ORM/Security/Testing/Messaging/Logging/...] | [sorted list] |
 
 ## Infrastructure Services
-| Service | Purpose | Config Location |
-|---------|---------|----------------|
-| [name]  | [purpose] | [path]      |
 
-## Build & CI/CD
-| Tool | Version | Purpose |
-|------|---------|---------|
-| [name] | [ver] | [purpose] |
+(Sorted alphabetically by Service Name)
+
+| Service | Type | Version/Tier | Config Location |
+|---------|------|-------------|----------------|
+| [name] | [Database/Cache/Queue/Storage/...] | [ver or "Not specified"] | [path] |
+
+## Build Tools
+
+(Sorted alphabetically by Tool Name)
+
+| Tool | Version | Config File |
+|------|---------|------------|
+| [name] | [ver] | [path] |
 
 ## Internal Dependency Graph
-[Describe or diagram how packages depend on each other within the codebase.]
 
-### [Package A] -> [Package B]
-- **Type**: Compile / Runtime / Test
-- **Reason**: [Why dependency exists]
+(Sorted alphabetically by source module)
 
-## External Dependency Inventory
-| Dependency | Version (Locked) | License | Used By |
-|-----------|-----------------|---------|---------|
-| [name]    | [version]       | [license] | [packages] |
+| Source Module | Depends On | Dependency Type |
+|--------------|-----------|----------------|
+| [module A] | [module B] | [Compile / Runtime / Test] |
 
-> **Note**: Version-freshness analysis and CVE scanning require network access
-> or dedicated tooling (Trivy, Snyk). If tool-reports/ contains SCA results,
-> they will be referenced in the security review.
+## External Dependency Count
+
+| Module | Direct Dependencies | Dev Dependencies |
+|--------|-------------------|-----------------|
+| [module] | [n] | [n] |
+
+(Sorted alphabetically by Module)
 ```
 
 ---
@@ -296,102 +663,166 @@ Create `code-review-artifacts/reverse-engineering/code-quality-baseline.md`:
 ```markdown
 # Code Quality Baseline
 
-## Metrics Summary
+**Generated by**: @codebase-reverse-engineering v1.7
+
+## File Metrics
+
 | Metric | Value |
 |--------|-------|
-| Total Source Files | [number] |
-| Total KLOC | [number] |
-| Languages | [list] |
-| Test Files | [count] |
-| Config Files | [count] |
+| Total source files | [n] |
+| Total KLOC (source only) | [n] |
+| Total test files | [n] |
+| Total config files | [n] |
+| Languages | [sorted comma-separated list] |
 
-## Test Coverage
-- **Unit Tests**: Present / Absent - [details]
-- **Integration Tests**: Present / Absent - [details]
-- **E2E Tests**: Present / Absent - [details]
-- **Coverage Config/Reports**: [tool and config location, or "Not Found"]
+## Source Files by Language
+
+(Sorted alphabetically by Language)
+
+| Language | Source Files | Test Files | KLOC |
+|----------|------------|-----------|------|
+| [lang] | [n] | [n] | [n] |
+
+## Source Files by Module
+
+(Sorted alphabetically by Module)
+
+| Module | Source Files | Test Files | KLOC | Primary Language |
+|--------|------------|-----------|------|-----------------|
+| [module] | [n] | [n] | [n] | [lang] |
+
+## Testing Infrastructure
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| Unit test framework | Present / Not Found | [framework name and config path] |
+| Integration tests | Present / Not Found | [directory or config path] |
+| E2E tests | Present / Not Found | [directory or config path] |
+| Coverage config | Present / Not Found | [config file path] |
+| Coverage reports | Present / Not Found | [report location] |
 
 ## Code Quality Tooling
-- **Linting**: [tool name and config path, or "Not Found"]
-- **Formatting**: [tool name and config path, or "Not Found"]
-- **Type Checking**: [tool name and config path, or "Not Found"]
-- **Static Analysis**: [tool name and config path, or "Not Found"]
 
-## Documentation Status
-- **README**: Present / Absent - [quality assessment]
-- **API Docs**: Present / Absent - [quality assessment]
-- **Inline Comments**: Adequate / Sparse / Excessive
-- **Architecture Docs**: Present / Absent
+| Tool Type | Status | Tool Name | Config Path |
+|-----------|--------|-----------|------------|
+| Linting | Present / Not Found | [name] | [path] |
+| Formatting | Present / Not Found | [name] | [path] |
+| Type checking | Present / Not Found | [name] | [path] |
+| Static analysis | Present / Not Found | [name] | [path] |
+| Dependency scanning | Present / Not Found | [name] | [path] |
 
 ## Design Patterns Identified
-### [Pattern Name]
-- **Location**: [Where used - reference file paths]
-- **Purpose**: [Why used]
 
-## Initial Observations
-[List notable patterns, anti-patterns, or concerns spotted during analysis.]
+(Sorted alphabetically by Pattern Name. Only list patterns with concrete evidence.)
+
+| Pattern | Location(s) | Evidence |
+|---------|------------|----------|
+| [pattern name] | [sorted file paths] | [specific class/annotation/structure proving it] |
 ```
 
 ---
 
-### Step 7: Self-Check & Generate Analysis Summary
+### Step 7: Generate Analysis Summary
 
-Before producing the final summary, perform a self-check:
-
-- [ ] Every package/module discovered in Step 1 appears in architecture.md
-- [ ] All entry points and API surfaces are documented
-- [ ] No section contains fabricated information
-- [ ] Cross-references between artifacts are valid
-- [ ] Analysis depth matches the assessed codebase scale
-
-Then create `code-review-artifacts/reverse-engineering/analysis-summary.md`:
+Create `code-review-artifacts/reverse-engineering/analysis-summary.md`:
 
 ```markdown
 # Reverse Engineering Analysis Summary
 
-**Analysis Date**: [date]
-**Workspace**: [project name/path]
-**Codebase Scale**: Small / Medium / Large
-**Total Source Files**: [number]
-**Total KLOC**: [number]
+**Generated by**: @codebase-reverse-engineering v1.7
+**Analysis Date**: [YYYY-MM-DD]
+**Workspace**: [project root path]
+**Codebase Scale**: [Small / Medium / Large] ([N] source files)
 
 ## Artifacts Generated
+
 - [x] business-overview.md
 - [x] architecture.md
+- [x] architecture-preview.html (diagrams rendered in browser)
 - [x] api-documentation.md
 - [x] technology-and-dependencies.md
 - [x] code-quality-baseline.md
 
-## Key Findings
-1. [Most important finding]
-2. [Second most important finding]
-3. [Third most important finding]
+## Codebase Facts
 
-## Recommended Review Focus Areas
-- **Security (OWASP/CWE)**: [specific areas — injection, auth, crypto, etc.]
-- **SonarQube R&M**: [specific areas — resource leaks, null safety, concurrency, etc.]
-- **BSL Compliance**: [specific areas — credential management, session security, etc.]
+| Fact | Value |
+|------|-------|
+| Modules | [n] |
+| Total source files | [n] |
+| Total KLOC | [n] |
+| Primary language | [lang] |
+| Primary framework | [framework] |
+| Architecture pattern | [pattern] |
+| Deployment model | [model] |
+| API endpoints (total) | [n] |
+| External integrations | [n] |
+| Database systems | [n] |
 
-## Next Steps
-1. @security-review
-2. @acceptance-report
+## Review Scope Indicators
+
+(These facts help downstream review skills determine what to focus on.
+Sorted alphabetically by category.)
+
+| Category | Applicable | Evidence |
+|----------|-----------|----------|
+| Authentication present | Yes / No | [file path or "Not Found"] |
+| Cryptography used | Yes / No | [file path or "Not Found"] |
+| Database access present | Yes / No | [file path or "Not Found"] |
+| File upload handling | Yes / No | [file path or "Not Found"] |
+| External API calls | Yes / No | [file path or "Not Found"] |
+| Message queue usage | Yes / No | [file path or "Not Found"] |
+| Session management | Yes / No | [file path or "Not Found"] |
+| User input handling | Yes / No | [file path or "Not Found"] |
+
+## Modules for Scan
+
+The following modules should be scanned by @batch-scan (alphabetical order):
+
+| # | Module | Path | Language | Applicable Standards |
+|---|--------|------|----------|---------------------|
+| 1 | [name] | [path] | [lang] | [SonarQube Java / SonarQube JS / BSL / All] |
 ```
+
+---
+
+### Step 8: Self-Validation Checklist
+
+Before saving artifacts, verify ALL of the following:
+
+- [ ] All tables are sorted by their defined sort key (Rule D4)
+- [ ] All file paths reference files that exist in the file manifest (Rule D2)
+- [ ] No subjective quality judgments in any artifact (Rule D5)
+- [ ] No extra sections beyond what templates define (Rule D6)
+- [ ] No "Not Found" sections that should have content (re-check source)
+- [ ] Every module from Step 0.3 appears in architecture.md Component Catalog
+- [ ] Cross-references between artifacts use correct filenames
+- [ ] No content from previous runs influences current output (Rule D7)
+- [ ] architecture-preview.html contains the SAME Mermaid code as architecture.md
+- [ ] architecture-preview.html renders correctly (valid HTML structure)
 
 ---
 
 ## Completion Message
 
-After generating all artifacts, present:
+After generating all artifacts:
 
 ```
-Reverse engineering analysis complete.
+Reverse engineering analysis complete (v1.7 — deterministic mode).
 
 Artifacts saved to: code-review-artifacts/reverse-engineering/
+  - business-overview.md
+  - architecture.md
+  - architecture-preview.html  ← Open in browser for diagrams
+  - api-documentation.md
+  - technology-and-dependencies.md
+  - code-quality-baseline.md
+  - analysis-summary.md
 
-Please review the artifacts, especially:
-- business-overview.md - Does the business context look correct?
-- architecture.md - Is the architecture accurately captured?
-- analysis-summary.md - Do the key findings and focus areas make sense?
+Codebase: [N] source files, [N] modules, [primary language]
+Scale: [Small / Medium / Large]
 
-When ready, proceed with: @security-review
+Architecture diagrams: Open architecture-preview.html in a browser to view
+rendered diagrams. To export to Word: Ctrl+A → Copy → Paste into Word document.
+
+Proceed with: @batch-scan
 ```

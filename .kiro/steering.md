@@ -182,6 +182,8 @@ labels. The batch-scan orchestrator verifies this before generating the Summary.
 ```
 code-review-artifacts/
 ├── reverse-engineering/          ← @codebase-reverse-engineering output
+│   ├── architecture-preview.html ← Open in browser for diagrams → copy to Word
+│   └── *.md                      ← Markdown artifacts
 ├── previous-scan/                ← previous reports (for @rescan only)
 ├── [Module1]_Reliability_Maintainability_Report_[date].md / .docx
 ├── [Module1]_Security_Report_[date].md / .docx

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>System Architecture — Philips Lab</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    background: #fff;
+    color: #1a1a1a;
+    line-height: 1.6;
+  }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+  h2 { border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 40px; }
+  h3 { margin-top: 30px; }
+  .diagram-container {
+    margin: 24px 0;
+    padding: 20px;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  .diagram-title {
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #555;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: left;
+  }
+  th { background: #f5f5f5; }
+  code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+  ul, ol { padding-left: 24px; }
+  .print-instructions {
+    background: #e8f4fd;
+    border: 1px solid #b3d9f2;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 30px;
+  }
+  @media print {
+    .print-instructions { display: none; }
+    body { padding: 0; }
+    .diagram-container { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-instructions">
+  <strong>Export to Word:</strong> Open this file in a browser, then use
+  <em>Ctrl+A → Copy → Paste into Word</em>, or <em>Print → Save as PDF</em>.
+  Diagrams render as images that copy cleanly into Word/PDF.
+</div>
+
+<h1>System Architecture</h1>
+
+<h2>System Overview</h2>
+<p>The Philips Lab ecosystem is a full-stack, multi-tier platform consisting of four repositories/modules:</p>
+<ol>
+  <li><strong>lab-wxapp</strong> — WeChat mini-program (consumer-facing), built with UniApp + Vue 2, targeting WeChat (<code>mp-weixin</code>) as primary platform</li>
+  <li><strong>lab-admin-web</strong> — Internal admin SPA (Vue 2), serving CMS, Mall/FSS, and Common platform operators</li>
+  <li><strong>lab-manage-backend</strong> — Two standalone Spring Boot admin backend services (<code>lab-admin</code> and <code>lab-fss-admin</code>) that serve the admin web portal</li>
+  <li><strong>lab-backend</strong> — Spring Cloud microservices platform (20 sub-modules) serving the consumer mini-program via a gateway</li>
+</ol>
+<p>All four modules share the same production domain (<code>www.phlab.philips.com.cn</code>) with path-based routing. The consumer mini-program hits <code>/lab/*</code> paths; the admin portal hits <code>/ph-lab-admin/*</code> and <code>/lab-fss-admin/*</code>.</p>
+
+<h2>Architecture Diagrams</h2>
+
+<h3>Diagram 1 — System Overview (High Level)</h3>
+<p>Shows how the four modules relate to each other and to shared infrastructure.</p>
+<div class="diagram-container">
+<pre class="mermaid">
+graph LR
+    %% -- Clients --
+    WxApp("lab-wxapp\nWeChat Mini-Program\nUniApp + Vue 2")
+    AdminWeb("lab-admin-web\nAdmin SPA\nVue 2")
+
+    %% -- Admin Backend --
+    subgraph ManageBackend["lab-manage-backend  (Admin APIs)"]
+        direction TB
+        LabAdmin["lab-admin\nSpring Boot 2.7\n/ph-lab-admin/*"]
+        FssAdmin["lab-fss-admin\nSpring Boot 2.7\n/lab-fss-admin/*"]
+    end
+
+    %% -- Consumer Backend --
+    subgraph LabBackend["lab-backend  (Consumer APIs)"]
+        direction TB
+        Gateway["ph-lab-gateway\nSpring Cloud Gateway\n/lab/*"]
+        subgraph LabSvcs["LAB Microservices"]
+            direction LR
+            UserSvc["ph-lab-user"]
+            CmsSvc["ph-lab-cms"]
+            ActivitySvc["ph-lab-activity"]
+            AfterSalesSvc["ph-lab-aftersales"]
+            FurnishSvc["ph-lab-furnish"]
+            OtherLabSvc["ph-lab-live\nph-lab-tuya\nph-lab-dp\nph-lab-file"]
+        end
+        subgraph FssSvcs["FSS Microservices"]
+            direction LR
+            FssProductSvc["ph-fss-product"]
+            FssOrderSvc["ph-fss-order"]
+            FssPaySvc["ph-fss-pay"]
+            FssActivitySvc["ph-fss-activity"]
+            OtherFssSvc["ph-fss-member\nph-fss-report\nph-fss-data\nph-fss-api"]
+        end
+    end
+
+    %% -- Shared Infrastructure --
+    subgraph Infra["Shared Infrastructure"]
+        direction TB
+        Nacos[("Nacos\nService Discovery\n+ Config")]
+        Redis[("Redis\nSession + Cache")]
+        MySQL[("MySQL\nPrimary DB")]
+        ES[("Elasticsearch\nSearch + Logs")]
+        MQ[("RabbitMQ\nAsync Messaging")]
+        S3[("AWS S3\nFile Storage")]
+    end
+
+    %% -- Request paths --
+    WxApp   -->|"HTTPS /lab/*"| Gateway
+    AdminWeb -->|"HTTPS /ph-lab-admin/*"| LabAdmin
+    AdminWeb -->|"HTTPS /lab-fss-admin/*"| FssAdmin
+
+    Gateway --> LabSvcs
+    Gateway --> FssSvcs
+
+    LabAdmin  -->|"Feign"| UserSvc
+    LabAdmin  -->|"Feign"| CmsSvc
+    FssAdmin  -->|"Feign"| FssProductSvc
+    FssAdmin  -->|"Feign"| FssOrderSvc
+    FssAdmin  -->|"Seata"| FssPaySvc
+
+    %% -- Infrastructure connections --
+    ManageBackend --> Nacos
+    ManageBackend --> Redis
+    ManageBackend --> MySQL
+    ManageBackend --> ES
+    ManageBackend --> MQ
+    ManageBackend --> S3
+
+    LabBackend --> Nacos
+    LabBackend --> Redis
+    LabBackend --> MySQL
+    LabBackend --> MQ
+    LabBackend --> S3
+</pre>
+</div>
+
+<h3>Diagram 2 — lab-backend Microservices Detail</h3>
+<p>Shows every service inside <code>lab-backend</code>, grouped by domain, with the gateway as the entry point.</p>
+<div class="diagram-container">
+<pre class="mermaid">
+graph LR
+    GW["ph-lab-gateway\nAuth - XSS - Routing"]
+
+    subgraph LAB["LAB Domain  (ph-lab-*)"]
+        direction TB
+        U["ph-lab-user\nWeChat OAuth - Profile\nPoints - Token"]
+        C["ph-lab-cms\nArticles - Topics - UGC\nVideos - Surveys"]
+        A["ph-lab-activity\nDraws - Clock-in\nSeckill - Trials"]
+        AS["ph-lab-aftersales\nOpenbox - Handbook\nOHC Parts"]
+        F["ph-lab-furnish\nPage Builder"]
+        LV["ph-lab-live\nLive Streaming"]
+        TY["ph-lab-tuya\nIoT / Smart Device"]
+        DP["ph-lab-dp\nDistributor CRM"]
+        FL["ph-lab-file\nFile Upload / S3"]
+    end
+
+    subgraph FSS["FSS Domain  (ph-fss-*)"]
+        direction TB
+        FP["ph-fss-product\nCatalog - Cart\nCategories"]
+        FO["ph-fss-order\nOrder Lifecycle"]
+        FPY["ph-fss-pay\nPayment"]
+        FA["ph-fss-activity\nGroup Buy - Flash Sale\nCoupons"]
+        FM["ph-fss-member\nFSS Members"]
+        FR["ph-fss-report\nSales Analytics"]
+        FD["ph-fss-data\nData Services"]
+        FAPI["ph-fss-api\nAPI Aggregation"]
+    end
+
+    subgraph Common["ph-lab-common  (shared libs)"]
+        direction LR
+        CC["common-core"]
+        CS["common-security"]
+        CR["common-redis"]
+        CL["common-log"]
+        CD["common-datasource"]
+    end
+
+    GW --> U
+    GW --> C
+    GW --> A
+    GW --> AS
+    GW --> F
+    GW --> FL
+    GW --> FP
+    GW --> FO
+    GW --> FPY
+    GW --> FA
+    GW --> FM
+    GW --> FR
+
+    FO -->|"Seata"| FPY
+
+    LAB -.->|"compile dep"| Common
+    FSS -.->|"compile dep"| Common
+</pre>
+</div>
+
+<h3>Diagram 3 — Authentication Flows</h3>
+<p>Shows how consumers and admins authenticate, and how tokens are validated on each request.</p>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant WxApp as lab-wxapp
+    participant Gateway as ph-lab-gateway
+    participant UserSvc as ph-lab-user
+    participant Redis as Redis
+
+    Note over WxApp,Redis: Consumer Login
+    WxApp->>UserSvc: WeChat OAuth code
+    UserSvc->>Redis: store token - userId mapping (TTL)
+    UserSvc-->>WxApp: authToken
+
+    Note over WxApp,Redis: Subsequent Requests
+    WxApp->>Gateway: GET /lab/cms/... + Authorization: Bearer {token}
+    Gateway->>Redis: GET LOGIN_TOKEN_KEY:{token}
+    Redis-->>Gateway: {userId, username, ...}
+    Gateway->>UserSvc: request + X-User-Id header
+    UserSvc-->>WxApp: response
+
+    participant AdminWeb as lab-admin-web
+    participant LabAdmin as lab-admin
+    participant ShiroRedis as Redis (Shiro)
+
+    Note over AdminWeb,ShiroRedis: Admin Login
+    AdminWeb->>LabAdmin: POST /admin/login {username, MD5(password)}
+    LabAdmin->>ShiroRedis: create Shiro session
+    LabAdmin-->>AdminWeb: {labFssAdminToken, permissionCode[], platforms[]}
+    AdminWeb->>LabAdmin: GET /csrf/token
+    LabAdmin-->>AdminWeb: {token, headerName}
+
+    Note over AdminWeb,ShiroRedis: Admin Mutating Requests
+    AdminWeb->>LabAdmin: POST /admin/... + X-CSRF-Token: {token}
+    LabAdmin->>ShiroRedis: validate session
+    LabAdmin-->>AdminWeb: response
+</pre>
+</div>
+
+<h2>Component Catalog</h2>
+
+<h3>lab-wxapp (Consumer Mini-Program)</h3>
+<ul>
+  <li><strong>Purpose</strong>: WeChat mini-program for Philips Lab end consumers</li>
+  <li><strong>Responsibilities</strong>: Content browsing, community/UGC, e-commerce shopping, loyalty/points, marketing activities, after-sales, trade-in, warranty, gift cards, VR/game experiences</li>
+  <li><strong>Type</strong>: Application (Frontend)</li>
+  <li><strong>Architecture</strong>: UniApp + Vue 2, Vuex state management, <code>uni.request</code> HTTP client, sub-package lazy loading (18 sub-packages)</li>
+  <li><strong>External Dependencies</strong>: uView UI, Pixi.js 6.x, RxJS, Sensors Analytics SDK, flyio, uni-simple-router, timeago.js</li>
+</ul>
+
+<h3>lab-admin-web (Admin SPA)</h3>
+<ul>
+  <li><strong>Purpose</strong>: Internal back-office management portal for CMS, FSS/Mall, and Common platform operators</li>
+  <li><strong>Responsibilities</strong>: Content management, marketing campaign management, member management, e-commerce operations, system administration</li>
+  <li><strong>Type</strong>: Application (Frontend)</li>
+  <li><strong>Architecture</strong>: Vue 2 SPA, hash-mode routing, Vuex, two Axios instances, RBAC permission system</li>
+  <li><strong>Three Platforms</strong>: <code>/cms</code> (CMS), <code>/mall</code> (FSS), <code>/common</code> (shared)</li>
+  <li><strong>External Dependencies</strong>: Element UI, ECharts, TinyMCE, WangEditor, Fabric.js, Tailwind CSS</li>
+</ul>
+
+<h3>lab-manage-backend / lab-admin (CMS Admin Backend)</h3>
+<ul>
+  <li><strong>Purpose</strong>: Backend service for the CMS platform of lab-admin-web</li>
+  <li><strong>Framework</strong>: Spring Boot 2.7.18, Java 8</li>
+  <li><strong>Auth</strong>: Apache Shiro + shiro-redis, JWT (jjwt 0.9.1), MFA via TOTP</li>
+  <li><strong>External Dependencies</strong>: MySQL (Druid), Redis (Redisson), Elasticsearch, RabbitMQ, Nacos, XXL-Job, Tencent VOD, Aliyun SMS, AWS S3 SDK v2, ZXing, EasyExcel, Feign</li>
+</ul>
+
+<h3>lab-manage-backend / lab-fss-admin (FSS Admin Backend)</h3>
+<ul>
+  <li><strong>Purpose</strong>: Backend service for the Mall/FSS platform of lab-admin-web</li>
+  <li><strong>Framework</strong>: Spring Boot 2.7.18, Java 8</li>
+  <li><strong>Auth</strong>: Apache Shiro + shiro-redis</li>
+  <li><strong>External Dependencies</strong>: MySQL (Druid), Redis, Elasticsearch, RabbitMQ, Nacos, Seata 1.6.1, XXL-Job, AWS S3 SDK v2, Sensors Analytics SDK, ZXing, EasyExcel, Feign, dynamic-datasource</li>
+</ul>
+
+<h3>lab-backend / ph-lab-gateway (API Gateway)</h3>
+<ul>
+  <li><strong>Purpose</strong>: Spring Cloud Gateway — single entry point for all consumer mini-program traffic</li>
+  <li><strong>Responsibilities</strong>: Token-based auth (Redis session lookup), XSS filtering, URL blacklist, Referer validation, request statistics, inner-header stripping, routing to downstream microservices</li>
+  <li><strong>Key Filters</strong>: <code>AuthFilter</code>, <code>XssFilter</code>, <code>BlackListUrlFilter</code>, <code>RefererFilter</code>, <code>StatisticsFilter</code></li>
+</ul>
+
+<h3>lab-backend / ph-lab-user (User Service)</h3>
+<ul>
+  <li><strong>Purpose</strong>: Consumer user management and authentication</li>
+  <li><strong>Responsibilities</strong>: WeChat OAuth login, phone binding, user profile, interest preferences, member points, token issuance/refresh</li>
+</ul>
+
+<h3>lab-backend / ph-lab-cms (CMS Service)</h3>
+<ul>
+  <li><strong>Purpose</strong>: Content management for consumer-facing content</li>
+  <li><strong>Responsibilities</strong>: Articles, topics, UGC notes, videos, activities, surveys, landing pages, renovation pages</li>
+</ul>
+
+<h3>lab-backend / ph-lab-activity (Activity Service)</h3>
+<ul><li><strong>Responsibilities</strong>: Draws/lotteries, clock-in, seckill-integral, new product trials, store activities</li></ul>
+
+<h3>lab-backend / ph-lab-aftersales (After-Sales Service)</h3>
+<ul><li><strong>Responsibilities</strong>: Openbox, self-service handbook, OHC parts</li></ul>
+
+<h3>lab-backend / ph-lab-furnish (Page Builder Service)</h3>
+<ul><li><strong>Responsibilities</strong>: Page template storage, furnish tab management, config</li></ul>
+
+<h3>lab-backend / ph-fss-* (FSS Microservices)</h3>
+<ul>
+  <li><strong>ph-fss-product</strong>: Product catalog, categories, specifications, shopping cart</li>
+  <li><strong>ph-fss-order</strong>: Order lifecycle management</li>
+  <li><strong>ph-fss-pay</strong>: Payment processing</li>
+  <li><strong>ph-fss-member</strong>: FSS member management</li>
+  <li><strong>ph-fss-activity</strong>: FSS marketing activities (group buy, flash sale, coupons)</li>
+  <li><strong>ph-fss-report</strong>: Sales and analytics reporting</li>
+  <li><strong>ph-fss-data</strong>: Data services</li>
+  <li><strong>ph-fss-api</strong>: FSS API aggregation layer</li>
+</ul>
+
+<h3>lab-backend / ph-lab-common (Shared Libraries)</h3>
+<ul><li><strong>Sub-modules</strong>: common-core, common-security, common-datasource, common-log, common-redis, common-sftp, common-swagger</li></ul>
+
+<h2>Data Flow</h2>
+
+<h3>Consumer Request Flow (lab-wxapp → lab-backend)</h3>
+<ol>
+  <li>Mini-program calls <code>uni.request</code> → <code>src/api/index.js</code> → <code>https://www.phlab.philips.com.cn/lab/{module}/*</code></li>
+  <li><code>ph-lab-gateway</code> receives request → <code>AuthFilter</code> extracts Bearer token → looks up Redis (<code>LOGIN_TOKEN_KEY:{token}</code>) → injects userId + userInfo headers → routes to downstream service</li>
+  <li><code>XssFilter</code> sanitizes JSON request bodies via <code>EscapeUtil.clean()</code></li>
+  <li>Downstream microservice processes request → returns <code>{ code: 200, data: ... }</code></li>
+</ol>
+
+<h3>Admin Request Flow (lab-admin-web → lab-manage-backend)</h3>
+<ol>
+  <li>Admin SPA calls Axios → <code>https://www.phlab.philips.com.cn/ph-lab-admin/*</code> or <code>/lab-fss-admin/*</code></li>
+  <li><code>lab-admin</code> or <code>lab-fss-admin</code> receives request → Shiro session filter validates session from Redis</li>
+  <li>CSRF token validated on mutating requests</li>
+  <li>Service layer may call lab-backend microservices via Feign for data</li>
+</ol>
+
+<h2>Integration Points</h2>
+
+<h3>External APIs</h3>
+<ul>
+  <li><strong>WeChat Mini-Program API</strong>: OAuth login, subscribe messages, template messages, QR code generation</li>
+  <li><strong>Tencent VOD</strong>: Video upload and streaming</li>
+  <li><strong>Aliyun SMS</strong>: SMS notifications</li>
+  <li><strong>Sensors Analytics</strong>: Behavioral event tracking</li>
+  <li><strong>Tuya IoT</strong>: Smart device integration</li>
+  <li><strong>QQ Map LBS</strong>: Location services</li>
+</ul>
+
+<h3>Databases</h3>
+<ul>
+  <li><strong>MySQL</strong>: Primary relational data store (Druid connection pool)</li>
+  <li><strong>Redis</strong>: Session storage, cache, distributed locks (Redisson)</li>
+  <li><strong>Elasticsearch</strong>: Search and log storage</li>
+</ul>
+
+<h3>Message Queues</h3>
+<ul>
+  <li><strong>RabbitMQ</strong>: Async messaging across all backend services</li>
+</ul>
+
+<h2>Infrastructure</h2>
+<ul>
+  <li><strong>Deployment Model</strong>: Docker containers → Alibaba Cloud ACK (Kubernetes)</li>
+  <li><strong>CI/CD</strong>: Jenkins (Dockerize → push to Aliyun ACR → deploy to K8s)</li>
+  <li><strong>Service Discovery</strong>: Alibaba Nacos</li>
+  <li><strong>Config Management</strong>: Nacos config center + environment-specific <code>.env</code> files</li>
+  <li><strong>Static Assets</strong>: Aliyun OSS CDN</li>
+</ul>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    flowchart: { useMaxWidth: true, htmlLabels: true },
+    sequence: { useMaxWidth: true }
+  });
+</script>
+</body>
+</html>
