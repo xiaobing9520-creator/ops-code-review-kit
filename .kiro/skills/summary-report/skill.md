@@ -40,9 +40,23 @@ individual module scans first.
 
 ### Step 2: Aggregate
 
+0. **Determinism guard (do FIRST)**: Confirm the set of module reports matches
+   the Canonical Module Manifest in `.kiro/steering.md` — exactly 4 modules,
+   2 reports each. If a report for a manifest module is missing, or a report
+   exists for a non-manifest module (e.g. a split sub-project like `lab-admin`
+   or `lab-fss-admin` reported separately), STOP and report the mismatch
+   instead of silently summarizing — this indicates non-deterministic module
+   discovery upstream and would produce an unstable Summary Report.
 1. Compute overall quality gate:
    - **Pass** only if ALL individual reports are Pass
    - **Fail** if ANY individual report is Fail
+   - Individual report gate (Shared Quality Gate):
+     ```
+     FAIL if ANY of the following is true:
+       - severity = Critical  (any priority)
+       - severity = High  AND  priority = P0
+     PASS otherwise
+     ```
 2. Sum issue counts across all modules and report types
 3. Merge all issue detail tables
 

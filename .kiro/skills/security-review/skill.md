@@ -109,8 +109,9 @@ If `tool-reports/` exists:
 
 ### Step 3: Unified Finding Header & CVSS Scoring
 
-Every finding in this report MUST begin with the following 4-line header block,
-placed immediately after the finding title, before any other fields:
+Every finding in this report MUST begin with the following EXACT 4-line header
+block, placed immediately after the finding title, before any other fields.
+This block is NON-NEGOTIABLE and must appear in EVERY finding.
 
 ```
 **Risk Level**: CRITICAL / HIGH / MEDIUM / LOW
@@ -118,6 +119,16 @@ placed immediately after the finding title, before any other fields:
 **File**: `[file/path:line]`
 **Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
 ```
+
+CRITICAL FORMATTING RULES:
+- These 4 lines are STANDALONE lines, NOT list items. Do NOT prefix them with `- `.
+- The order is fixed: Risk Level → CVSS Score → File → Associated CVE.
+- **CVSS Score is MANDATORY** — never omit it. Compute a CVSS v3.1 Base Score
+  for every finding without exception.
+- Do NOT use `- **Risk Level**:` (list-item style). Use `**Risk Level**:` directly.
+
+SELF-CHECK: Before writing any finding body, verify all 4 header lines are
+present in the correct order. If `**CVSS Score**` is missing, stop and add it.
 
 This header format is shared across ALL report types (R&M, Security, Security Review)
 to ensure consistent presentation when reports are compared side-by-side.

@@ -55,24 +55,32 @@ code-review-artifacts/
 
 ### Step 1: Identify Modules
 
-Detect all modules in the project. Common module patterns:
+Module discovery is **deterministic** and driven by the Canonical Module
+Manifest in `.kiro/steering.md`. Do NOT re-derive the module set from build
+files, and do NOT split a module into its sub-projects.
 
-- **Maven multi-module**: Look for `<modules>` in root `pom.xml`
-- **Gradle multi-module**: Look for `include` in `settings.gradle`
-- **Monorepo**: Look for distinct applications in subdirectories with their
-  own build files (`pom.xml`, `build.gradle`, `package.json`)
-- **Microservices**: Each service directory with its own source tree
+Procedure:
+1. Read the Canonical Module Manifest table in `.kiro/steering.md`.
+2. Use exactly those modules, in that order, with those exact names and paths.
+3. A top-level directory that contains nested sub-projects (e.g.
+   `lab-manage-backend` → `lab-admin` + `lab-fss-admin`) is still ONE module.
+   Aggregate all sub-project findings into that single module's two reports.
+4. Never treat `.kiro/` or `code-review-artifacts/` as a module.
 
-If the user has specified modules in their command (e.g.,
-`@batch-scan module1 module2 module3 module4`), use those.
+This guarantees the same module set (4 modules → 9 reports) on every run, which
+is required for a reproducible Summary Report.
 
-Output the detected modules and ask for confirmation if uncertain:
+If — and only if — the manifest is absent (different project), fall back to:
+top-level application directories under the project root, each scanned as one
+module, never split into sub-projects. List them and proceed without splitting.
+
+Output the modules being used:
 ```
-Detected modules:
-  1. [module1-name] — [path]
-  2. [module2-name] — [path]
-  3. [module3-name] — [path]
-  4. [module4-name] — [path]
+Modules (from Canonical Module Manifest):
+  1. lab-backend         — lab-backend/
+  2. lab-manage-backend  — lab-manage-backend/  (incl. lab-admin + lab-fss-admin)
+  3. lab-admin-web       — lab-admin-web/
+  4. lab-wxapp           — lab-wxapp/
 
 Proceeding with scan...
 ```
@@ -96,6 +104,12 @@ Apply the `@sonarqube-review` skill logic for this module:
 - Fix priority assignment (P0–P3)
 - LLM-discovered issues to appendix
 
+After generating, run the `@rm-report-validator` validation checks inline:
+- V-01: Confirm every rule ID exists in the standards file — move undefined rules to Appendix
+- V-02: Confirm every severity label matches the standards file exactly — correct any mismatch
+- V-03: Confirm every rule description matches the actual rule title — move wrong-rule findings to Appendix
+- Recalculate Quality Gate if any corrections were made
+
 Save as: `code-review-artifacts/[ModuleName]_Reliability_Maintainability_Report_[YYYY-MM-DD].md`
 
 #### 2.3 Generate Security Report
@@ -106,6 +120,10 @@ Apply the `@secure-coding-baseline-review` skill logic for this module:
 - Quality gate evaluation
 - Fix priority assignment (P0–P3)
 - LLM-discovered issues to appendix
+
+MANDATORY CVSS CHECK: After generating each Security Report, verify that EVERY
+finding contains `**CVSS Score**:` as a standalone line (not a list item). If
+any finding is missing `**CVSS Score**`, add it before saving the report.
 
 Save as: `code-review-artifacts/[ModuleName]_Security_Report_[YYYY-MM-DD].md`
 
@@ -201,7 +219,10 @@ comparability. Before generating reports, enforce:
 
 5. **Self-Validation Step**: After generating all module reports and before
    generating the Summary Report, spot-check 2 modules to confirm their report
-   structures are identical in section order and finding header format.
+   structures are identical in section order and finding header format. Specifically
+   verify that every finding contains all 4 mandatory header lines in this order:
+   `**Risk Level**` → `**CVSS Score**` → `**File**` → `**Associated CVE**`.
+   If `**CVSS Score**` is missing from any finding, add it before proceeding.
 
 ---
 

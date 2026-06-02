@@ -147,6 +147,11 @@ For files that were modified as part of the fixes:
 1. Run the applicable rule checks ONLY on the changed code areas
 2. Check if the fix introduced any new violations
 3. Any new issues are classified as REGRESSED and reported separately
+4. For any new R&M findings, apply `@rm-report-validator` checks inline:
+   - V-01: Rule ID must exist in the standards file
+   - V-02: Severity must match the standards file exactly
+   - V-03: Rule description must match the actual rule title
+   Undefined or wrong-rule findings go to the Appendix only.
 
 **Important**: This is NOT a full re-scan of the entire module. Only scan
 code areas that were touched by the fixes.
@@ -200,13 +205,18 @@ After all modules, create a global summary.
 
 **Status: [PASS / FAIL]**
 
+Apply the **Shared Quality Gate** to remaining issues:
+
 ```
-Pass conditions (ALL must be true):
-  - 0 Critical issues remaining (NOT FIXED / PARTIALLY FIXED / INCORRECTLY FIXED / REGRESSED)
-  - 0 High issues remaining
-  - 0 Medium P0 issues remaining
-Otherwise: Fail
+FAIL if ANY of the following is true:
+  - severity = Critical  AND  status ≠ FIXED
+  - severity = High  AND  priority = P0  AND  status ≠ FIXED
+
+PASS if none of the above conditions are met.
 ```
+
+> "Remaining" means status is NOT FIXED / PARTIALLY FIXED / INCORRECTLY FIXED / REGRESSED.
+> Medium issues and High issues with P1/P2/P3 do NOT block the gate.
 
 ---
 

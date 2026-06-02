@@ -32,10 +32,12 @@ inapplicable controls as N/A with justification.
 
 ## CRITICAL CONSTRAINTS
 
-### Constraint 0: Unified Finding Header
+### Constraint 0: Unified Finding Header (MANDATORY — NO EXCEPTIONS)
 
-Every finding in this report MUST begin with the following 4-line header block,
-placed immediately after the finding title, before any other fields:
+Every finding in this report MUST begin with the following EXACT 4-line header
+block, placed immediately after the finding title (`### SEC-nn — ...`), before
+any other fields. This block is NON-NEGOTIABLE and must appear in EVERY finding,
+including LLM-discovered appendix findings.
 
 ```
 **Risk Level**: CRITICAL / HIGH / MEDIUM / LOW
@@ -45,12 +47,25 @@ placed immediately after the finding title, before any other fields:
 ```
 
 Rules for each field:
-- **Risk Level**: Derived from the CVSS score (see Constraint 2).
-- **CVSS Score**: Always computed for Security report findings. Include the full
-  CVSS vector string on a separate line below.
+- **Risk Level**: Derived from the CVSS score (see Constraint 2). Use ONLY:
+  `CRITICAL`, `HIGH`, `MEDIUM`, or `LOW`. No other values.
+- **CVSS Score**: ALWAYS computed and present. Never omit. Compute a CVSS v3.1
+  Base Score for every finding. Format: `[numeric score] ([Severity label])`,
+  e.g. `9.8 (Critical)`. Include the full CVSS vector string on the next line
+  as `- **CVSS Vector**: \`CVSS:3.1/AV:_/AC:_/PR:_/UI:_/S:_/C:_/I:_/A:_\``.
 - **File**: Exact file path and line number where the issue was found.
-- **Associated CVE**: Associate a CVE if a known CVE pattern matches. If no CVE matches,
-  use `N/A — code logic defect (CWE-xxx)`.
+- **Associated CVE**: Associate a CVE if a known CVE pattern matches. If no CVE
+  matches, use `N/A — code logic defect (CWE-xxx)`.
+
+CRITICAL FORMATTING RULES:
+- These 4 lines are STANDALONE lines, NOT list items. Do NOT prefix them with `- `.
+- The order is fixed: Risk Level → CVSS Score → File → Associated CVE.
+- Do NOT merge, skip, or reorder any of the 4 lines.
+- Do NOT use `- **Risk Level**:` (list-item style). Use `**Risk Level**:` directly.
+
+SELF-CHECK (perform before writing each finding):
+Before writing any finding body, verify you have written all 4 header lines in
+the correct order and format. If `**CVSS Score**` is missing, stop and add it.
 
 This header format is shared across ALL report types (R&M, Security, Security Review)
 to ensure consistent presentation when reports are compared side-by-side.
@@ -184,7 +199,8 @@ For each control violation found, record:
 | **P3** | Long-term optimization | Design-level improvements, process controls |
 
 Medium-severity issues MUST have explicit P0–P3 assignment.
-A Medium issue rated P0 causes the quality gate to **Fail**.
+Priority labels are used for remediation planning; they do NOT affect the
+quality gate for Medium issues.
 
 ### Step 4: Self-Validation
 
@@ -265,6 +281,9 @@ High issues without P0 priority do NOT block the quality gate.
 **CVSS Score**: [score] ([severity])
 **File**: `[file/path.java:line]`
 **Associated CVE**: [CVE-ID / CVE-ID pattern / N/A — code logic defect (CWE-ID)]
+
+> NOTE: The 4 lines above are MANDATORY standalone lines (no leading `- `).
+> CVSS Score MUST always be present and computed. Never omit it.
 
 - **BSL Control**: `11.1.1_[xx]` — [Control description from standards]
 - **Security Domain**: [domain name]

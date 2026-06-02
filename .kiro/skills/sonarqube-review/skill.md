@@ -78,9 +78,9 @@ Map SonarQube severity to report severity as follows:
 
 | Standards File Severity | Report Severity | Quality Gate Impact |
 |------------------------|-----------------|---------------------|
-| Blocker | Critical | Blocks release |
-| High | High | Blocks release |
-| Medium | Medium | Blocks release only if P0 |
+| Blocker | Critical | Blocks release (any priority) |
+| High | High | Blocks release if P0 |
+| Medium | Medium | Tracked only — does not block release |
 
 - Use **Critical**, **High**, **Medium** as severity labels in the report.
 - Do NOT use other labels (Major, Minor, Info, etc.)
@@ -133,27 +133,72 @@ For every issue, assign a priority:
 | **P3** | Long-term optimization | Low risk, technical debt |
 
 **Important**: Medium-severity issues MUST have an explicit P0–P3 assignment.
-A Medium issue rated P0 will cause the quality gate to **Fail**.
+Priority labels are used for remediation planning; they do NOT affect the
+quality gate for Medium issues.
 
-### Step 4: Self-Validation
+### Step 4: Self-Validation (Mandatory — Do Not Skip)
 
-Before generating the report:
+Before generating the report, run ALL of the following checks. These checks
+are defined in full in `@rm-report-validator` and are reproduced here for
+inline enforcement.
 
-1. **Rule ID check**: Every issue's rule key exists in the standards file
-2. **Severity check**: Every issue's severity matches the standards file
-3. **Priority check**: Every Medium issue has an explicit P0–P3 label
-4. **Appendix check**: Any issue without a valid rule ID is in the Appendix
-5. **Completeness**: All rules in the standards have been evaluated
+#### V-01: Rule Existence Check
+For every issue collected, search the standards file for `### <ruleId> —`.
+- If NOT found → move to Appendix. Do NOT include in main findings.
+- Known rules that do NOT exist in the JavaScript standards and must never
+  appear in JS report main findings:
+  - `javascript:S106` — no such rule (console.log issues are LLM-discovered)
+  - `javascript:S1066` — no such rule in JS (exists only in Java standards)
+- Known rules that do NOT exist in the Java standards and must never appear
+  in Java report main findings:
+  - Any rule ID not confirmed by searching `### java:Sxxxx —` or `### javasecurity:Sxxxx —`
+
+#### V-02: Severity Check
+For every issue that passed V-01, look up its `**Severity**: <value>` in the
+standards file and apply the mapping strictly:
+
+| Standards File | Report Label |
+|----------------|-------------|
+| Blocker | Critical |
+| High | High |
+| Medium | Medium |
+
+- Do NOT use any other label.
+- Do NOT infer severity from rule name, CVE score, or general knowledge.
+- Common errors to avoid:
+  - `javascript:S1854` is **Medium** — never report as High
+  - `javascript:S2189` is **Blocker** → **Critical** — never report as High
+  - `java:S2755` is **Blocker** → **Critical** — never report as High
+  - `java:S2115` is **Blocker** → **Critical** — never report as High
+
+#### V-03: Rule Description Accuracy
+For every issue that passed V-01, verify the rule description matches the
+actual rule title in the standards file. If the description does not match,
+the wrong rule ID is being used → move to Appendix.
+- Common error: using `java:S3305` ("Factory method injection in @Configuration
+  classes") to report outdated dependencies — these are unrelated concerns.
+
+#### V-04: Priority and Appendix Checks
+5. **Priority check**: Every Medium issue has an explicit P0–P3 label
+6. **Appendix labeling**: Every Appendix item carries
+   `**Source**: General best practices (not in SonarQube rule set)`
+   and does NOT carry a SonarQube rule ID
+7. **Completeness**: All rules in the standards have been evaluated
 
 ### Step 5: Quality Gate Evaluation
 
+Apply the **Shared Quality Gate** (identical across all report types):
+
 ```
-Pass conditions (ALL must be true):
-  - 0 Critical issues
-  - 0 High issues
-  - 0 Medium issues with priority P0
-Otherwise: Fail
+FAIL if ANY of the following is true:
+  - severity = Critical  (any priority)
+  - severity = High  AND  priority = P0
+
+PASS if none of the above conditions are met.
 ```
+
+> Medium issues are tracked but never block the gate regardless of priority.
+> High issues with P1/P2/P3 do NOT block the gate.
 
 ### Step 6: Collect LLM-Discovered Issues
 
@@ -197,8 +242,7 @@ Create the report using the template below.
 | Criteria | Threshold | Actual | Result |
 |----------|-----------|--------|--------|
 | Critical issues | 0 | [n] | Pass/Fail |
-| High issues | 0 | [n] | Pass/Fail |
-| Medium issues with P0 priority | 0 | [n] | Pass/Fail |
+| High issues with P0 priority | 0 | [n] | Pass/Fail |
 
 ---
 

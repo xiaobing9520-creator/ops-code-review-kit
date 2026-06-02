@@ -13,8 +13,64 @@ evaluating code quality from an operations perspective.
 
 ## Project Structure
 
-The project contains **4 independent modules**. Each module is scanned
+The project contains **exactly 4 independent modules**. Each module is scanned
 separately. All scan results are consolidated into a global summary report.
+
+### Canonical Module Manifest (AUTHORITATIVE — do not re-derive)
+
+Module discovery MUST use this fixed list. Do NOT infer the module set from
+build files at scan time, and do NOT split a module into its sub-projects.
+
+| # | Module | Path (from project root) | Language | Notes |
+|---|--------|--------------------------|----------|-------|
+| 1 | lab-backend | `lab-backend/` | Java | Maven multi-service backend — scanned as ONE module |
+| 2 | lab-manage-backend | `lab-manage-backend/` | Java | Contains sub-projects `lab-admin` + `lab-fss-admin` — still scanned as ONE module |
+| 3 | lab-admin-web | `lab-admin-web/` | JS/Vue | Admin web frontend |
+| 4 | lab-wxapp | `lab-wxapp/` | JS | WeChat mini-program |
+
+Deterministic module-discovery rule:
+- A "module" = one top-level application directory under the project root.
+- `.kiro/` and `code-review-artifacts/` are NEVER modules.
+- A top-level module containing nested sub-projects (e.g. `lab-manage-backend`)
+  is still ONE module; aggregate all sub-project findings into that module's
+  two reports.
+- This yields exactly **4 modules → 9 reports** (4×2 + 1) on every run.
+
+## Determinism & Reproducibility Policy
+
+Same codebase + same standards + same model MUST yield the same reports. To
+remove run-to-run drift (the cause of differing Summary Reports), ALL skills
+MUST obey:
+
+1. **Fixed module set** — Use the Canonical Module Manifest above verbatim.
+   Never re-derive or re-split modules. (Primary cause of summary drift.)
+2. **One finding per rule/control per module** — Aggregate every instance of
+   the same Rule/Control violation into a SINGLE finding, citing one
+   representative `file:line` plus a count (e.g. "+29 similar sites"). Never
+   emit one finding per file — per-instance reporting is the main source of
+   issue-count variance.
+3. **Table-driven severity** — R&M severity = exact severity in the SonarQube
+   standards file; Security severity = CVSS band. Never infer or "judge"
+   severity.
+4. **Deterministic fix priority** — Apply the Fix Priority Decision Table below
+   exactly. Priority is a pure function of severity + category.
+5. **Stable ordering & numbering** — Within each report, order findings by
+   severity (Critical→High→Medium→Low), then Rule/Control ID ascending, then
+   file path. Assign `BUG-01..` / `SEC-01..` in that fixed order.
+6. **No discretionary prose** — Do not invent run-specific "key themes" or
+   narrative. All summary prose must be derived only from the aggregated
+   finding tables.
+
+### Fix Priority Decision Table (DETERMINISTIC)
+
+| Condition | Priority |
+|-----------|----------|
+| Severity = Critical | P0 |
+| Severity = High AND domain ∈ {Injection, Authn/Authz bypass, Access control, Secrets/keys, Vulnerable/EOL components} | P0 |
+| Severity = High (any other domain) | P1 |
+| Severity = Medium AND (data exposure OR correctness OR injection-adjacent) | P1 |
+| Severity = Medium (any other) | P2 |
+| Severity = Low | P3 |
 
 ## Report Types
 
@@ -47,6 +103,7 @@ Plus **1 global report**:
 1. `@codebase-reverse-engineering` — Understand the codebase (REQUIRED first)
 2. For each module:
    - `@sonarqube-review` — Reliability & Maintainability report
+   - `@rm-report-validator` — Validate R&M report rule IDs and severities (run after each R&M report)
    - `@secure-coding-baseline-review` — Security report
 3. `@summary-report` — Generate the global summary
 
@@ -65,6 +122,7 @@ version directory, then run `@rescan`. See the rescan skill for detailed setup.
 ### Optional (Additional Depth)
 
 These skills provide supplementary analysis beyond the two core report types:
+- `@rm-report-validator` — Validate R&M reports for rule existence and severity correctness
 - `@security-review` — OWASP/CWE security analysis (CVSS v3.1 + CVE association)
 - `@acceptance-report` — Combined acceptance decision (all dimensions)
 
@@ -121,9 +179,11 @@ Each report type has its own quality gate:
 ```
 Pass conditions (ALL must be true):
   - 0 Critical (Blocker) issues
-  - 0 High issues
-  - 0 Medium issues with fix priority P0
+  - 0 High issues with P0 priority
 Otherwise: Fail
+
+Note: Medium issues are tracked but have no gate threshold.
+High issues with P1/P2/P3 do NOT block the gate.
 ```
 
 ### Security Report
@@ -151,8 +211,8 @@ Medium-severity issues must always have an explicit P0–P3 label.
 
 ## Unified Finding Header Policy
 
-ALL findings across ALL report types MUST begin with the same 4-line header
-block immediately after the finding title:
+ALL findings across ALL report types MUST begin with the following EXACT 4-line
+header block immediately after the finding title. This is NON-NEGOTIABLE.
 
 ```
 **Risk Level**: CRITICAL / HIGH / MEDIUM / LOW
@@ -161,8 +221,15 @@ block immediately after the finding title:
 **Associated CVE**: [CVE-ID / N/A — ...]
 ```
 
-This ensures consistent formatting when reports are reviewed side-by-side.
-See Constraint 0 in each sub-skill for field-specific rules.
+ENFORCEMENT RULES:
+- These 4 lines are STANDALONE lines — do NOT prefix them with `- ` (list-item style).
+- **CVSS Score is MANDATORY in Security reports** — never omit it. Compute a
+  CVSS v3.1 Base Score for every security finding. R&M findings use `N/A — non-security rule`.
+- The order is fixed: Risk Level → CVSS Score → File → Associated CVE.
+- SELF-CHECK: Before writing any finding body, confirm all 4 lines are present.
+  If `**CVSS Score**` is missing from a security finding, stop and add it.
+
+See Constraint 0 in each sub-skill for field-specific computation rules.
 
 ## Cross-Module Format Consistency Policy
 
@@ -176,6 +243,25 @@ labels. The batch-scan orchestrator verifies this before generating the Summary.
 - **LLM-discovered issues**: Go to the report's Appendix only; labeled as
   "general best practices"; do NOT affect the quality gate
 - Rule severity comes from the standards files; do NOT override or infer
+- After generating any R&M report, run `@rm-report-validator` to enforce:
+  - Every rule ID exists in the standards file (V-01)
+  - Every severity label matches the standards file exactly (V-02)
+  - Every rule description matches the actual rule title (V-03)
+
+### Known Rule Pitfalls (R&M Reports)
+
+The following rules have been historically misused. Always verify against the
+standards file before including in a report:
+
+| Rule ID | Actual Definition | Severity | Common Misuse |
+|---------|------------------|----------|---------------|
+| `javascript:S106` | Does NOT exist in JS standards | — | Used for console.log findings |
+| `javascript:S1066` | Does NOT exist in JS standards | — | Used for dead code / config issues |
+| `javascript:S1854` | Unused assignments | **Medium** | Reported as High |
+| `javascript:S2189` | Loops should not be infinite | **Blocker → Critical** | Reported as High |
+| `java:S3305` | Factory method injection in @Configuration | **High** | Used for "outdated dependencies" |
+| `java:S2755` | XML parsers / XXE | **Blocker → Critical** | Reported as High |
+| `java:S2115` | Database password security | **Blocker → Critical** | Used for framework EOL; reported as High |
 
 ## Output Directory
 

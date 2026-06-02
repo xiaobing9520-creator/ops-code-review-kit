@@ -7,7 +7,7 @@ from SonarQube's Java analyzer and organized by review category.
 Each rule includes its SonarQube rule key, severity, explanation, and
 Noncompliant/Compliant code examples to guide pattern matching during review.
 
-**Total: 392 rules (45 Blocker, 100 High, 247 Medium)**
+**Total: 341 rules (27 Blocker, 80 High, 234 Medium)**
 
 ## Severity System
 
@@ -44,884 +44,1295 @@ type, this is noted in its description where applicable.
 
 These rules detect security vulnerabilities including injection attacks, credential leaks, cryptographic weaknesses, and authentication flaws.
 
-### java:S2115 — A secure password should be used when connecting to a database
+### java:S6818 — "@Autowired" should only be used on a single constructor
 
-**Severity**: Blocker
+**Severity**: High
 
-| Trustworthy Which component or framework contains the issue? The following code uses an empty password to connect to a Postgres database. The vulnerability can be fixed by using a strong password retrieved from Properties. This database.password property is set during deployment. Its value should be strong and different for each database.
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-String password = System.getProperty("database.password");
-Connection conn = DriverManager.getConnection("jdbc:derby:memory:myDB;create=true", "login", password);
-
-Pitfalls
-Hard-coded passwords
-
-It could be tempting to replace the empty password with a hard-coded one. Hard-coding passwords in the code can pose significant security risks. Here are a few reasons why it is not recommended:
-
-Security Vulnerability: Hard-coded passwords can be easily discovered by anyone who has access to the code, such as other developers or attackers. This can lead to unauthorized access to the database and potential data breaches.
-Lack of Flexibility: Hard-coded passwords make it difficult to change the password without modifying the code. If the password needs to be updated, it would require recompiling and redeploying the code, which can be time-consuming and error-prone.
-Version Control Issues: Storing passwords in code can lead to version control issues. If the code is shared or stored in a version control system, the password will be visible to anyone with access to the repository, which is a security risk.
-
-To mitigate these risks, it is recommended to use secure methods for storing and retrieving passwords, such as using environment variables, configuration files, or secure key management systems. These methods allow for better security, flexibility, and separation of sensitive information from the codebase.
-```
-
----
-
-### java:S2755 — XML parsers should not be vulnerable to XXE attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? The following code contains examples of XML parsers that have external entity processing enabled. As a result, the parsers are vulnerable to XXE attacks if an attacker can control the XML file that is processed.
+To maintain code clarity and ensure that the Spring context can create beans correctly, have only one constructor annotated with @Autowired within a Spring component or set required = false.
 
 **Noncompliant code example**
 
 ```java
-import org.dom4j.io.SAXReader;
+@Component
+public class MyComponent {
+  private final MyService myService;
 
-public void decode() {
+  @Autowired
+  public MyComponent(MyService myService) {
+    this.myService = myService;
+    // ...
+  }
 ```
 
 **Compliant solution**
 
 ```java
-import org.dom4j.io.SAXReader;
+@Component
+public class MyComponent {
+  private final MyService myService;
 
-public void decode() {
-
-    SAXReader xmlReader = new SAXReader();
-    xmlReader.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-
-}
-```
-
----
-
-### java:S3753 — "@Controller" classes that use "@SessionAttributes" must call "setComplete" on their "SessionStatus" objects
-
-**Severity**: Blocker
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "@Controller" classes that use "@SessionAttributes" must call "setComplete" on their "SessionStatus" objects A Spring @Controller that uses @SessionAttributes is designed to handle a stateful / multi-post form. Such @Controllers use the specified @SessionAttributes to store data on the server between requests. That data should be cleaned up when the session is over, but unless setComplete() is called on the SessionStatus object from a @RequestMapping method, neither Spring nor the JVM will know it’s time to do that. Note that the SessionStatus object must be passed to that method as a...
-
-**Noncompliant code example**
-
-```java
-@Controller
-```
-
-**Compliant solution**
-
-```java
-@Controller
-@SessionAttributes("hello")
-public class HelloWorld {
-
-  @RequestMapping("/greet", method = GET)
-  public String greet(String greetee) {
-
-    return "Hello " + greetee;
+  @Autowired
+  public MyComponent(MyService myService) {
+    this.myService = myService;
+    // ...
   }
 
-  @RequestMapping("/goodbye", method = POST)
-  public String goodbye(SessionStatus status) {
-    //...
-    status.setComplete();
+  public MyComponent(MyService myService, Integer i) {
+    this.myService = myService;
+    // ...
   }
 
-}
-```
-
----
-
-### java:S6373 — XML parsers should not allow inclusion of arbitrary files
-
-**Severity**: Blocker
-
-symbolic-execution | Conventional Which component or framework contains the issue? The following code is vulnerable because it explicitly enables the xinclude feature.
-
-**Noncompliant code example**
-
-```java
-import org.dom4j.io.SAXReader;
-
-SAXReader xmlReader = new SAXReader();
-```
-
-**Compliant solution**
-
-```java
-import org.dom4j.io.SAXReader;
-
-SAXReader xmlReader = new SAXReader();
-
-xmlReader.setFeature("http://apache.org/xml/features/xinclude", false);
-```
-
----
-
-### java:S6437 — Credentials should not be hard-coded
-
-**Severity**: Blocker
-
-| Trustworthy Revoke the secret Revoke any leaked secrets and remove them from the application source code. Before revoking the secret, ensure that no other applications or processes are using it. Other usages of the secret will also be impacted when the secret is revoked. Analyze recent secret use When available, analyze authentication logs to identify any unintended or malicious use of the secret since its disclosure date. Doing this will allow determining if an attacker took advantage of the leaked secret and to what extent. This operation should be part of a global incident response process. Use a secret vault A secret vault should be used to generate and store the new secret. This will ensure the secret’s security and prevent any further unexpected disclosure. Depending on the...
-
-**Noncompliant code example**
-
-```java
-import org.h2.security.SHA256;
-
-
-String inputString = "s3cr37";
-
-byte[] key         = inputString.getBytes();
-```
-
-**Compliant solution**
-
-```java
-import org.h2.security.SHA256;
-
-
-String inputString = System.getenv("SECRET");
-
-byte[] key         = inputString.getBytes();
-
-
-SHA256.getHMAC(key, message);
-```
-
----
-
-### javasecurity:S2076 — OS commands should not be vulnerable to command injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Apache Commons Java Lang Package The following code is vulnerable to command injections because it is using untrusted inputs to set up a new process. Therefore an attacker can execute an arbitrary program that is installed on the system.
-
-**Noncompliant code example**
-
-```java
-@Controller
-public class ExampleController
-{
-    @GetMapping(value = "/exec")
-    public void exec(@RequestParam("command") String command) throws IOException {
-
-
-        CommandLine cmd = new CommandLine(command);
-        DefaultExecutor executor = new DefaultExecutor();
-        executor.execute(cmd);
-
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-@Controller
-public class ExampleController
-{
-    @GetMapping(value = "/exec")
-    public void exec(@RequestParam("command") String command) throws IOException {
-
-
-        List<String> allowedCmds = new ArrayList<String>();
-        allowedCmds.add("/bin/ls");
-        allowedCmds.add("/bin/cat");
-
-        if (allowedCmds.contains(command)){
-            CommandLine cmd = new CommandLine(command);
-            DefaultExecutor executor = new DefaultExecutor();
-            executor.execute(cmd);
-        }
-
-    }
-}
-```
-
----
-
-### javasecurity:S2078 — LDAP queries should not be vulnerable to injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Java JNDI API The following noncompliant code is vulnerable to LDAP injections because untrusted data is concatenated to an LDAP query without prior sanitization or validation.
-
-**Noncompliant code example**
-
-```java
-import javax.naming.directory.DirContext;
-import javax.naming.directory.SearchControls;
-
-public boolean authenticate(HttpServletRequest req, DirContext ctx) throws NamingException {
-  String user = req.getParameter("user");
-  String pass = req.getParameter("pass");
-
-
-  String filter = "(&(uid=" + user + ")(userPassword=" + pass + "))";
-
-
-
-  NamingEnumeration<SearchResult> results = ctx.search("ou=system", filter, new SearchControls());
-
-  return results.hasMore();
-}
-```
-
-**Compliant solution**
-
-```java
-import javax.naming.directory.DirContext;
-import javax.naming.directory.SearchControls;
-
-public boolean authenticate(HttpServletRequest req, DirContext ctx) throws NamingException {
-  String user = req.getParameter("user");
-  String pass = req.getParameter("pass");
-
-
-  String filter = "(&(uid={0})(userPassword={1}))";
-
-
-
-  NamingEnumeration<SearchResult> results = ctx.search("ou=system", filter, new String[]{user, pass}, new SearchControls());
-
-  return results.hasMore();
-}
-```
-
----
-
-### javasecurity:S2083 — I/O function calls should not be vulnerable to path injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Java I/O API The following code is vulnerable to path injection as it creates a path using untrusted data without validation. In this particular case, the code can be exploited with the following input to delete arbitrary files outside of the intended directory: ../../../../
-
-**Noncompliant code example**
-
-```java
-@Controller
-public class ExampleController
-{
-
-    static private String targetDirectory = "/path/to/target/directory/";
-
-
-    @GetMapping(value = "/delete")
-    public void delete(@RequestParam("filename") String filename) throws IOException {
-
-
-        File file = new File(targetDirectory + filename);
-
-        file.delete();
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-@Controller
-public class ExampleController
-{
-
-    private static String targetDirectory = "/path/to/target/directory/";
-    private static Path targetPath        = new File(targetDirectory).toPath().normalize();
-
-
-    @GetMapping(value = "/delete")
-    public void delete(@RequestParam("filename") String filename) throws IOException {
-
-
-        File file = new File(targetPath + filename);
-
-        if (!file.toPath().normalize().startsWith(targetPath)) {
-            throw new IOException("Entry is outside of the target directory");
-        }
-
-
-        file.delete();
-    }
-}
-```
-
----
-
-### javasecurity:S2091 — XPath expressions should not be vulnerable to injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Apache Commons Java XML API The following noncompliant code is vulnerable to XPath injections because untrusted data is concatenated to an XPath query without prior validation.
-
-**Noncompliant code example**
-
-```java
-public Book findBook(HttpServletRequest req, Author author) throws JXPathException {
-  String name = request.getParameter("name");
-
-  JXPathContext context = JXPathContext.newContext(author);
-
-
-  return (Book)context.getValue("books[@name='" + name + "']");
-
-}
-```
-
-**Compliant solution**
-
-```java
-public Book findBook(HttpServletRequest req, Author author) throws JXPathException {
-  String name = request.getParameter("name");
-
-  JXPathContext context = JXPathContext.newContext(author);
-
-  context.getVariables().declareVariable("name", name);
-
-
-
-  return (Book)context.getValue("books[@name=$name]");
-
-}
-```
-
----
-
-### javasecurity:S3649 — Database queries should not be vulnerable to injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Java JDBC API Spring Data Cassandra Spring Data Neo4j The following code is vulnerable to SQL++ injection because user-controlled data is inserted directly into a query string. The application assumes that incoming data always has a specific range of characters, and ignores that some characters may change the query logic to a malicious one.
-
-**Noncompliant code example**
-
-```java
-import com.couchbase.client.java.Cluster;
-
-
-@RestController
-public class ApiController
-{
-
-    private final Cluster couchbaseCluster;
-
-
-    @GetMapping("/find")
-    public List<Person> find(@RequestParam("name") String name) {
-
-        QueryResult result = couchbaseCluster.query("SELECT * FROM `bucket` WHERE name = '" + name + "'");
-        return result.rowsAs(Person.class);
-
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-org.springframework.data.couchbase.core.query.Query;
-
-
-@RestController
-public class ApiController
-{
-
-    private final CouchbaseTemplate couchbaseTemplate;
-
-
-    @GetMapping("/find")
-    public List<Person> find(@RequestParam("name") String name) {
-
-        Query query = Query.query(QueryCriteria.where("name").eq(name));
-        return couchbaseTemplate.findByQuery(Person.class).matching(query).all();
-
-    }
-}
-```
-
----
-
-### javasecurity:S5131 — Endpoints should not be vulnerable to reflected cross-site scripting (XSS) attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? The following code is vulnerable to cross-site scripting because JSP does not auto-escape variables. User input embedded in HTML code should be HTML-encoded to prevent the injection of additional code. This can be done with the OWASP Java Encoder or similar libraries.
-
-**Noncompliant code example**
-
-```java
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
-<%@taglib prefix="e" uri="https://www.owasp.org/index.php/OWASP_Java_Encoder_Project" %>
-<!doctype html>
-<html>
- <body>
-```
-
-**Compliant solution**
-
-```java
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
-<%@taglib prefix="e" uri="https://www.owasp.org/index.php/OWASP_Java_Encoder_Project" %>
-<!doctype html>
-<html>
- <body>
-
-  <h1>${e:forHtml(param.title)}</h1>
-
- </body>
-</html>
-```
-
----
-
-### javasecurity:S5135 — Deserialization should not be vulnerable to injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Java I/O API The following code is vulnerable to deserialization attacks because it deserializes HTTP data without validating it first.
-
-**Noncompliant code example**
-
-```java
-public class RequestProcessor {
-  protected void doGet(HttpServletRequest request, HttpServletResponse response) {
-    ServletInputStream servletIS = request.getInputStream();
-
-    ObjectInputStream  objectIS  = new ObjectInputStream(servletIS);
-
-    Object input                 = objectIS.readObject();
+  public MyComponent(MyService myService, Integer i, String s) {
+    this.myService = myService;
+    // ...
   }
 }
 ```
 
+---
+
+---
+
+---
+
+---
+
+### java:S7184 — "@Scheduled" annotation should only be applied to no-arg methods
+
+**Severity**: High
+
+Transform method annotated with @Scheduled into a no-arg method.
+
+**Noncompliant code example**
+
+```java
+public class ExampleService {
+
+    @Scheduled(fixedRate = 5000)
+
+    public void scheduledTask(String param) { // non compliant, method has an argument. It will raise a runtime error.
+
+        // Task implementation
+    }
+}
+```
+
 **Compliant solution**
 
 ```java
-public class SecureObjectInputStream extends ObjectInputStream {
+public class ExampleService {
+
+    @Scheduled(fixedRate = 5000)
+
+    public void scheduledTask() { // compliant, no-arg method
+
+        // Task implementation
+    }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2157 — "Cloneables" should implement "clone"
+
+**Severity**: High
+
+This rule raises an issue when a class implements the interface java.lang.Cloneable, but does not override the Object.clone() method. Cloneable is a marker interface that defines the contract of the Object.clone method, which is to create a consistent copy of the instance. The clone method is not defined by the interface though, but by class Objects. The general problem with marker interfaces is that their definitions cannot be enforced by the compiler because they have no own API. When a class implements Cloneable but does not override Object.clone, it is highly likely that it violates the contract for Cloneable. Consider the following example:
+
+**class Foo implements Cloneable { // Noncompliant, override `clone` method**
+
+```java
+public int value;
+}
+
+
+Override the clone method in class Foo. By convention, it must call super.clone(). At this point, we know that:
+
+By behavioral contract, Object.clone will not throw a CloneNotSupportedException, because Foo implements Cloneable.
+The returned object is an instance of class Foo
+
+We can narrow down the return type of clone to Foo and handle the CloneNotSupportedException inside the function instead of throwing it:
+
+class Foo implements Cloneable { // Compliant
+
+
+  public int value;
+
 
   @Override
-  protected Class<?> resolveClass(ObjectStreamClass osc) throws IOException, ClassNotFoundException {
-
-    List<String> approvedClasses = new ArrayList<String>();
-    approvedClasses.add(AllowedClass1.class.getName());
-    approvedClasses.add(AllowedClass2.class.getName());
-
-    if (!approvedClasses.contains(osc.getName())) {
-      throw new InvalidClassException("Unauthorized deserialization", osc.getName());
+  public Foo clone() {
+    try {
+      return (Foo) super.clone();
+    } catch (CloneNotSupportedException e) {
+      throw new AssertionError();
     }
-
-    return super.resolveClass(osc);
   }
+
 }
 
 
-public class RequestProcessor {
-  protected void doGet(HttpServletRequest request, HttpServletResponse response) {
-    ServletInputStream servletIS = request.getInputStream();
+Be aware that super.clone() returns a one-by-one copy of the fields of the original instance. This means that in our example, the Foo.value field is not required to be explicitly copied in the overridden function.
 
-    ObjectInputStream  objectIS  = new SecureObjectInputStream(servletIS);
-
-    Object input                 = objectIS.readObject();
-  }
-}
+If you require another copy behavior for some or all of the fields, for example, deep copy or certain invariants that need to be true for a field, these fields must be patched after super.clone():
 ```
 
 ---
 
-### javasecurity:S5146 — HTTP request redirections should not be open to forging attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? The following noncompliant code example is vulnerable to open redirection as it constructs a URL with user-controllable data. This URL is then used to redirect the user without being first validated. An attacker can leverage this to manipulate users into performing unwanted redirects.
-
-**Noncompliant code example**
-
-```java
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-  String location = req.getParameter("url");
-
-  resp.sendRedirect(location);
-
-}
-```
-
-**Compliant solution**
-
-```java
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-  String location = req.getParameter("url");
-
-
-  List<String> allowedHosts = new ArrayList<String>();
-  allowedHosts.add("https://trusted1.example.com/");
-  allowedHosts.add("https://trusted2.example.com/");
-
-  if (allowedHosts.contains(location))
-    resp.sendRedirect(location);
-
-}
-```
+---
 
 ---
 
-### javasecurity:S5147 — NoSQL operations should not be vulnerable to injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Legacy Mongo Java API Spring Data MongoDB Spring Data Redis The following code is vulnerable to NoSQL injections because untrusted data is concatenated to the $where operator. This operator indicates to the backend that the expression needs to be interpreted, resulting in code injection.
-
-**Noncompliant code example**
-
-```java
-import com.mongodb.MongoClient;
-import com.mongodb.DB;
-import com.mongodb.DBCollection;
-import com.mongodb.BasicDBObject;
-
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws UnknownHostException
-{
-    String input = req.getParameter("input");
-
-    MongoClient mongoClient = new MongoClient();
-    DB database             = mongoClient.getDB("ExampleDatabase");
-    DBCollection collection = database.getCollection("exampleCollection");
-    BasicDBObject query     = new BasicDBObject();
-
-
-    query.append("$where", "this.field == \"" + input + "\"");
-
-
-    collection.find(query);
-}
-```
-
-**Compliant solution**
-
-```java
-import com.mongodb.MongoClient;
-import com.mongodb.DB;
-import com.mongodb.DBCollection;
-import com.mongodb.BasicDBObject;
-
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws UnknownHostException
-{
-    String input = req.getParameter("input");
-
-    MongoClient mongoClient = new MongoClient();
-    DB database             = mongoClient.getDB("ExampleDatabase");
-    DBCollection collection = database.getCollection("exampleCollection");
-    BasicDBObject query     = new BasicDBObject();
-
-
-    query.append("field", input);
-
-
-    collection.find(query);
-}
-```
-
 ---
 
-### javasecurity:S5334 — Dynamic code execution should not be vulnerable to injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Commons Compiler The following code is vulnerable to arbitrary code execution because it compiles and runs HTTP data.
-
-**Noncompliant code example**
-
-```java
-import org.codehaus.janino.ScriptEvaluator;
-
-@Controller
-public class ExampleController
-{
-    @GetMapping(value = "/")
-    public void exec(@RequestParam("message") String message) throws IOException, InvocationTargetException {
-        ScriptEvaluator se = new ScriptEvaluator();
-```
-
-**Compliant solution**
-
-```java
-import org.codehaus.janino.ScriptEvaluator;
-
-@Controller
-public class ExampleController
-{
-    @GetMapping(value = "/")
-    public void exec(@RequestParam("message") String message) throws IOException, InvocationTargetException {
-        ScriptEvaluator se = new ScriptEvaluator();
-
-        se.setParameters(new String[] { "input" }, new Class[] { String.class });
-        se.cook("System.out.println(input);");
-        se.evaluate(new Object[] { message });
-
-    }
-}
-```
-
----
-
-### javasecurity:S5496 — Server-side templates should not be vulnerable to injection attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue?
-
-**Noncompliant code example**
-
-```java
-The following code example is vulnerable to a Server-Side Template Injection attack because it builds a template string from a user input without control or sanitation.
-
-@GetMapping("/example")
-public String example(@RequestParam("title") String title) throws CompilationFailedException, ClassNotFoundException, IOException {
-
-    String templateString = "h1('" + title + "')";
-
-    TemplateConfiguration config = new TemplateConfiguration();
-    MarkupTemplateEngine engine = new MarkupTemplateEngine(config);
-```
-
-**Compliant solution**
-
-```java
-@GetMapping("/example")
-public String example(@RequestParam("title") String title) throws CompilationFailedException, ClassNotFoundException, IOException {
-
-    String templateString = "h1(title)";
-
-    Map<String, Object> ctx = new HashMap<>();
-    ctx.put("title", title);
-
-
-    TemplateConfiguration config = new TemplateConfiguration();
-    MarkupTemplateEngine engine = new MarkupTemplateEngine(config);
-
-    Template template = engine.createTemplate(templateString);
-    Writable out = template.make(ctx);
-
-    return out.toString();
-}
-```
-
----
-
-### javasecurity:S6096 — Extracting archives should not lead to zip slip vulnerabilities
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? Java I/O API The following code is vulnerable to Zip Slip as it is constructing a path using an archive entry name. This path is then used to copy a file without being validated first. Therefore, it can be leveraged by an attacker to overwrite arbitrary files.
-
-**Noncompliant code example**
-
-```java
-public class Example {
-
-    static private String targetDirectory = "/example/directory/";
-
-    public void ExtractEntry(ZipFile zipFile) throws IOException {
-
-        Enumeration<? extends ZipEntry> entries = zipFile.entries();
-        ZipEntry entry = entries.nextElement();
-        InputStream inputStream = zipFile.getInputStream(entry);
-
-        File file = new File(targetDirectory + entry.getName());
-
-
-        Files.copy(inputStream, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-public class Example {
-
-    static private String targetDirectory = "/example/directory/";
-
-    public void ExtractEntry(ZipFile zipFile) throws IOException {
-
-        Enumeration<? extends ZipEntry> entries = zipFile.entries();
-        ZipEntry entry = entries.nextElement();
-        InputStream inputStream = zipFile.getInputStream(entry);
-
-        File file = new File(targetDirectory + entry.getName());
-
-
-        String canonicalDestinationPath = file.getCanonicalPath();
-
-        if (canonicalDestinationPath.startsWith(targetDirectory)) {
-            Files.copy(inputStream, file.toPath(), StandardCopyOption.REPLACE_EXISTING, LinkOption.NOFOLLOW_LINKS);
-        }
-
-    }
-}
-```
-
----
-
-### javasecurity:S6384 — Components should not be vulnerable to intent redirection
-
-**Severity**: Blocker
-
-Which component or framework contains the issue? This code is vulnerable to intent injection attacks because it starts a new activity from a user-provided intent without prior validation.
-
-**Noncompliant code example**
-
-```java
-public class MainActivity extends AppCompatActivity {
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        Intent intent = getIntent();
-        Intent forward = (Intent) intent.getParcelableExtra("anotherintent");
-
-        startActivity(forward);
-
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-public class MainActivity extends AppCompatActivity {
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        Intent intent = getIntent();
-        Intent forward = (Intent) intent.getParcelableExtra("anotherintent");
-
-        ComponentName name = forward.resolveActivity(getPackageManager());
-        if (name.getPackageName().equals("safePackage") && name.getClassName().equals("safeClass")) {
-            startActivity(forward);
-        }
-
-    }
-}
-```
-
----
-
-### javasecurity:S7606 — WebViews should not be vulnerable to cross-app scripting attacks
-
-**Severity**: Blocker
-
-Which component or framework contains the issue?
-
-**Noncompliant code example**
-
-```java
-public class ExampleActivity extends AppCompatActivity {
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        WebView aWebView = new WebView(this);
-        aWebView.getSettings().setJavaScriptEnabled(true);
-        setContentView(aWebView);
-
-        String name = getIntent().getStringExtra("name");
-        if (name == null) {
-
-            name = "Guest";
-
-        }
-```
-
-**Compliant solution**
-
-```java
-public class ExampleActivity extends AppCompatActivity {
-
-
-    private static final Pattern NAME_REGEX = Pattern.compile("^[a-zA-Z ]+$");
-
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        WebView aWebView = new WebView(this);
-        aWebView.getSettings().setJavaScriptEnabled(true);
-        setContentView(aWebView);
-
-        String name = getIntent().getStringExtra("name");
-        if (name == null) {
-
-            uname = "Guest";
-
-        }
-
-
-        if (NAME_REGEX.matcher(untrustedName).matches()) {
-            aWebView.evaluateJavascript("greeting('" + name + "')";, null);
-        }
-
-    }
-}
-```
-
----
-
-### java:S2053 — Password hashing functions should use an unpredictable salt
+### java:S4524 — "default" clauses should be last
 
 **Severity**: High
 
-| Trustworthy Which component or framework contains the issue? The following code contains examples of hard-coded salts.
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "default" clauses should be last switch can contain a default clause for various reasons: to handle unexpected values, to show that all the cases were properly considered, etc. For readability purposes, to help a developer quickly spot the default behavior of a switch statement, it is recommended to put the default clause at the end of the switch statement. This rule raises an issue if the default clause is not the last one of the switch's cases. switch (param) { doSomething();
+
+**  default: // Noncompliant: default clause should be the last one**
+
+```java
+error();
+    break;
+  case 1:
+    doSomethingElse();
+    break;
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S4454 — "equals" method parameters should not be marked "@Nonnull"
+
+**Severity**: High
+
+| Conventional Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "equals" method parameters should not be marked "@Nonnull" | Conventional By contract, the equals(Object) method, from java.lang.Object, should accept a null argument. Among all the other cases, the null case is even explicitly detailed in the Object.equals(...) Javadoc, stating "For any non-null reference value x, x.equals(null) should return false." Assuming that the argument to equals is always non-null, and enforcing that assumption with an annotation is not only a fundamental violation of the contract of equals, but it is also likely to cause problems in the future as...
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+public boolean equals(Object obj) {
+  if (obj == null) {
+    return false;
+  }
+  // ...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1994 — "for" loop increment clauses should modify the loops' counters
+
+**Severity**: High
+
+The counter of a for loop should be updated in the loop’s increment clause. The purpose of a for loop is to iterate over a range using a counter variable. It should not be used for other purposes, and alternative loops should be used in those cases. If the counter is not updated, the loop will be infinite with a constant counter variable. If this is intentional, use a while or do while loop instead of a for loop. If the counter variable is updated within the loop’s body, try to move it to the increment clause. If this is impossible due to certain conditions, replace the for loop with a while or do while loop.
 
 **Noncompliant code example**
 
 ```java
-import javax.crypto.spec.PBEParameterSpec;
-
-public void hash() {
-
-    byte[] salt = "salty".getBytes();
+Move the counter variable update to the loop’s increment clause.
 ```
 
 **Compliant solution**
 
 ```java
-import java.security.SecureRandom;
+for (i = 0; i < 10; i++) { // Compliant
 
-import javax.crypto.spec.PBEParameterSpec;
+  // ...
+}
 
-public void hash() {
+int sum = 0
 
-    SecureRandom random = new SecureRandom();
-    byte[] salt = new byte[16];
-    random.nextBytes(salt);
+for (int i = 0; i < 10; i++) { // Compliant
 
-    PBEParameterSpec cipherSpec = new PBEParameterSpec(salt, 10000);
+  // ...
+
+  sum++;
 
 }
 ```
 
 ---
 
-### java:S2254 — "HttpServletRequest.getRequestedSessionId()" should not be used
+---
+
+---
+
+---
+
+### java:S2235 — "IllegalMonitorStateException" should not be caught
 
 **Severity**: High
 
-| Trustworthy Which component or framework contains the issue? In both examples, a session ID is used to check whether a user’s session is still active. In the noncompliant example, the session ID supplied by the user is used. In the compliant example, the session ID defined by the server is used instead.
+error-handling
+
+---
+
+---
+
+---
+
+---
+
+### java:S2692 — "indexOf" checks should not be for positive numbers
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "indexOf" checks should not be for positive numbers Most checks against an indexOf value compare it with -1 because 0 is a valid index. Checking against > 0 ignores the first element, which is likely a bug. String name = "ishmael";
+
+**if (name.indexOf("ish") > 0) { // Noncompliant**
+
+```java
+// ...
+}
+
+
+Moreover, if the intent is merely to check the inclusion of a value in a String or a List, consider using the contains method instead.
+
+String name = "ishmael";
+
+if (name.contains("ish") {
+  // ...
+}
+
+
+If the intent is really to skip the first element, comparing it with >=1 will make it more straightforward.
+
+String name = "ishmael";
+
+if (name.indexOf("ish") >= 1) {
+  // ...
+}
+
+
+This rule raises an issue when an indexOf value retrieved from a String or a List is tested against > 0.
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2447 — "null" should not be returned from a "Boolean" method
+
+**Severity**: High
+
+Callers of a Boolean method may be expecting to receive true or false in response. But Boolean objects can take null as a possible value. Boolean methods should not return null unless the code is annotated appropriately. With the proper annotation, the caller is aware that the returned value could be null.
 
 **Noncompliant code example**
+
+```java
+public Boolean isUsable() {
+  // ...
+```
 
 **Compliant solution**
 
 ```java
-if (isActiveSession(request.getSession().getId())) {
+@javax.annotation.Nullable
+public Boolean isUsable() {
+  // ...
+  return null;
+}
 
+@javax.annotation.CheckForNull
+public Boolean isUsable() {
+  // ...
+  return null;
+}
+
+public void caller() {
+  if (Boolean.True.equals(isUsable())) { // This caller knows to check and avoid ambiguity
     // ...
+  }
 }
 ```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1174 — "Object.finalize()" should remain protected (versus public) when overriding
+
+**Severity**: High
+
+Adaptability
+
+The contract of the Object.finalize() method is clear: only the Garbage Collector is supposed to call this method. Making this method public is misleading, because it implies that any caller can use it.
+
+**Noncompliant code example:**
+
+```java
+public class MyClass {
+
+  @Override
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2274 — "Object.wait(...)" and "Condition.await(...)" should be called inside a "while" loop
+
+**Severity**: High
+
+multi-threading Make sure that the desired condition is actually true after being awakened. This can be accomplished by calling the wait or await methods inside a loop that checks said condition.
+
+**Noncompliant code example**
+
+```java
+synchronized (obj) {
+
+  if (!suitableCondition()){
+```
+
+**Compliant solution**
+
+```java
+synchronized (obj) {
+
+  while (!suitableCondition()){
+    obj.wait(timeout); // Compliant, the condition is checked in a loop, so the action below will only occur if the condition is true
+
+  }
+   ... // Perform some logic that is appropriate for when the condition is true
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2119 — "Random" objects should be reused
+
+**Severity**: High
+
+Define and reuse the Random object.
+
+**Noncompliant code example**
+
+```java
+class MyClass {
+
+    public void doSomethingCommon() {
+```
+
+**Compliant solution**
+
+```java
+class MyClass {
+
+    private Random random = new Random();  // Compliant
+
+
+    public void doSomethingCommon() {
+
+      int rValue = this.random.nextInt();
+
+    }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2062 — "readResolve" methods should be inheritable
+
+**Severity**: High
+
+Developers may want to add some logic to handle deserialized objects before they are returned to the caller. This can be achieved by implementing the readResolve method. Non-final classes implementing readResolve should not set its visibility to private as this would make it unavailable to child classes. Instead, mark readResolve as protected, allowing it to be inherited.
+
+**Noncompliant code example:**
+
+```java
+public class Fruit implements Serializable {
+  private static final long serialVersionUID = 1;
+```
+
+**Compliant solution:**
+
+```java
+public class Fruit implements Serializable {
+  private static final long serialVersionUID = 1;
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2151 — "runFinalizersOnExit" should not be called
+
+**Severity**: High
+
+| Conventional
+
+Enabling runFinalizersOnExit is unsafe as it might result in erratic behavior and deadlocks on application exit. Indeed, finalizers might be force-called on live objects while other threads are concurrently manipulating them. Instead, if you want to execute something when the virtual machine begins its shutdown sequence, you should attach a shutdown hook.
+
+**Noncompliant code example:**
+
+```java
+public static void main(String [] args) {
+```
+
+**Compliant solution:**
+
+```java
+public static void main(String [] args) {
+
+  Thread myThread = new Thread( () -> { doShutdownOperations(); });
+  Runtime.getRuntime().addShutdownHook(myThread);
+
+}
+
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2122 — "ScheduledThreadPoolExecutor" should not have 0 core threads
+
+**Severity**: High
+
+ThreadPoolExecutor is an object that efficiently manages and controls the execution of multiple tasks in a thread pool. A thread pool is a collection of pre-initialized threads ready to execute tasks. Instead of creating a new thread for each task, which can be costly in terms of system resources, a thread pool reuses existing threads. java.util.concurrent.ScheduledThreadPoolExecutor is an extension of ThreadPoolExecutor that can additionally schedule commands to run after a given delay or to execute periodically. ScheduledThreadPoolExecutor 's pool is sized with corePoolSize, so setting corePoolSize to zero means the executor will have no threads and run nothing. corePoolSize should have a value greater than zero and valid for your tasks. This rule detects instances where corePoolSize is set to zero via its setter or the object constructor.
+
+**Noncompliant code example:**
+
+```java
+public void do(){
+
+  int poolSize = 5; // value greater than 0
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3252 — "static" base class members should not be accessed via derived types
+
+**Severity**: High
+
+In object-oriented programming, inappropriately accessing static members of a base class via derived types is considered a code smell. Static members are associated with the class itself, not with any specific instance of the class or its children classes. Accessing through the wrong type suggests a misunderstanding of the ownership and role of this member. This can make the maintenance of the code more complicated. Therefore, the access should be done directly through the base class to maintain clarity and avoid potential misunderstandings.
+
+**Noncompliant code example**
+
+```java
+class Parent {
+  public static int counter;
+}
+
+class Child extends Parent {
+  public Child() {
+```
+
+**Compliant solution**
+
+```java
+class Parent {
+  public static int counter;
+}
+
+class Child extends Parent {
+  public Child() {
+
+    Parent.counter++;
+
+  }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5361 — "String#replace" should be preferred to "String#replaceAll"
+
+**Severity**: High
+
+The underlying implementation of String::replaceAll calls the java.util.regex.Pattern.compile() method each time it is called even if the first argument is not a regular expression. This has a significant performance cost and therefore should be used with care. When String::replaceAll is used, the first argument should be a real regular expression. If it’s not the case, String::replace does exactly the same thing as String::replaceAll without the performance drawback of the regex. This rule raises an issue for each String::replaceAll used with a String as first parameter which doesn’t contains special regex character or pattern.
+
+**Noncompliant code example:**
+
+```java
+String init = "Bob is a Bird... Bob is a Plane... Bob is Superman!";
+```
+
+**Compliant solution:**
+
+```java
+String init = "Bob is a Bird... Bob is a Plane... Bob is Superman!";
+String changed = init.replace("Bob is", "It's");
+changed = changed.replace("...", ";");
+
+
+Or, with a regex:
+
+String init = "Bob is a Bird... Bob is a Plane... Bob is Superman!";
+String changed = init.replaceAll("\\w*\\sis", "It's");
+changed = changed.replaceAll("\\.{3}", ";");
+
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S131 — "switch" statements should have "default" clauses
+
+**Severity**: High
+
+Loading...
+
+---
+
+---
+
+---
+
+---
+
+### java:S7185 — @EventListener methods should have one parameter at most
+
+**Severity**: High
+
+**Noncompliant code example**
+
+```java
+@EventListener
+void handleEvent(CustomerEvent customerEvent, ExceptionalEvent exceptionalEvent) { // Non compliant, this will cause a runtime error
+
+    //... some event handling
+}
+```
+
+**Compliant solution**
+
+```java
+@EventListener(classes = {CustomerEvent.class, ExceptionalEvent.class})
+void handleEvent(ApplicationEvent event) { // Only one parameter, of the super type `ApplicationEvent`
+
+    //... some event handling
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3973 — A conditionally executed single line should be denoted by indentation
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules A conditionally executed single line should be denoted by indentation When the line immediately after a conditional has neither curly braces nor indentation, the intent of the code is unclear and perhaps not what is executed. Additionally, such code is confusing to maintainers.
+
+**if (condition)  // Noncompliant**
+
+```java
+doTheThing();
+doTheOtherThing(); // Was the intent to call this function unconditionally?
+
+
+It becomes even more confusing and bug-prone if lines get commented out.
+```
+
+---
+
+---
+
+---
+
+---
+
+### javabugs:S6466 — Accessing an array element should not trigger an ArrayIndexOutOfBoundsException
+
+**Severity**: High
+
+Dataflow Bug Detection SonarAnalyzer (Java) The following examples contain out-of-bounds accesses to arrays, resulting in ArrayIndexOutOfBounds exceptions. These situations can be avoided by carefully considering the range of valid index values, or even better, by comparing indices against the size of a sequence. In this first example, the array arr contains three elements. Since the first element of a list has index 0, the last valid index is 2. Therefore, an ArrayIndexOutOfBoundsException is thrown when accessing arr at index 3.
+
+**Noncompliant code example**
+
+```java
+void fun() {
+    int[] arr = {1, 2, 3};
+```
+
+**Compliant solution**
+
+```java
+void fun() {
+    int[] arr = {1, 2, 3};
+
+
+    int x = arr[0];
+
+  }
+
+
+Accessing an array with its size as the index is never correct:
+```
+
+---
+
+## 3. Spring Framework Rules (11 rules)
+
+Apply these ONLY when the project uses Spring/Spring Boot. These rules detect Spring-specific misconfigurations and anti-patterns.
+
+---
+
+---
+
+---
+
+### java:S5779 — Assertion methods should not be used within the try block of a try-catch catching an Error
+
+**Severity**: High
+
+Assertion methods are throwing a "java.lang.AssertionError". If this call is done within the try block of a try-catch cathing a similar error, you should make sure to test some properties of the exception. Otherwise, the assertion will never fail.
+
+**Noncompliant code example:**
+
+```java
+@Test
+public void should_throw_assertion_error() {
+  try {
+    throwAssertionError();
+```
+
+**Compliant solution:**
+
+```java
+assertThrows(AssertionError.class, () -> throwAssertionError());
+
+try {
+   throwAssertionError();
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5845 — Assertions comparing incompatible types should not be made
+
+**Severity**: High
+
+Assertions comparing incompatible types always fail, and negative assertions always pass. At best, negative assertions are useless. At worst, the developer loses time trying to fix his code logic before noticing wrong assertions. Dissimilar types are: comparing a primitive with null comparing an object with an unrelated primitive (E.G. a string with an int) comparing unrelated classes comparing an array to a non-array comparing two arrays of dissimilar types This rule also raises issues for unrelated class and interface or unrelated interface types in negative assertions. Because except in some corner cases, those types are more likely to be dissimilar. And inside a negative assertion, there is no test failure to inform the developer about this unusual comparison. Supported test frameworks: JUnit4 JUnit5 AssertJ
+
+**Noncompliant code example:**
+
+```java
+interface KitchenTool {}
+interface Plant {}
+class Spatula implements KitchenTool {}
+class Tree implements Plant {}
+
+void assertValues(int size,
+                  Spatula spatula, KitchenTool tool,  KitchenTool[] tools,
+                  Tree    tree,    Plant       plant, Tree[]        trees) {
+
+  // Whatever the given values, those negative assertions will always pass due to dissimilar types:
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S6001 — Back references in regular expressions should only refer to capturing groups that are matched before the reference
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Back references in regular expressions should only refer to capturing groups that are matched before the reference When a back reference in a regex refers to a capturing group that hasn’t been defined yet (or at all), it can never be matched. Named back references throw a PatternSyntaxException in that case; numeric back references fail silently when they can’t match, simply making the match fail. When the group is defined before the back reference but on a different control path (like in (.)|\1 for example), this also leads to a situation where the back reference can never match.
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+Pattern.compile("(.)\\1");
+Pattern.compile("(?<x>.)\\k<x>");
+```
+
+---
+
+---
+
+---
+
+---
+
+### javabugs:S6416 — Calls to methods should not trigger an exception
+
+**Severity**: High
+
+Dataflow Bug Detection SonarAnalyzer (Java)
+
+**Noncompliant code example**
+
+```java
+/**
+ * Set the oven temperature
+ * @param temp the temperature in Celsius, between 0 and 250 (inclusive)
+ * @throws IllegalArgumentException if the temperature is outside of the supported range
+ */
+private void setOvenTemperature(int temp) {
+  if (temp < 0 || temp > 250) {
+    throw new IllegalArgumentException();
+  }
+  // ...
+}
+
+void finishCooking() {
+```
+
+**Compliant solution**
+
+```java
+/**
+ * Set the oven temperature
+ * @param temp the temperature in Celsius, between 0 and 250 (inclusive)
+ * @throws IllegalArgumentException if the temperature is outside of the supported range
+ */
+private void setOvenTemperature(int temp) {
+  if (temp < 0 || temp > 250) {
+    throw new IllegalArgumentException();
+  }
+  // ...
+}
+
+void finishCooking() {
+
+  setOvenTemperature(0);
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### javabugs:S6320 — Cast operations should not trigger a ClassCastException
+
+**Severity**: High
+
+Dataflow Bug Detection SonarAnalyzer (Java) When an object is cast, the code makes assumptions about the type of the object. A ClassCastException indicates that this assumption has been broken. If the assumption is reasonable, then some prior logic should ensure that only objects of a compatible type can be cast. You should try to identify the code responsible for these checks and fix it.
+
+**Noncompliant code example**
+
+```java
+private String hexString(Object o) {
+```
+
+**Compliant solution**
+
+```java
+One possible solution is to change hexString to only accept integers and adapt call sites.
+
+private String hexString(Integer i) {
+  return Integer.toHexString(i);
+}
+
+
+Another one is to return a default value for types that are not Integer. Here, the if statement with the condition relying on instanceof prevents references to objects with an incompatible type from making it to the cast operation.
+
+private String hexString(Object o) {
+  if (o instanceof Integer) {
+    return Integer.toHexString((Integer) o);
+  }
+  return "0x0";
+}
+
+
+The solution to adopt depends on which part of the code should be responsible to handle non-Integer types.
+
+Going the extra mile
+
+Casting is considered an anti-pattern in object-oriented programming. It is sometimes necessary, but there often is a better alternative. Consider:
+
+Polymorphism
+The visitor design pattern
+Pattern matching
+
+They come with some guarantees from the compiler, making your code more reliable.
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5803 — Class members annotated with "@VisibleForTesting" should not be accessed from production code
+
+**Severity**: High
+
+| Conventional Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Class members annotated with "@VisibleForTesting" should not be accessed from production code | Conventional @VisibleForTesting can be used to mark methods, fields and classes whose visibility restrictions have been relaxed more than necessary for the API to allow for easier unit testing. Access to such methods, fields and classes only possible thanks to this relaxed visibility is fine for test code, but it should be avoided in production code. In production code these methods should be treated as if they are private. Supported framework: Guava:...
+
+**Noncompliant code example**
+
+```java
+/** src/main/java/MyObject.java */
+
+@VisibleForTesting String foo;
+
+/** src/main/java/Service.java */
+```
+
+**Compliant solution**
+
+```java
+/** src/main/java/MyObject.java */
+
+@VisibleForTesting String foo;
+
+/** src/test/java/MyObjectTest.java */
+
+new MyObject().foo; // Compliant, foo is accessed from test code
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2176 — Class names should not shadow interfaces or superclasses
+
+**Severity**: High
+
+Two classes can have the same simple name if they are in two different packages. package org.foo.domain; public class User { package org.foo.presentation; public class User { However, this becomes an issue when a class has the same name as the superclass it extends or the interfaces it implements, also known as class name shadowing. It is problematic because it can be unclear which class is being referred to in the code, leading to ambiguity and potential bugs. Therefore, it is recommended to use unique and descriptive class names that do not conflict with the names of the superclass or interfaces. This rule raises an issue when a class name shadows its superclass or interface names. Rename the class using a more descriptive name.
+
+**Noncompliant code example**
+
+```java
+package org.foo.presentation;
+```
+
+**Compliant solution**
+
+```java
+package org.foo.presentation;
+
+
+import org.foo.domain.User;
+
+public class UserView implements User { // Compliant
+
+  // ...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### javaarchitecture:S7789 — Classes should be located according to the intended architecture
+
+**Severity**: High
+
+Sonar Architecture (Java) architecture Adaptability Move the relevant class to its intended location or rename the relevant package as intended.
+
+**Noncompliant code example**
+
+```java
+If the intended architecture declares developers should use the package name com.example.panel, not com.example.panels, then the following code example is noncompliant:
+
+package com.example.panels;
+
+
+class ShowCustomersPanel extends Panel {
+  // ...
+}
+```
+
+**Compliant solution**
+
+```java
+The solution is to move the class to its appropriate package, or respectively, to rename the package panels to panel.
+
+package com.example.panel;
+
+
+
+import com.example.services.CustomerService;
+
+
+class ShowCustomersPanel extends Panel {
+  // ...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2390 — Classes should not access their own subclasses during class initialization
+
+**Severity**: High
+
+Adaptability
+
+Referencing a static member of a subclass from its parent during class initialization, makes the code more fragile and prone to future bugs. The execution of the program will rely heavily on the order of initialization of classes and their static members. What is the potential impact? This could create what is known as an "initialization cycle", or even a deadlock in some extreme cases. Additionally, if the order of the static class members is changed, the behavior of the program might change. These issues can be very hard to diagnose so it is highly recommended to avoid creating this kind of dependencies.
+
+**Noncompliant code example:**
+
+```java
+class Parent {
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3776 — Cognitive Complexity of methods should not be too high
+
+**Severity**: High
+
+brain-overload Adaptability Reducing cognitive complexity can be challenging. Here are a few suggestions: Extract complex conditions in a new function. Mixed operators in condition will increase complexity. Extracting the condition in a new function with an appropriate name will reduce cognitive load. Break down large functions. Large functions can be hard to understand and maintain. If a function is doing too many things, consider breaking it down into smaller, more manageable functions. Each function should have a single responsibility. Avoid deep nesting by returning early. To avoid the nesting of conditions, process exceptional cases first and return early. Extraction of a complex condition in a new function.
+
+**Noncompliant code example**
+
+```java
+The code is using a complex condition and has a cognitive cost of 3.
+
+double calculateFinalPrice(User user, Cart cart) {
+  double total = calculateTotal(cart);
+
+  if (user.hasMembership()                            // +1 (if)
+    && user.ordersCount() > 10                        // +1 (more than one condition)
+    && user.isAccountActive()
+    && !user.hasDiscount()
+    || user.ordersCount() == 1) {                    // +1 (change of operator in condition)
+
+    total = applyDiscount(user, total);
+  }
+  return total;
+}
+```
+
+**Compliant solution**
+
+```java
+Even if the cognitive complexity of the whole program did not change, it is easier for a reader to understand the code of the calculateFinalPrice function, which now only has a cognitive cost of 1.
+
+double calculateFinalPrice(User user, Cart cart) {
+  double total = calculateTotal(cart);
+
+  if (isEligibleForDiscount(user)) {                  // +1 (if)
+
+    total = applyDiscount(user, total);
+  }
+  return total;
+}
+
+
+boolean isEligibleForDiscount(User user) {
+  return user.hasMembership()
+    && user.ordersCount() > 10                        // +1 (more than one condition)
+    && user.isAccountActive()
+    && !user.hasDiscount()
+    || user.ordersCount() == 1;                       // +1 (change of operator in condition)
+}
+
+
+Break down large functions.
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3972 — Conditionals should start on new lines
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Conditionals should start on new lines Placing an if statement on the same line as the closing } from a preceding if, else, or else if block can lead to confusion and potential errors. It may indicate a missing else statement or create ambiguity for maintainers who might fail to understand that the two statements are unconnected. The following code snippet is confusing: if (condition1) {
+
+**} if (condition2) {  // Noncompliant**
+
+```java
+//...
+}
+
+
+Either the two conditions are unrelated and they should be visually separated:
+
+if (condition1) {
+  // ...
+
+}
+
+if (condition2) {
+
+  //...
+}
+
+
+Or they were supposed to be exclusive and you should use else if instead:
+
+if (condition1) {
+  // ...
+} else if (condition2) {
+  //...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S115 — Constant names should comply with a naming convention
+
+**Severity**: High
+
+| Identifiable First, familiarize yourself with the particular naming convention of the project in question. Then, update the name of the constant to match the convention, as well as all usages of the name. For many IDEs, you can use built-in renaming and refactoring features to update all usages of a constant at once.
+
+**Noncompliant code example**
+
+```java
+The following example assumes that constant names should match the default regular expression ^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$:
+
+public class MyClass {
+```
+
+**Compliant solution**
+
+```java
+public class MyClass {
+
+  public static final float PI = 3.14159f;
+
+
+  void myMethod() {
+
+    System.out.println(PI);
+
+  }
+}
+
+public enum MyEnum {
+
+  OPTION_ONE,
+  OPTION_TWO;
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S4970 — Derived exceptions should not hide their parents' catch blocks
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Derived exceptions should not hide their parents' catch blocks The catch block of a checked exception "E" may be hidden because the corresponding try block only throws exceptions derived from E. These derived exceptions are handled in dedicated catch blocks prior to the catch block of the base exception E. The catch block of E is unreachable and should be considered dead code. It should be removed, or the entire try-catch structure should be refactored. It is also possible that a single exception type in a multi-catch block may be hidden while the catch block itself is still reachable. In...
+
+**Noncompliant code example**
+
+```java
+public class HiddenCatchBlock {
+
+  public static class CustomException extends Exception {
+  }
+
+  public static class CustomDerivedException extends CustomException {
+  }
+
+  public static void main(String[] args) {
+    try {
+      throwCustomDerivedException();
+    } catch(CustomDerivedException e) {
+      // ...
+```
+
+**Compliant solution**
+
+```java
+public class HiddenCatchBlock {
+
+  public static class CustomException extends Exception {
+  }
+
+  public static class CustomDerivedException extends CustomException {
+  }
+
+  public static void main(String[] args) {
+    try {
+      throwCustomDerivedException();
+    } catch(CustomDerivedException e) { // Compliant; try-catch block is "catching" only the Exception that can be thrown in the "try"
+      //...
+    }
+  }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5846 — Empty lines should not be tested with regex MULTILINE flag
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Empty lines should not be tested with regex MULTILINE flag One way to test for empty lines is to use the regex "^$", which can be extremely handy when filtering out empty lines from collections of Strings, for instance. With regard to this, the Javadoc for Pattern (Line Terminators) states the following: By default, the regular expressions ^ and $ ignore line terminators and only match at the beginning and the end, respectively, of the entire input sequence. If MULTILINE mode is activated then ^ matches at the beginning of input and after any line terminator except at the end of input. When...
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+static final Pattern p = Pattern.compile("^$", Pattern.MULTILINE);
+
+boolean containsEmptyLines(String str) {
+    return p.matcher(str).find() || str.isEmpty();
+}
+
+// ...
+System.out.println(containsEmptyLines("a\n\nb")); // correctly prints 'true'
+System.out.println(containsEmptyLines("")); // also correctly prints 'true'
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1163 — Exceptions should not be thrown in finally blocks
+
+**Severity**: High
+
+error-handling
+
+---
+
+---
+
+---
+
+---
+
+### java:S1215 — Execution of the Garbage Collector should be triggered only by the JVM
+
+**Severity**: High
+
+unpredictable Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Execution of the Garbage Collector should be triggered only by the JVM unpredictable Calling System.gc() or Runtime.getRuntime().gc() is a bad idea for a simple reason: there is no way to know exactly what will be done under the hood by the JVM because the behavior will depend on its vendor, version and options: Will the whole application be frozen during the call? Is the -XX:DisableExplicitGC option activated? Will the JVM simply ignore the call? Like for System.gc(), there is no reason to manually call runFinalization() to force the call of finalization methods of any...
+
+---
+
+---
+
+---
 
 ---
 
@@ -953,850 +1364,257 @@ public class ​FooConfiguration {
 
 ---
 
-### java:S3329 — Cipher Block Chaining IVs should be unpredictable
+---
+
+---
+
+---
+
+### java:S1948 — Fields in a "Serializable" class should either be transient or serializable
 
 **Severity**: High
 
-| Trustworthy Which component or framework contains the issue? Java Cryptography Extension
+Consider the following scenario. public class Address { public class Person implements Serializable { private static final long serialVersionUID = 1905122041950251207L; private String name;
+
+**  private Address address;  // Noncompliant, Address is not serializable**
+
+```java
+}
+
+
+How to fix this issue depends on the application’s needs. If the field’s value should be preserved during serialization and deserialization, you may want to make the field’s value serializable.
+
+public class Address implements Serializable {
+  private static final long serialVersionUID = 2405172041950251807L;
+
+
+    ...
+}
+
+public class Person implements Serializable {
+  private static final long serialVersionUID = 1905122041950251207L;
+
+  private String name;
+
+  private Address address; // Compliant, Address is serializable
+
+}
+
+
+If the field’s value does not need to be preserved during serialization and deserialization, mark it as transient. The field will be ignored when the object is serialized. After deserialization, the field will be set to the default value corresponding to its type (e.g., null for object references).
+
+public class Address {
+    ...
+}
+
+public class Person implements Serializable {
+  private static final long serialVersionUID = 1905122041950251207L;
+
+  private String name;
+  private transient Address address; // Compliant, the field is transient
+```
+
+---
+
+---
+
+---
+
+---
+
+### javaarchitecture:S8134 — Forbidden relationships should be removed to solve tangles as directed by the project's architect
+
+**Severity**: High
+
+Sonar Architecture (Java) architecture Adaptability Remove or refactor the problematic dependency. This may involve replacing the dependency with an allowed one, moving code to appropriate classes or packages, or introducing new abstractions. The exact solution depends on your project’s specific situation.
 
 **Noncompliant code example**
 
 ```java
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.security.InvalidKeyException;
-import java.security.InvalidAlgorithmParameterException;
-import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import javax.crypto.NoSuchPaddingException;
+The following code contains two cycles: Order → Customer → Order, and Order → Product → Order. Furthermore, both cycles are connected to each other via class Order. This is called a tangle consisting of two cycles.
 
-public void encrypt(String key, String plainText) {
+class Order {
+    public Customer customer;
+    public List<Product> products;
+}
 
+class Customer {
+    public List<Order> orders;
 
-    byte[] RandomBytes = "7cVgr5cbdCZVw5WY".getBytes(StandardCharsets.UTF_8);
+}
 
-
-
-    IvParameterSpec iv   = new IvParameterSpec(RandomBytes);
-
-    SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
-
-    try {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, keySpec, iv);
-
-    } catch(NoSuchAlgorithmException|InvalidKeyException|
-            NoSuchPaddingException|InvalidAlgorithmParameterException e) {
-        // ...
-    }
+class Product {
+    public List<Order> orders;
 }
 ```
 
 **Compliant solution**
 
 ```java
-In this example, the code explicitly uses a number generator that is considered strong.
+The issue can be resolved by changing the structure. Two service functions can replace the dependencies Customer → Order and Product → Order.
 
-import java.nio.charset.StandardCharsets;
+class Order {
+    public Customer customer;
+    public List<Product> products;
+}
 
-import java.security.SecureRandom;
+class Customer { }
+class Product { }
+interface OrderService {
+  List<Order> getOrdersByCustomer(Customer customer);
+  List<Order> getOrdersByProduct(Product product);
 
-import java.security.NoSuchAlgorithmException;
-import java.security.InvalidKeyException;
-import java.security.InvalidAlgorithmParameterException;
-import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import javax.crypto.NoSuchPaddingException;
-
-public void encrypt(String key, String plainText) {
-
-
-    SecureRandom random = new SecureRandom();
-    byte[] randomBytes  = new byte[128];
-    random.nextBytes(randomBytes);
-
-
-
-    IvParameterSpec iv   = new IvParameterSpec(randomBytes);
-
-    SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
-
-    try {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, keySpec, iv);
-
-    } catch(NoSuchAlgorithmException|InvalidKeyException|
-            NoSuchPaddingException|InvalidAlgorithmParameterException e) {
+}
 ```
 
 ---
 
-### java:S4347 — Secure random number generators should not output predictable values
+---
+
+---
+
+---
+
+### java:S1452 — Generic wildcard types should not be used in return types
 
 **Severity**: High
 
-Which component or framework contains the issue? The following code uses a cryptographically strong random number generator to generate data that is not cryptographically strong.
+A return type containing wildcards cannot be narrowed down in any context. This indicates that the developer’s intention was likely something else. The core problem lies in type variance. Expressions at an input position, such as arguments passed to a method, can have a more specific type than the type expected by the method, which is called covariance. Expressions at an output position, such as a variable that receives the return result from a method, can have a more general type than the method’s return type, which is called contravariance. This can be traced back to the Liskov substitution principle. In Java, type parameters of a generic type are invariant by default due to their potential occurrence in both input and output positions at the same time. A classic example of this is the...
+
+**List<? extends Animal> getAnimals() { ... } // Noncompliant, wildcard with no use**
+
+---
+
+---
+
+---
+
+---
+
+### java:S4275 — Getters and setters should access the expected fields
+
+**Severity**: High
+
+Getters and setters provide a way to enforce encapsulation by providing public methods that give controlled access to private fields. However, in classes with multiple fields, it is not unusual that copy and paste is used to quickly create the needed getters and setters, which can result in the wrong field being accessed by a getter or setter. This rule raises an issue in any of these cases: A setter does not update the field with the corresponding name. A getter does not access the field with the corresponding name.
 
 **Noncompliant code example**
 
 ```java
-SecureRandom sr = new SecureRandom();
+class A {
+  private int x;
+  private int y;
 ```
 
 **Compliant solution**
 
 ```java
-SecureRandom sr = new SecureRandom();
-int v = sr.next(32);
-
-
-This solution is available for JDK 1.8 and higher.
-
-SecureRandom sr = SecureRandom.getInstanceStrong();
-
-int v = sr.next(32);
-```
-
----
-
-### java:S4423 — Weak SSL/TLS protocols should not be used
-
-**Severity**: High
-
-| Trustworthy Which component or framework contains the issue? Java Cryptography Extension
-
-**Noncompliant code example**
-
-```java
-import javax.net.ssl.SSLContext;
-import java.security.NoSuchAlgorithmException;
-
-public static void main(String[] args) {
-    try {
-```
-
-**Compliant solution**
-
-```java
-import javax.net.ssl.SSLContext;
-import java.security.NoSuchAlgorithmException;
-
-public static void main(String[] args) {
-    try {
-
-        SSLContext.getInstance("TLSv1.2");
-
-    } catch (NoSuchAlgorithmException e) {
-        // ...
-    }
-}
-```
-
----
-
-### java:S4426 — Cryptographic keys should be robust
-
-**Severity**: High
-
-| Trustworthy Which component or framework contains the issue? Java Cryptography Extension The following code examples either explicitly or implicitly generate keys. Note that there are differences in the size of the keys depending on the algorithm. Due to the mathematical properties of the algorithms, the security requirements for the key size vary depending on the algorithm. For example, a 256-bit ECC key provides about the same level of security as a 3072-bit RSA key and a 128-bit symmetric key.
-
-**Noncompliant code example**
-
-```java
-Here is an example of a private key generation with RSA:
-
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-
-public static void main(String[] args) {
-    try {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-```
-
-**Compliant solution**
-
-```java
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-
-public static void main(String[] args) {
-    try {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-
-        keyPairGenerator.initialize(2048);
-
-
-    } catch (NoSuchAlgorithmException e) {
-        // ...
-    }
-}
-
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.spec.ECGenParameterSpec;
-
-public static void main(String[] args) {
-    try {
-        KeyPairGenerator keyPairGenerator    = KeyPairGenerator.getInstance("EC");
-
-        ECGenParameterSpec ellipticCurveName = new ECGenParameterSpec("secp256r1");
-
-        keyPairGenerator.initialize(ellipticCurveName);
-
-    } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
-        // ...
-    }
-}
-```
-
----
-
-### java:S4433 — LDAP connections should be authenticated
-
-**Severity**: High
-
-The following code indicates an anonymous LDAP authentication vulnerability because it binds to a remote server using an Anonymous Simple authentication mechanism.
-
-**Noncompliant code example**
-
-```java
-// Set up the environment for creating the initial context
-Hashtable<String, Object> env = new Hashtable<String, Object>();
-env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
-
-env.put(Context.PROVIDER_URL, "ldap://localhost:389/o=JNDITutorial");
-
-
-
-// Use anonymous authentication
-```
-
-**Compliant solution**
-
-```java
-// Set up the environment for creating the initial context
-Hashtable<String, Object> env = new Hashtable<String, Object>();
-env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
-
-env.put(Context.PROVIDER_URL, "ldap://localhost:389/o=Example");
-
-
-
-// Use simple authentication
-env.put(Context.SECURITY_AUTHENTICATION, "simple");
-env.put(Context.SECURITY_PRINCIPAL, "cn=local, ou=Unit, o=Example");
-env.put(Context.SECURITY_CREDENTIALS, getLDAPPassword());
-
-
-// Create the initial context
-DirContext ctx = new InitialDirContext(env);
-```
-
----
-
-### java:S4830 — Server certificates should be verified during SSL/TLS connections
-
-**Severity**: High
-
-| Trustworthy Which component or framework contains the issue? Java Cryptography Extension The following code contains examples of disabled certificate validation. The certificate validation gets disabled by overriding X509TrustManager with an empty implementation. It is highly recommended to use the original implementation.
-
-**Noncompliant code example**
-
-```java
-class TrustAllManager implements X509TrustManager {
-
-    @Override
-```
-
----
-
-### java:S5344 — Passwords should not be stored in plaintext or with a fast hashing algorithm
-
-**Severity**: High
-
-| Trustworthy Which component or framework contains the issue? Java Cryptography Extension
-
-**Noncompliant code example**
-
-```java
-The derived key is vulnerable because the cost factor (rounds) is too low for the chosen algorithm.
-
-private SecretKey deriveKey(String password, byte[] salt) throws Exception {
-```
-
-**Compliant solution**
-
-```java
-private SecretKey deriveKey(String password, byte[] salt) throws Exception {
-
-    PBEKeySpec keySpec = new PBEKeySpec(password.toCharArray(), salt, 210000, 256);
-
-    SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance("PBKDF2withHmacSHA512");
-    return secretKeyFactory.generateSecret(keySpec);
-}
-```
-
----
-
-### java:S5445 — Insecure temporary file creation methods should not be used
-
-**Severity**: High
-
-The following code example is vulnerable to a race condition attack because it creates a temporary file using an unsafe API function.
-
-**Noncompliant code example**
-
-```java
-import java.io.File;
-
-import java.io.IOException;
-
-protected void Example() throws IOException {
-
-    File tempDir;
-    tempDir = File.createTempFile("", ".");
-    tempDir.delete();
-```
-
-**Compliant solution**
-
-```java
-import java.io.IOException;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-
-protected void Example() throws IOException {
-
-    Path tempPath = Files.createTempDirectory("");
-    File tempDir = tempPath.toFile();
-
-}
-```
-
----
-
-### java:S5527 — Server hostnames should be verified during SSL/TLS connections
-
-**Severity**: High
-
-Which component or framework contains the issue? Apache Commons Email The following code contains examples of disabled hostname validation. The hostname validation gets disabled because setSSLCheckServerIdentity is omitted. To enable validation, set it to true.
-
-**Noncompliant code example**
-
-```java
-import org.apache.commons.mail.DefaultAuthenticator;
-import org.apache.commons.mail.Email;
-import org.apache.commons.mail.SimpleEmail;
-
-public void sendMail(String message) {
-    Email email = new SimpleEmail();
-
-    email.setMsg(message);
-    email.setSmtpPort(465);
-    email.setAuthenticator(new DefaultAuthenticator(username, password));
-```
-
-**Compliant solution**
-
-```java
-import org.apache.commons.mail.DefaultAuthenticator;
-import org.apache.commons.mail.Email;
-import org.apache.commons.mail.SimpleEmail;
-
-public void sendMail(String message) {
-    Email email = new SimpleEmail();
-
-    email.setMsg(message);
-    email.setSmtpPort(465);
-    email.setAuthenticator(new DefaultAuthenticator(username, password));
-
-    email.setSSLCheckServerIdentity(true);
-    email.setSSLOnConnect(true);
-
-
-    email.send();
-}
-```
-
----
-
-### java:S5542 — Encryption algorithms should be used with secure mode and padding scheme
-
-**Severity**: High
-
-| Trustworthy Which component or framework contains the issue? Java Cryptography Extension
-
-**Noncompliant code example**
-
-```java
-Example with a symmetric cipher, AES:
-
-import javax.crypto.Cipher;
-import java.security.NoSuchAlgorithmException;
-import javax.crypto.NoSuchPaddingException;
-
-public static void main(String[] args) {
-    try {
-```
-
-**Compliant solution**
-
-```java
-For the AES symmetric cipher, use the GCM mode:
-
-import javax.crypto.Cipher;
-import java.security.NoSuchAlgorithmException;
-import javax.crypto.NoSuchPaddingException;
-
-public static void main(String[] args) {
-    try {
-
-        Cipher.getInstance("AES/GCM/NoPadding");
-
-    } catch(NoSuchAlgorithmException|NoSuchPaddingException e) {
-        // ...
-    }
-}
-
-
-For the RSA asymmetric cipher, use the Optimal Asymmetric Encryption Padding (OAEP):
-
-import javax.crypto.Cipher;
-import java.security.NoSuchAlgorithmException;
-import javax.crypto.NoSuchPaddingException;
-
-public static void main(String[] args) {
-    try {
-
-        Cipher.getInstance("RSA/ECB/OAEPWITHSHA-256ANDMGF1PADDING");
-
-    } catch(NoSuchAlgorithmException|NoSuchPaddingException e) {
-        // ...
-    }
-}
-```
-
----
-
-### java:S5547 — Cipher algorithms should be robust
-
-**Severity**: High
-
-| Trustworthy Which component or framework contains the issue? Java Cryptography Extension The following code contains examples of algorithms that are not considered highly resistant to cryptanalysis and thus should be avoided.
-
-**Noncompliant code example**
-
-```java
-import javax.crypto.Cipher;
-import java.security.NoSuchAlgorithmException;
-import javax.crypto.NoSuchPaddingException;
-
-public static void main(String[] args) {
-    try {
-```
-
-**Compliant solution**
-
-```java
-import javax.crypto.Cipher;
-import java.security.NoSuchAlgorithmException;
-import javax.crypto.NoSuchPaddingException;
-
-public static void main(String[] args) {
-    try {
-
-        Cipher aes = Cipher.getInstance("AES/GCM/NoPadding");
-
-    } catch(NoSuchAlgorithmException|NoSuchPaddingException e) {
-        // ...
-    }
-}
-```
-
----
-
-### java:S5659 — JWT should be signed and verified with strong cipher algorithms
-
-**Severity**: High
-
-| Trustworthy Which component or framework contains the issue? The following code contains examples of JWT encoding and decoding without a strong cipher algorithm.
-
-**Noncompliant code example**
-
-```java
-import com.auth0.jwt.JWT;
-
-public void encode() {
-    JWT.create()
-        .withSubject(SUBJECT)
-```
-
-**Compliant solution**
-
-```java
-import com.auth0.jwt.JWT;
-
-public void encode() {
-    JWT.create()
-        .withSubject(SUBJECT)
-
-        .sign(Algorithm.HMAC256(SECRET_KEY));
-
-}
-
-import com.auth0.jwt.JWT;
-
-public void decode() {
-
-    JWTVerifier verifier = JWT.require(Algorithm.HMAC256(SECRET_KEY))
-
-        .withSubject(LOGIN)
-        .build();
-}
-```
-
----
-
-### java:S5876 — A new session should be created during user authentication
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules
-
-Skip to rules filters
-
----
-
-### javasecurity:S2631 — Regular expressions should not be vulnerable to Denial of Service attacks
-
-**Severity**: High
-
-Which component or framework contains the issue? Java Regex API The following noncompliant code is vulnerable to Regex Denial of Service because untrusted data is used as a regex to scan a string without prior sanitization or validation.
-
-**Noncompliant code example**
-
-```java
-public boolean validate(HttpServletRequest request) {
-  String regex = request.getParameter("regex");
-  String input = request.getParameter("input");
-
-
-  return input.matches(regex);
-
-}
-```
-
-**Compliant solution**
-
-```java
-import java.util.regex.Pattern;
-
-
-public boolean validate(HttpServletRequest request) {
-  String regex = request.getParameter("regex");
-  String input = request.getParameter("input");
-
-
-  return input.matches(Pattern.quote(regex));
-
-}
-```
-
----
-
-### javasecurity:S6390 — Thread suspensions should not be vulnerable to Denial of Service attacks
-
-**Severity**: High
-
-Which component or framework contains the issue? Java Lang Package This code is vulnerable to a Denial of Service because it sets a thread’s suspension time from user input without prior validation or sanitation.
-
-**Noncompliant code example**
-
-```java
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
-  Long time = Long.parseLong(req.getParameter("time"));
-  try {
-```
-
-**Compliant solution**
-
-```java
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
-  Long time = Long.parseLong(req.getParameter("time"));
-  try {
-
-    Thread.sleep(Math.min(time, 1000));
-
-  } catch (InterruptedException e) {
-    resp.sendError(500);
+class A {
+  private int x;
+  private int y;
+
+  public void setX(int val) {
+    this.x = val;
+  }
+
+  public int getY() {
+    return this.y;
   }
 }
 ```
 
 ---
 
-## 2. Reliability & Bug Prevention Rules (28 rules)
+---
 
-These rules detect patterns that cause runtime errors, resource leaks, concurrency issues, and control flow defects.
+---
 
-### java:S2095 — Resources should be closed
+---
 
-**Severity**: Blocker
+### java:S7178 — Injecting data into static fields is not supported by Spring
 
-Connections, streams, files, and other classes that implement the `Closeable` interface or its super-interface `AutoCloseable`, need to be closed after use. Further, that close call must be made in a `finally` block otherwise an exception could keep the close call from being made. Failing to properly close resources will result in a resource leak which could bring first the application and then the box it runs on to their knees.
+**Severity**: High
+
+Either use an instance field instead of a static field or remove the @Value, @Inject, or @Autowired annotation and initialize the field.
 
 **Noncompliant code example**
 
 ```java
-private void readTheFile() throws IOException {
-  Path path = Paths.get(this.fileName);
-  BufferedReader reader = Files.newBufferedReader(path, this.charset);
-  // ...
-  reader.close();  // Noncompliant
-  // ...
-  Files.lines("input.txt").forEach(System.out::println); // Noncompliant
+@Component
+public class MyComponent {
+
+    @Value("${my.app.prop}")
+
+    private static SomeDependency dependency; // non compliant, @Value will be ignored and no value will be injected
+
+    // ...
 }
 ```
 
 **Compliant solution**
 
 ```java
-private void readTheFile(String fileName) throws IOException {
-    Path path = Paths.get(fileName);
-    try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-      reader.readLine();
-      // ...
-    }
-    try (Stream<String> input = Files.lines("input.txt")) {
-      input.forEach(System.out::println);
-    }
+@Component
+public class MyComponent {
+
+    @Value("${my.app.prop}")
+
+    private final SomeDependency dependency;
+
+    // ...
 }
 ```
 
 ---
 
-### java:S2168 — Double-checked locking should not be used
-
-**Severity**: Blocker
-
-Given significant performance improvements of synchronized methods in recent JVM versions, synchronized methods are now preferred over the less robust double-checked locking. If marking the entire method as synchronized is not an option, consider using an inner static class to hold the reference instead. Inner static classes are guaranteed to be initialized lazily.
-
-**Noncompliant code example**
-
-```java
-public class ResourceFactory {
-    private static Resource resource;
-
-
-    public static Resource getInstance() {
-        if (resource == null) {
-```
-
-**Compliant solution**
-
-```java
-public class ResourceFactory {
-    private static Resource resource;
-
-
-    public static synchronized Resource getInstance() { // Compliant, the entire method is synchronized and hence thread-safe
-        if (resource == null)
-            resource = new Resource();
-
-        return resource;
-    }
-}
-```
+---
 
 ---
 
-### java:S2189 — Loops should not be infinite
-
-**Severity**: Blocker
-
-symbolic-execution
-
-An infinite loop will never end while the program runs, meaning you have to kill the program to get out of the loop. Every loop should have an end condition, whether by meeting the loop's termination condition or via a break statement.
-
-**Noncompliant code example:**
-
-```java
-for (;;) {  // Noncompliant; end condition omitted
-  // ...
-}
-
-int j;
-while (true) { // Noncompliant; end condition omitted
-  j++;
-}
-
-int k;
-boolean b = true;
-while (b) { // Noncompliant; b never written to in loop
-  k++;
-}
-```
-
-**Compliant solution:**
-
-```java
-int j;
-while (true) { // reachable end condition added
-  j++;
-  if (j == Integer.MIN_VALUE) {  // true at Integer.MAX_VALUE +1
-    break;
-  }
-}
-
-int k;
-boolean b = true;
-while (b) {
-  k++;
-  b = k < Integer.MAX_VALUE;
-}
-```
-
 ---
 
-### java:S2236 — Methods "wait(...)", "notify()" and "notifyAll()" should not be called on Thread instances
+### java:S2696 — Instance methods should not write to "static" fields
 
-**Severity**: Blocker
+**Severity**: High
 
 multi-threading
 
 ---
 
-### java:S2276 — "wait(...)" should be used instead of "Thread.sleep(...)" when a lock is held
-
-**Severity**: Blocker
-
-Call wait(…​) on the monitor object instead of using Thread.sleep(…​). While wait(…​) is executed, the lock is temporarily released and hence other threads can run in the meantime.
-
-**Noncompliant code example**
-
-```java
-public void doSomething(){
-  synchronized(monitor) {
-    while(notReady()){
-```
-
-**Compliant solution**
-
-```java
-public void doSomething(){
-  synchronized(monitor) {
-    while(notReady()){
-
-      monitor.wait(200); // Compliant, the current monitor is released.
-
-    }
-    process();
-  }
-  ...
-}
-```
+---
 
 ---
 
-### java:S3014 — "ThreadGroup" should not be used
+---
 
-**Severity**: Blocker
+### java:S1214 — Interfaces should not solely consist of constants
 
-| Conventional Instead, use implementations of java.util.concurrent.ExecutorService to safely manage groups of threads.
+**Severity**: High
 
-**Noncompliant code example**
+bad-practice Adaptability If the concrete value of the constants is not essential, and they serve as mere identifiers, replace the interface with an enum like in the following example:
 
-```java
-class NetworkHandler {
-```
-
-**Compliant solution**
+**public interface Status { // Noncompliant, enum should be used**
 
 ```java
-class NetworkHandler {
-
-  void handleThreadsProperly() {
-    ThreadFactory threadFactory = Executors.defaultThreadFactory();
-    ThreadPoolExecutor executorPool = new ThreadPoolExecutor(3, 10, 5, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(2), threadFactory);
-    for (int i = 0; i < 10; i++) {
-      executorPool.execute(new Thread("Job: " + i));
-    }
-    executorPool.shutdown();
-  }
+int OPEN = 1;
+  int CLOSED = 2;
 
 }
-```
 
----
-
-### java:S3046 — "wait" should not be called when multiple locks are held
-
-**Severity**: Blocker
-
-multi-threading Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "wait" should not be called when multiple locks are held multi-threading When two locks are held simultaneously, a wait call only releases one of them. The other will be held until some other thread requests a lock on the awaited object. If no unrelated code tries to lock on that object, then all other threads will be locked out, resulting in a deadlock.
-
-**Noncompliant code example**
-
-```java
-synchronized (this.mon1) {  // threadB can't enter this block to request this.mon2 lock & release threadA
-	synchronized (this.mon2) {
-```
-
----
-
-### java:S3516 — Methods returns should not be invariant
-
-**Severity**: Blocker
-
-symbolic-execution Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Methods returns should not be invariant symbolic-execution When a method is designed to return an invariant value, it may be poor design, but it shouldn’t adversely affect the outcome of your program. However, when it happens on all paths through the logic, it is surely a bug. This rule raises an issue when a method contains several return statements that all return the same value.
-
-**Noncompliant code example**
-
-```java
-int foo(int a) {
-  int b = 12;
-  if (a == 1) {
-    return b;
-  }
-```
-
----
-
-### javabugs:S2190 — Recursion should not be infinite
-
-**Severity**: Blocker
-
-Dataflow Bug Detection SonarAnalyzer (Java) To correctly implement recursion, you must ensure that the following conditions are met: On every recursive call, the input to the call needs to become smaller, meaning it needs to be brought closer to the base case. For instance, if you are operating on a list, you can split it into smaller segments. If the input is numerical, you can ensure that you only make recursive calls on numbers that are strictly smaller. The recursive method must contain a termination condition that checks whether the base case has been reached. If so, it must not perform another recursive call. For example, a base case can be that the input is an empty list. You need to ensure that your process for splitting the input into smaller instances will actually lead to the...
-
-**Noncompliant code example**
-
-```java
-int myPow(int num, int exponent) {
-```
-
-**Compliant solution**
-
-```java
-int myPow(int num, int exponent) {
-
-  if (exponent == 0) { // <- termination condition
-    return 1;
-  }
-
-  if (exponent < 0) {
-    throw new IllegalArgumentException("Negative exponents are not supported.");
-  }
-
-  num = num * myPow(num, exponent - 1);
-  return num;
+public enum Status {      // Compliant
+  OPEN,
+  CLOSED
 
 }
+
+
+In some cases, enums are not a suitable option because the concrete constant value is important. Then you should check whether it is appropriate to move them to a specific existing class, for example, if that class is the primary user of the constants:
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -1863,1076 +1681,9 @@ public static void doSomethingWhichThrowsException() {
 
 ---
 
-### java:S1163 — Exceptions should not be thrown in finally blocks
-
-**Severity**: High
-
-error-handling
-
 ---
 
-### java:S2093 — Try-with-resources should be used
-
-**Severity**: High
-
-| Conventional Use the try-with-resources syntax by moving the Closable variable declarations after the try keyword surrounded by parentheses and separated by ;: try (/* resources declarations */) { // resources usage ...
-
-**Noncompliant code example**
-
-```java
-FileReader fr = null;
-BufferedReader br = null;
-```
-
-**Compliant solution**
-
-```java
-try ( // Compliant, all resources are instantiated within a try-with-resources statement and hence automatically closed after use
-    FileReader fr = new FileReader(fileName);
-    BufferedReader br = new BufferedReader(fr)
-  ) {
-
-  return br.readLine();
-}
-
-catch (...) {}
-```
-
 ---
-
-### java:S2122 — "ScheduledThreadPoolExecutor" should not have 0 core threads
-
-**Severity**: High
-
-ThreadPoolExecutor is an object that efficiently manages and controls the execution of multiple tasks in a thread pool. A thread pool is a collection of pre-initialized threads ready to execute tasks. Instead of creating a new thread for each task, which can be costly in terms of system resources, a thread pool reuses existing threads. java.util.concurrent.ScheduledThreadPoolExecutor is an extension of ThreadPoolExecutor that can additionally schedule commands to run after a given delay or to execute periodically. ScheduledThreadPoolExecutor 's pool is sized with corePoolSize, so setting corePoolSize to zero means the executor will have no threads and run nothing. corePoolSize should have a value greater than zero and valid for your tasks. This rule detects instances where corePoolSize is set to zero via its setter or the object constructor.
-
-**Noncompliant code example:**
-
-```java
-public void do(){
-
-  int poolSize = 5; // value greater than 0
-```
-
----
-
-### java:S2222 — Locks should be released on all paths
-
-**Severity**: High
-
-If a lock is acquired and released within a method, then it must be released along all execution paths of that method. Failing to do so will expose the conditional locking logic to the method's callers and hence be deadlock-prone.
-
-**Noncompliant code example:**
-
-```java
-public class MyClass {
-  public void doSomething() {
-    Lock lock = new Lock();
-    lock.lock(); // Noncompliant
-    if (isInitialized()) {
-      // ...
-      lock.unlock();
-    }
-  }
-}
-```
-
-**Compliant solution:**
-
-```java
-public class MyClass {
-  public void doSomething() {
-    Lock lock = new Lock();
-    if (isInitialized()) {
-      lock.lock();
-      // ...
-      lock.unlock();
-    }
-  }
-}
-```
-
----
-
-### java:S2235 — "IllegalMonitorStateException" should not be caught
-
-**Severity**: High
-
-error-handling
-
----
-
-### java:S2274 — "Object.wait(...)" and "Condition.await(...)" should be called inside a "while" loop
-
-**Severity**: High
-
-multi-threading Make sure that the desired condition is actually true after being awakened. This can be accomplished by calling the wait or await methods inside a loop that checks said condition.
-
-**Noncompliant code example**
-
-```java
-synchronized (obj) {
-
-  if (!suitableCondition()){
-```
-
-**Compliant solution**
-
-```java
-synchronized (obj) {
-
-  while (!suitableCondition()){
-    obj.wait(timeout); // Compliant, the condition is checked in a loop, so the action below will only occur if the condition is true
-
-  }
-   ... // Perform some logic that is appropriate for when the condition is true
-}
-```
-
----
-
-### java:S2447 — "null" should not be returned from a "Boolean" method
-
-**Severity**: High
-
-Callers of a Boolean method may be expecting to receive true or false in response. But Boolean objects can take null as a possible value. Boolean methods should not return null unless the code is annotated appropriately. With the proper annotation, the caller is aware that the returned value could be null.
-
-**Noncompliant code example**
-
-```java
-public Boolean isUsable() {
-  // ...
-```
-
-**Compliant solution**
-
-```java
-@javax.annotation.Nullable
-public Boolean isUsable() {
-  // ...
-  return null;
-}
-
-@javax.annotation.CheckForNull
-public Boolean isUsable() {
-  // ...
-  return null;
-}
-
-public void caller() {
-  if (Boolean.True.equals(isUsable())) { // This caller knows to check and avoid ambiguity
-    // ...
-  }
-}
-```
-
----
-
-### java:S2692 — "indexOf" checks should not be for positive numbers
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "indexOf" checks should not be for positive numbers Most checks against an indexOf value compare it with -1 because 0 is a valid index. Checking against > 0 ignores the first element, which is likely a bug. String name = "ishmael";
-
-**if (name.indexOf("ish") > 0) { // Noncompliant**
-
-```java
-// ...
-}
-
-
-Moreover, if the intent is merely to check the inclusion of a value in a String or a List, consider using the contains method instead.
-
-String name = "ishmael";
-
-if (name.contains("ish") {
-  // ...
-}
-
-
-If the intent is really to skip the first element, comparing it with >=1 will make it more straightforward.
-
-String name = "ishmael";
-
-if (name.indexOf("ish") >= 1) {
-  // ...
-}
-
-
-This rule raises an issue when an indexOf value retrieved from a String or a List is tested against > 0.
-```
-
----
-
-### java:S4454 — "equals" method parameters should not be marked "@Nonnull"
-
-**Severity**: High
-
-| Conventional Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "equals" method parameters should not be marked "@Nonnull" | Conventional By contract, the equals(Object) method, from java.lang.Object, should accept a null argument. Among all the other cases, the null case is even explicitly detailed in the Object.equals(...) Javadoc, stating "For any non-null reference value x, x.equals(null) should return false." Assuming that the argument to equals is always non-null, and enforcing that assumption with an annotation is not only a fundamental violation of the contract of equals, but it is also likely to cause problems in the future as...
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-public boolean equals(Object obj) {
-  if (obj == null) {
-    return false;
-  }
-  // ...
-}
-```
-
----
-
-### java:S4970 — Derived exceptions should not hide their parents' catch blocks
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Derived exceptions should not hide their parents' catch blocks The catch block of a checked exception "E" may be hidden because the corresponding try block only throws exceptions derived from E. These derived exceptions are handled in dedicated catch blocks prior to the catch block of the base exception E. The catch block of E is unreachable and should be considered dead code. It should be removed, or the entire try-catch structure should be refactored. It is also possible that a single exception type in a multi-catch block may be hidden while the catch block itself is still reachable. In...
-
-**Noncompliant code example**
-
-```java
-public class HiddenCatchBlock {
-
-  public static class CustomException extends Exception {
-  }
-
-  public static class CustomDerivedException extends CustomException {
-  }
-
-  public static void main(String[] args) {
-    try {
-      throwCustomDerivedException();
-    } catch(CustomDerivedException e) {
-      // ...
-```
-
-**Compliant solution**
-
-```java
-public class HiddenCatchBlock {
-
-  public static class CustomException extends Exception {
-  }
-
-  public static class CustomDerivedException extends CustomException {
-  }
-
-  public static void main(String[] args) {
-    try {
-      throwCustomDerivedException();
-    } catch(CustomDerivedException e) { // Compliant; try-catch block is "catching" only the Exception that can be thrown in the "try"
-      //...
-    }
-  }
-}
-```
-
----
-
-### java:S5996 — Regex boundaries should not be used in a way that can never be matched
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Regex boundaries should not be used in a way that can never be matched In regular expressions the boundaries ^ and \A can only match at the beginning of the input (or, in case of ^ in combination with the MULTILINE flag, the beginning of the line) and $, \Z and \z only at the end. These patterns can be misused, by accidentally switching ^ and $ for example, to create a pattern that can never match.
-
-**Noncompliant code example**
-
-```java
-// This can never match because $ and ^ have been switched around
-```
-
-**Compliant solution**
-
-```java
-Pattern.compile("^[a-z]+$");
-```
-
----
-
-### java:S6104 — Map "computeIfAbsent()" and "computeIfPresent()" should not be used to add "null" values.
-
-**Severity**: High
-
-Map computeIfAbsent and computeIfPresent methods are convenient to avoid the cumbersome process to check if a key exists or not, followed by the addition of the entry. However, when the function used to compute the value returns null, the entry key->null will not be added to the Map. Furthermore, in the case of computeIfPresent, if the key is present the entry will be removed. These methods should therefore not be used to conditionally add an entry with a null value. The traditional way should be used instead. This rule raises an issue when computeIfAbsent or computeIfPresent is used with a lambda always returning null.
-
-**Noncompliant code example:**
-
-```java
-
-```
-
-**Compliant solution:**
-
-```java
-if (!map.containsKey(key)) {
-    map.put(key, null);
-}
-if (map.containsKey(key)) {
-    map.put(key, null);
-}
-
-```
-
----
-
-### java:S6816 — Nullable injected fields and parameters should provide a default value
-
-**Severity**: High
-
-Add a default value to the @Value annotation. A default value can be supplied by using the colon (:) operator. As the field is nullable, the default value should most likely be #{null}.
-
-**Noncompliant code example**
-
-```java
-@Nullable
-```
-
-**Compliant solution**
-
-```java
-@Nullable
-
-@Value("${my.property:#{null}}") // Compliant, a default value is provided
-
-private String myProperty;
-```
-
----
-
-### java:S6881 — Virtual threads should be used for tasks that include heavy blocking operations
-
-**Severity**: High
-
-multi-threading Replace platform thread instances or platform thread pools with virtual threads, if their task involves blocking operations.
-
-**Noncompliant code example**
-
-```java
-The following example creates a platform thread to handle a blocking operation, here denoted by Thread.sleep(1000). The overhead for instantiating a platform thread is higher than for a virtual thread. Further, instantiating too many platform threads can lead to problems if the number of instantiated threads exceeds the maximum number of platform threads allowed by the OS.
-
-new Thread(() -> {
-
-    try {
-```
-
-**Compliant solution**
-
-```java
-Using virtual threads allows the developer to abstract from any pooling logic as they are much lighter than platform threads, and the number of virtual threads that can be instantiated is only limited by the available memory. In this example, the execution of 10000 requests would take just over ~1 second without any risk of exceeding the allowed number of platform threads.
-
-Thread.ofVirtual().start(() -> {
-
-    try {
-
-        Thread.sleep(1000); // Compliant
-
-    } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-    }
-});
-```
-
----
-
-### javabugs:S3518 — Zero should not be a possible denominator
-
-**Severity**: High
-
-Dataflow Bug Detection SonarAnalyzer (Java)
-
----
-
-### javabugs:S6320 — Cast operations should not trigger a ClassCastException
-
-**Severity**: High
-
-Dataflow Bug Detection SonarAnalyzer (Java) When an object is cast, the code makes assumptions about the type of the object. A ClassCastException indicates that this assumption has been broken. If the assumption is reasonable, then some prior logic should ensure that only objects of a compatible type can be cast. You should try to identify the code responsible for these checks and fix it.
-
-**Noncompliant code example**
-
-```java
-private String hexString(Object o) {
-```
-
-**Compliant solution**
-
-```java
-One possible solution is to change hexString to only accept integers and adapt call sites.
-
-private String hexString(Integer i) {
-  return Integer.toHexString(i);
-}
-
-
-Another one is to return a default value for types that are not Integer. Here, the if statement with the condition relying on instanceof prevents references to objects with an incompatible type from making it to the cast operation.
-
-private String hexString(Object o) {
-  if (o instanceof Integer) {
-    return Integer.toHexString((Integer) o);
-  }
-  return "0x0";
-}
-
-
-The solution to adopt depends on which part of the code should be responsible to handle non-Integer types.
-
-Going the extra mile
-
-Casting is considered an anti-pattern in object-oriented programming. It is sometimes necessary, but there often is a better alternative. Consider:
-
-Polymorphism
-The visitor design pattern
-Pattern matching
-
-They come with some guarantees from the compiler, making your code more reliable.
-```
-
----
-
-### javabugs:S6416 — Calls to methods should not trigger an exception
-
-**Severity**: High
-
-Dataflow Bug Detection SonarAnalyzer (Java)
-
-**Noncompliant code example**
-
-```java
-/**
- * Set the oven temperature
- * @param temp the temperature in Celsius, between 0 and 250 (inclusive)
- * @throws IllegalArgumentException if the temperature is outside of the supported range
- */
-private void setOvenTemperature(int temp) {
-  if (temp < 0 || temp > 250) {
-    throw new IllegalArgumentException();
-  }
-  // ...
-}
-
-void finishCooking() {
-```
-
-**Compliant solution**
-
-```java
-/**
- * Set the oven temperature
- * @param temp the temperature in Celsius, between 0 and 250 (inclusive)
- * @throws IllegalArgumentException if the temperature is outside of the supported range
- */
-private void setOvenTemperature(int temp) {
-  if (temp < 0 || temp > 250) {
-    throw new IllegalArgumentException();
-  }
-  // ...
-}
-
-void finishCooking() {
-
-  setOvenTemperature(0);
-
-}
-```
-
----
-
-### javabugs:S6466 — Accessing an array element should not trigger an ArrayIndexOutOfBoundsException
-
-**Severity**: High
-
-Dataflow Bug Detection SonarAnalyzer (Java) The following examples contain out-of-bounds accesses to arrays, resulting in ArrayIndexOutOfBounds exceptions. These situations can be avoided by carefully considering the range of valid index values, or even better, by comparing indices against the size of a sequence. In this first example, the array arr contains three elements. Since the first element of a list has index 0, the last valid index is 2. Therefore, an ArrayIndexOutOfBoundsException is thrown when accessing arr at index 3.
-
-**Noncompliant code example**
-
-```java
-void fun() {
-    int[] arr = {1, 2, 3};
-```
-
-**Compliant solution**
-
-```java
-void fun() {
-    int[] arr = {1, 2, 3};
-
-
-    int x = arr[0];
-
-  }
-
-
-Accessing an array with its size as the index is never correct:
-```
-
----
-
-## 3. Spring Framework Rules (11 rules)
-
-Apply these ONLY when the project uses Spring/Spring Boot. These rules detect Spring-specific misconfigurations and anti-patterns.
-
-### java:S4602 — "@SpringBootApplication" and "@ComponentScan" should not be used in the default package
-
-**Severity**: Blocker
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "@SpringBootApplication" and "@ComponentScan" should not be used in the default package @ComponentScan is used to determine which Spring Beans are available in the application context. The packages to scan can be configured thanks to the basePackageClasses or basePackages (or its alias value) parameters. If neither parameter is configured, @ComponentScan will consider only the package of the class annotated with it. When @ComponentScan is used on a class belonging to the default package, the entire classpath will be scanned. This will slow-down the start-up of the application and it is...
-
-**Noncompliant code example**
-
-```java
-import org.springframework.boot.SpringApplication;
-```
-
-**Compliant solution**
-
-```java
-package hello;
-
-import org.springframework.boot.SpringApplication;
-
-@SpringBootApplication // Compliant; RootBootApp belongs to the "hello" package
-public class RootBootApp {
-...
-}
-```
-
----
-
-### java:S4684 — Persistent entities should not be used as arguments of "@RequestMapping" methods
-
-**Severity**: High
-
-| Conventional Which component or framework contains the issue? The following code is vulnerable to a mass assignment attack because it allows modifying the User persistent entities thanks to maliciously forged Wish object properties.
-
-**Noncompliant code example**
-
-```java
-import javax.persistence.Entity;
-
-@Entity
-public class Wish {
-
-  Long productId;
-  Long quantity;
-
-  Client client;
-
-}
-
-
-@Entity
-public class Client {
-  String clientId;
-  String name;
-  String password;
-}
-
-
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-
-@Controller
-public class PurchaseOrderController {
-
-  @RequestMapping(path = "/saveForLater", method = RequestMethod.POST)
-```
-
-**Compliant solution**
-
-```java
-public class WishDTO {
-
-  Long productId;
-  Long quantity;
-
-  Long clientId;
-
-}
-
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-
-@Controller
-public class PurchaseOrderController {
-
-  @RequestMapping(path = "/saveForLater", method = RequestMethod.POST)
-
-  public String saveForLater(WishDTO wish) {
-    Wish persistentWish = new Wish();
-    persistentWish.productId = wish.productId
-    persistentWish.quantity = wish.quantity
-    persistentWish.client = getClientById(with.clientId)
-    session.save(persistentWish);
-
-  }
-}
-```
-
----
-
-### java:S6809 — Methods with Spring proxy should not be called via "this"
-
-**Severity**: High
-
-| Conventional Replace calls to @Async, @Cacheable or @Transactional methods via this with calls on an instance that was injected by Spring (@Autowired, @Resource or @Inject). The injected instance is a proxy on which the methods can be invoked safely.
-
-**Noncompliant code example**
-
-```java
-@Service
-public class AsyncNotificationProcessor implements NotificationProcessor {
-
-  @Override
-  public void process(Notification notification) {
-```
-
-**Compliant solution**
-
-```java
-@Service
-public class AsyncNotificationProcessor implements NotificationProcessor {
-
-
-  @Resource
-  private AsyncNotificationProcessor asyncNotificationProcessor;
-
-
-  @Override
-  public void process(Notification notification) {
-
-    asyncNotificationProcessor.processAsync(notification); // Compliant, call via injected proxy
-    asyncNotificationProcessor.retrieveNotification(notification.id); // Compliant, the call will be cached
-
-  }
-
-  @Async
-  public processAsync(Notification notification) {
-    // ...
-  }
-
-  @Cacheable
-  public Notification retrieveNotification(Long id) {
-    // ...
-  }
-}
-```
-
----
-
-### java:S6817 — Use of the "@Async" annotation on methods declared within a "@Configuration" class in Spring Boot
-
-**Severity**: High
-
-Don’t use @Async annotations on methods of @Configuration classes.
-
-**Noncompliant code example**
-
-```java
-@EnableAsync
-@Configuration
-public class MyConfiguration {
-```
-
-**Compliant solution**
-
-```java
-@EnableAsync
-@Configuration
-public class MyConfiguration {
-
-
-  public void method() {
-
-    // ...
-  }
-}
-```
-
----
-
-### java:S6818 — "@Autowired" should only be used on a single constructor
-
-**Severity**: High
-
-To maintain code clarity and ensure that the Spring context can create beans correctly, have only one constructor annotated with @Autowired within a Spring component or set required = false.
-
-**Noncompliant code example**
-
-```java
-@Component
-public class MyComponent {
-  private final MyService myService;
-
-  @Autowired
-  public MyComponent(MyService myService) {
-    this.myService = myService;
-    // ...
-  }
-```
-
-**Compliant solution**
-
-```java
-@Component
-public class MyComponent {
-  private final MyService myService;
-
-  @Autowired
-  public MyComponent(MyService myService) {
-    this.myService = myService;
-    // ...
-  }
-
-  public MyComponent(MyService myService, Integer i) {
-    this.myService = myService;
-    // ...
-  }
-
-  public MyComponent(MyService myService, Integer i, String s) {
-    this.myService = myService;
-    // ...
-  }
-}
-```
-
----
-
-### java:S6857 — SpEL expression should have a valid syntax
-
-**Severity**: High
-
-| Conventional Correct the syntax error in the SpEL expression.
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-@Value("#{systemProperties['user.region']}") // Compliant
-
-private String region;
-
-@Value("#{'${listOfValues}'.split(',')}") // Compliant
-
-private List<String> valuesList;
-
-@Value("#{T(java.lang.Math).random() * 100.0}") // Compliant
-
-private Double randPercent;
-
-@Query("SELECT u FROM User u WHERE u.status = :#{#status+42}") // Compliant
-
-List<User> findUsersByStatus(@Param("status") String status);
-
-@Value("${myapp.prop}") // Compliant
-
-private String myProperty;
-
-@Value("${my.property:#{1*1}}") // Compliant
-
-private Integer myValue;
-```
-
----
-
-### java:S7178 — Injecting data into static fields is not supported by Spring
-
-**Severity**: High
-
-Either use an instance field instead of a static field or remove the @Value, @Inject, or @Autowired annotation and initialize the field.
-
-**Noncompliant code example**
-
-```java
-@Component
-public class MyComponent {
-
-    @Value("${my.app.prop}")
-
-    private static SomeDependency dependency; // non compliant, @Value will be ignored and no value will be injected
-
-    // ...
-}
-```
-
-**Compliant solution**
-
-```java
-@Component
-public class MyComponent {
-
-    @Value("${my.app.prop}")
-
-    private final SomeDependency dependency;
-
-    // ...
-}
-```
-
----
-
-### java:S7184 — "@Scheduled" annotation should only be applied to no-arg methods
-
-**Severity**: High
-
-Transform method annotated with @Scheduled into a no-arg method.
-
-**Noncompliant code example**
-
-```java
-public class ExampleService {
-
-    @Scheduled(fixedRate = 5000)
-
-    public void scheduledTask(String param) { // non compliant, method has an argument. It will raise a runtime error.
-
-        // Task implementation
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-public class ExampleService {
-
-    @Scheduled(fixedRate = 5000)
-
-    public void scheduledTask() { // compliant, no-arg method
-
-        // Task implementation
-    }
-}
-```
-
----
-
-### java:S7185 — @EventListener methods should have one parameter at most
-
-**Severity**: High
-
-**Noncompliant code example**
-
-```java
-@EventListener
-void handleEvent(CustomerEvent customerEvent, ExceptionalEvent exceptionalEvent) { // Non compliant, this will cause a runtime error
-
-    //... some event handling
-}
-```
-
-**Compliant solution**
-
-```java
-@EventListener(classes = {CustomerEvent.class, ExceptionalEvent.class})
-void handleEvent(ApplicationEvent event) { // Only one parameter, of the super type `ApplicationEvent`
-
-    //... some event handling
-}
-```
-
----
-
-### java:S7186 — Methods returning "Page" or "Slice" must take "Pageable" as an input parameter
-
-**Severity**: High
-
-| Conventional Ensure that query methods returning a Page or Slice include a Pageable parameter in their method signature.
-
-**Noncompliant code example**
-
-```java
-interface ItemRepository extends JpaRepository<Item, Long> {
-
-    Page<Item> findItems(); //non compliant, no Pageable parameter
-
-}
-```
-
-**Compliant solution**
-
-```java
-interface ItemRepository extends JpaRepository<Item, Long> {
-
-    Page<Item> findItems(Pageable pageable);
-
-}
-```
-
----
-
-### java:S7190 — Methods annotated with "@BeforeTransaction" or "@AfterTransaction" must respect the contract
-
-**Severity**: High
-
-Ensure that methods annotated with @BeforeTransaction or @AfterTransaction have a void return type and do not accept any arguments.
-
-**Noncompliant code example**
-
-```java
-@Transactional
-public class TransactionalTest {
-
-    @BeforeTransaction
-
-    public String setupTransaction(int x) { // non-compliant, method should be void and have no argument
-
-        // Setup logic
-    }
-
-    @AfterTransaction
-
-    public int cleanupTransaction(int x) { // non-compliant, method should be void and have no argument
-
-        // Cleanup logic
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-@Transactional
-public class TransactionalTest {
-
-    @BeforeTransaction
-
-    public void setupTransaction() {
-
-        // Setup logic
-    }
-
-    @AfterTransaction
-
-    public void cleanupTransaction() {
-
-        // Cleanup logic
-    }
-}
-```
-
----
-
-## 4. Testing Quality Rules (14 rules)
-
-These rules ensure test correctness and completeness.
-
-### java:S2187 — TestCases should contain tests
-
-**Severity**: Blocker
-
-Adaptability Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules TestCases should contain tests Adaptability There’s no point in having a JUnit TestCase without any test methods. Similarly, you shouldn’t have a file in the tests directory named *Test, *Tests, or *TestCase, but no tests in the file. Doing either of these things may lead someone to think that uncovered classes have been tested. This rule raises an issue when files in the test directory are named *Test, *Tests, or *TestCase or implement TestCase but don’t contain any tests. Supported frameworks: TestClassNamePattern Test class name pattern (regular expression) Default Value:...
-
----
-
-### java:S2188 — JUnit test cases should call super methods
-
-**Severity**: Blocker
-
-Add an explicit call to super.setUp() and super.tearDown() in the overriding methods.
-
-**Noncompliant code example**
-
-```java
-public class MyClassTest extends MyAbstractTestCase {
-
-  private MyClass myClass;
-
-  @Override
-```
-
-**Compliant solution**
-
-```java
-public class MyClassTest extends MyAbstractTestCase {
-
-  private MyClass myClass;
-
-  @Override
-
-  protected void setUp() throws Exception {
-    super.setUp();
-
-    myClass = new MyClass();
-  }
-}
-```
-
----
-
-### java:S2699 — Tests should include assertions
-
-**Severity**: Blocker
-
-Adaptability Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Tests should include assertions Adaptability A test case without assertions ensures only that no exceptions are thrown. Beyond basic runnability, it ensures nothing about the behavior of the code under test. This rule raises an exception when no assertions from any of the following known frameworks are found in a test: Eclipse Vert.x Fest 1.x and 2.x Rest-assured 2.x, 3.x and 4.x RxJava 1.x and 2.x Spring’s org.springframework.test.web.servlet.ResultActions.andExpect() and org.springframework.test.web.servlet.ResultActions.andExpectAll() Truth Framework Furthermore, as new or...
-
-**Noncompliant code example**
-
-```java
-@Test
-```
-
-**Compliant solution**
-
-```java
-Example when com.company.CompareToTester#compare* is used as parameter to the rule.
-
-import com.company.CompareToTester;
-
-@Test
-public void testDoSomething() {
-  MyClass myClass = new MyClass();
-  assertNull(myClass.doSomething());  // JUnit assertion
-  assertThat(myClass.doSomething()).isNull();  // Fest assertion
-}
-
-@Test
-public void testDoSomethingElse() {
-  MyClass myClass = new MyClass();
-  new CompareToTester().compareWith(myClass);  // Compliant - custom assertion method defined as rule parameter
-  CompareToTester.compareStatic(myClass);  // Compliant
-}
-
-Parameters
-customAssertionMethods	
-Comma-separated list of fully qualified method symbols that should be considered as assertion methods. The wildcard character can be used at the end of the method name.
-```
-
----
-
-### java:S2970 — Assertions should be complete
-
-**Severity**: Blocker
-
-Adaptability Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Assertions should be complete Adaptability It is very easy to write incomplete assertions when using some test frameworks. This rule enforces complete assertions in the following cases: Fest: assertThat is not followed by an assertion invocation AssertJ: assertThat is not followed by an assertion invocation Mockito: verify is not followed by a method invocation Truth: assertXXX is not followed by an assertion invocation In such cases, what is intended to be a test doesn’t actually verify anything
-
-**Noncompliant code example**
-
-```java
-// Fest
-boolean result = performAction();
-// let's now check that result value is true
-```
-
-**Compliant solution**
-
-```java
-// Fest
-boolean result = performAction();
-// let's now check that result value is true
-assertThat(result).isTrue();
-
-// Mockito
-List mockedList = Mockito.mock(List.class);
-mockedList.add("one");
-mockedList.clear();
-// let's check that "add" and "clear" methods are actually called
-Mockito.verify(mockedList).add("one");
-Mockito.verify(mockedList).clear();
-```
 
 ---
 
@@ -2960,67 +1711,9 @@ class RunnableWithAnAssertion extends Thread {
 
 ---
 
-### java:S5779 — Assertion methods should not be used within the try block of a try-catch catching an Error
-
-**Severity**: High
-
-Assertion methods are throwing a "java.lang.AssertionError". If this call is done within the try block of a try-catch cathing a similar error, you should make sure to test some properties of the exception. Otherwise, the assertion will never fail.
-
-**Noncompliant code example:**
-
-```java
-@Test
-public void should_throw_assertion_error() {
-  try {
-    throwAssertionError();
-```
-
-**Compliant solution:**
-
-```java
-assertThrows(AssertionError.class, () -> throwAssertionError());
-
-try {
-   throwAssertionError();
-```
-
 ---
 
-### java:S5783 — Only one method invocation is expected when testing checked exceptions
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Only one method invocation is expected when testing checked exceptions When verifying that code raises an exception, a good practice is to avoid having multiple method calls inside the tested code, to be explicit about what is exactly tested. When two of the methods can raise the same checked exception, not respecting this good practice is a bug, since it is not possible to know what is really tested. You should make sure that only one method can raise the expected checked exception in the tested code.
-
-**Noncompliant code example**
-
-```java
-@Test
-public void testG() {
-  // Do you expect g() or f() throwing the exception?
-```
-
-**Compliant solution**
-
-```java
-@Test
-public void testG() {
-  int y = f(1);
-  // It is explicit that we expect an exception from g() and not f()
-  assertThrows(IOException.class, () -> g(y) );
-}
-
-@Test
-public void testGTryCatchIdiom() {
-  int y = f(1);
-  try {
-    g(y);
-    Assert.fail("Expected an IOException to be thrown");
-  } catch (IOException e) {
-    // Test exception message...
-  }
-}
-```
+---
 
 ---
 
@@ -3065,348 +1758,61 @@ class MyJunit5Test {
 
 ---
 
-### java:S5803 — Class members annotated with "@VisibleForTesting" should not be accessed from production code
-
-**Severity**: High
-
-| Conventional Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Class members annotated with "@VisibleForTesting" should not be accessed from production code | Conventional @VisibleForTesting can be used to mark methods, fields and classes whose visibility restrictions have been relaxed more than necessary for the API to allow for easier unit testing. Access to such methods, fields and classes only possible thanks to this relaxed visibility is fine for test code, but it should be avoided in production code. In production code these methods should be treated as if they are private. Supported framework: Guava:...
-
-**Noncompliant code example**
-
-```java
-/** src/main/java/MyObject.java */
-
-@VisibleForTesting String foo;
-
-/** src/main/java/Service.java */
-```
-
-**Compliant solution**
-
-```java
-/** src/main/java/MyObject.java */
-
-@VisibleForTesting String foo;
-
-/** src/test/java/MyObjectTest.java */
-
-new MyObject().foo; // Compliant, foo is accessed from test code
-```
+---
 
 ---
 
-### java:S5826 — Methods setUp() and tearDown() should be correctly annotated starting with JUnit4
-
-**Severity**: High
-
-| Conventional Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Methods setUp() and tearDown() should be correctly annotated starting with JUnit4 | Conventional The setUp() and tearDown() methods (initially introduced with JUnit3 to execute a block of code before and after each test) need to be correctly annotated with the equivalent annotation in order to preserve the same behavior when migrating from JUnit3 to JUnit4 or JUnit5. This rule consequently raise issues on setUp() and tearDown() methods which are not annotated in test classes.
-
-**Noncompliant code example**
-
-```java
-JUnit4:
-```
-
-**Compliant solution**
-
-```java
-JUnit4:
-@Before
-public void setUp() { ... }
-
-@After
-public void tearDown() { ... }
-
-JUnit5:
-@BeforeEach
-void setUp() { ... }
-
-@AfterEach
-void tearDown() { ... }
-```
-
 ---
 
-### java:S5845 — Assertions comparing incompatible types should not be made
+### java:S2222 — Locks should be released on all paths
 
 **Severity**: High
 
-Assertions comparing incompatible types always fail, and negative assertions always pass. At best, negative assertions are useless. At worst, the developer loses time trying to fix his code logic before noticing wrong assertions. Dissimilar types are: comparing a primitive with null comparing an object with an unrelated primitive (E.G. a string with an int) comparing unrelated classes comparing an array to a non-array comparing two arrays of dissimilar types This rule also raises issues for unrelated class and interface or unrelated interface types in negative assertions. Because except in some corner cases, those types are more likely to be dissimilar. And inside a negative assertion, there is no test failure to inform the developer about this unusual comparison. Supported test frameworks: JUnit4 JUnit5 AssertJ
+If a lock is acquired and released within a method, then it must be released along all execution paths of that method. Failing to do so will expose the conditional locking logic to the method's callers and hence be deadlock-prone.
 
 **Noncompliant code example:**
 
 ```java
-interface KitchenTool {}
-interface Plant {}
-class Spatula implements KitchenTool {}
-class Tree implements Plant {}
-
-void assertValues(int size,
-                  Spatula spatula, KitchenTool tool,  KitchenTool[] tools,
-                  Tree    tree,    Plant       plant, Tree[]        trees) {
-
-  // Whatever the given values, those negative assertions will always pass due to dissimilar types:
-```
-
----
-
-### java:S5846 — Empty lines should not be tested with regex MULTILINE flag
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Empty lines should not be tested with regex MULTILINE flag One way to test for empty lines is to use the regex "^$", which can be extremely handy when filtering out empty lines from collections of Strings, for instance. With regard to this, the Javadoc for Pattern (Line Terminators) states the following: By default, the regular expressions ^ and $ ignore line terminators and only match at the beginning and the end, respectively, of the entire input sequence. If MULTILINE mode is activated then ^ matches at the beginning of input and after any line terminator except at the end of input. When...
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-static final Pattern p = Pattern.compile("^$", Pattern.MULTILINE);
-
-boolean containsEmptyLines(String str) {
-    return p.matcher(str).find() || str.isEmpty();
-}
-
-// ...
-System.out.println(containsEmptyLines("a\n\nb")); // correctly prints 'true'
-System.out.println(containsEmptyLines("")); // also correctly prints 'true'
-```
-
----
-
-### java:S5969 — Mocking all non-private methods of a class should be avoided
-
-**Severity**: High
-
-Adaptability Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Mocking all non-private methods of a class should be avoided Adaptability If you end up mocking every non-private method of a class in order to write tests, it is a strong sign that your test became too complex, or that you misunderstood the way you are supposed to use the mocking mechanism. You should either refactor the test code into multiple units, or consider using the class itself, by either directly instantiating it, or creating a new one inheriting from it, with the expected behavior. This rule reports an issue when every member of a given class are mocked.
-
-**Noncompliant code example**
-
-```java
-@Test
-void test_requiring_MyClass() {
-```
-
-**Compliant solution**
-
-```java
-@Test
-void test_requiring_MyClass() {
-  MyClass myClass = new MyClassForTest();
-  //...
-}
-
-class MyClassForTest extends MyClass {
-
-  @Override
-  int f() {
-    return 1;
-  }
-
-  @Override
-  int g() {
-    return 2;
+public class MyClass {
+  public void doSomething() {
+    Lock lock = new Lock();
+    lock.lock(); // Noncompliant
+    if (isInitialized()) {
+      // ...
+      lock.unlock();
+    }
   }
 }
-
-
-or
-
-@Test
-void test_requiring_f() {
-  MyClass myClassMock = mock(MyClass.class);
-  when(myClassMock.f()).thenReturn(1);
-  //...
-}
-
-@Test
-void test_requiring_g() {
-  MyClass myClassMock = mock(MyClass.class);
-  when(myClassMock.g()).thenReturn(2);
-  //...
 ```
 
----
-
-### java:S6002 — Regex lookahead assertions should not be contradictory
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Regex lookahead assertions should not be contradictory This rule raises an issue when a regex lookahead contradicts the rest of the regex. Lookahead assertions are a regex feature that makes it possible to look ahead in the input without consuming it. It is often used at the end of regular expressions to make sure that substrings only match when they are followed by a specific pattern. For example, the following pattern will match an "a" only if it is directly followed by a "b". This does not consume the "b" in the process: Pattern.compile("a(?=b)"); However, lookaheads can also be used in...
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-Pattern.compile("(?<=a)b");
-Pattern.compile("a(?=b)");
-```
-
----
-
-## 5. Code Quality & Maintainability Rules (55 rules)
-
-These rules detect complexity, naming, structural, and design anti-patterns that increase maintenance cost.
-
-### java:S1190 — Future keywords should not be used as names
-
-**Severity**: Blocker
-
-| Conventional Rename the _ identifiers.
-
-**Noncompliant code example**
+**Compliant solution:**
 
 ```java
 public class MyClass {
-```
-
-**Compliant solution**
-
-```java
-public class MyClass {
-
-    String s = "";            // Compliant
-
+  public void doSomething() {
+    Lock lock = new Lock();
+    if (isInitialized()) {
+      lock.lock();
+      // ...
+      lock.unlock();
+    }
+  }
 }
 ```
 
 ---
 
-### java:S1219 — "switch" statements should not contain non-case labels
-
-**Severity**: Blocker
-
-Even if it is legal, mixing case and non-case labels in the body of a switch statement is very confusing and can even be the result of a typing error.
-
-**Noncompliant code example**
-
-```java
-switch (day) {
-  case MONDAY:
-  case TUESDAY:
-```
-
-**Compliant solution**
-
-```java
-switch (day) {
-  case MONDAY:
-  case TUESDAY:
-  case WEDNESDAY:
-    doSomething();
-    break;
-  ...
-}
-
-switch (day) {
-  case MONDAY:
-    break;
-  case TUESDAY:
-    compute(args); // put the content of the labelled "for" statement in a dedicated method
-    break;
-
-    /* ... */
-}
-```
+---
 
 ---
 
-### java:S128 — Switch cases should end with an unconditional "break" statement
-
-**Severity**: Blocker
-
-When the execution is not explicitly terminated at the end of a switch case, it continues to execute the statements of the following case. While this is sometimes intentional, it often is a mistake which leads to unexpected behavior.
-
-**Noncompliant code example**
-
-```java
-switch (myVariable) {
-  case 1:
-    foo();
-    break;
-  case 2:  // Both 'doSomething()' and 'doSomethingElse()' will be executed. Is it on purpose ?
-    doSomething();
-  default:
-    doSomethingElse();
-    break;
-}
-```
-
-**Compliant solution**
-
-```java
-switch (myVariable) {
-  case 1:
-    foo();
-    break;
-  case 2:
-    doSomething();
-    break;
-  default:
-    doSomethingElse();
-    break;
-}
-```
-
 ---
 
-### java:S1845 — Methods and field names should not be the same or differ only by capitalization
+### java:S6104 — Map "computeIfAbsent()" and "computeIfPresent()" should not be used to add "null" values.
 
-**Severity**: Blocker
+**Severity**: High
 
-| Identifiable Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Methods and field names should not be the same or differ only by capitalization | Identifiable This rule raises an issue when there is a method and a field in a class with names that differ only by capitalization. Looking at the set of methods in a class, including superclass methods, and finding two methods or fields that differ only by capitalization is confusing to users of the class. It is similarly confusing to have a method and a field which differ only in capitalization or a method and a field with exactly the same name and visibility. In the case of methods, it may...
-
-**Noncompliant code example**
-
-```java
-public class Car{
-
-
-  public DriveTrain drive;
-
-
-  public void tearDown(){...}
-```
-
-**Compliant solution**
-
-```java
-public class Car{
-
-
-  private DriveTrain drive;
-
-
-  public void tearDown(){...}
-
-
-  public void drive() {...}  // field visibility reduced
-
-}
-
-public class MyCar extends Car{
-
-  @Override
-  public void tearDown(){...}
-
-
-  public void drivefast(){...}
-
-
-  public void driveReallyFast(){...}
-
-
-}
-```
-
----
-
-### java:S2178 — Short-circuit logic should be used in boolean contexts
-
-**Severity**: Blocker
-
-The use of non-short-circuit logic in a boolean context is likely a mistake - one that could cause serious program errors as conditions are evaluated under the wrong circumstances.
+Map computeIfAbsent and computeIfPresent methods are convenient to avoid the cumbersome process to check if a key exists or not, followed by the addition of the entry. However, when the function used to compute the value returns null, the entry key->null will not be added to the Map. Furthermore, in the case of computeIfPresent, if the key is present the entry will be removed. These methods should therefore not be used to conditionally add an entry with a null value. The traditional way should be used instead. This rule raises an issue when computeIfAbsent or computeIfPresent is used with a lambda always returning null.
 
 **Noncompliant code example:**
 
@@ -3417,745 +1823,57 @@ The use of non-short-circuit logic in a boolean context is likely a mistake - on
 **Compliant solution:**
 
 ```java
-if(getTrue() || getFalse()) { ... } // true short-circuit logic
-
-```
-
----
-
-### java:S2229 — Methods should not call same-class methods with incompatible "@Transactional" values
-
-**Severity**: Blocker
-
-| Conventional Change the corresponding functions into a compatible propagation type.
-
-**Noncompliant code example**
-
-```java
-public void doTheThing() {
-  // ...
-```
-
-**Compliant solution**
-
-```java
-@Transactional
-
-public void doTheThing() {
-  // ...
-
-  actuallyDoTheThing(); // Compliant
-
+if (!map.containsKey(key)) {
+    map.put(key, null);
+}
+if (map.containsKey(key)) {
+    map.put(key, null);
 }
 
-@Transactional
-public void actuallyDoTheThing() {
-  // ...
-}
 ```
 
 ---
 
-### java:S2275 — Printf-style format strings should not lead to unexpected behavior at runtime
-
-**Severity**: Blocker
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Printf-style format strings should not lead to unexpected behavior at runtime Because printf-style format strings are interpreted at runtime, rather than validated by the Java compiler, they can contain errors that lead to unexpected behavior or runtime errors. This rule statically validates the good behavior of printf-style formats when calling the format(...) methods of java.util.Formatter, java.lang.String, java.io.PrintStream, MessageFormat, and java.io.PrintWriter classes and the printf(...) methods of java.io.PrintStream or java.io.PrintWriter classes.
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-String.format("The value of my integer is %d", 3);
-String.format("Duke's Birthday year is %tY", c);
-String.format("Display %1$d and then %d", 1);
-String.format("Not enough arguments %d and %d", 1, 2);
-String.format("%d is equals to %<", 2);
-
-MessageFormat.format("Result {0}.", value);
-MessageFormat.format("Result {0} & {1}.", value, value);
-MessageFormat.format("Result {0}.", myObject);
-
-java.util.logging.Logger logger;
-logger.log(java.util.logging.Level.SEVERE, "Result {1},{2}!", 14, 2);
-
-org.slf4j.Logger slf4jLog;
-org.slf4j.Marker marker;
-
-slf4jLog.debug(marker, "message {}", 1);
-
-org.apache.logging.log4j.Logger log4jLog;
-log4jLog.debug("message {}", 1);
-```
+---
 
 ---
 
-### java:S2387 — Child class fields should not shadow parent class fields
-
-**Severity**: Blocker
-
-Having a variable with the same name in two unrelated classes is fine, but do the same thing within a class hierarchy and you’ll get confusion at best, chaos at worst.
-
-**Noncompliant code example**
-
-```java
-public class Fruit {
-  protected Season ripe;
-  protected Color flesh;
-
-  // ...
-}
-
-public class Raspberry extends Fruit {
-```
-
-**Compliant solution**
-
-```java
-public class Fruit {
-  protected Season ripe;
-  protected Color flesh;
-
-  // ...
-}
-
-public class Raspberry extends Fruit {
-  private boolean ripened;
-  private static Color FLESH_COLOR;
-
-}
-```
-
 ---
 
-### java:S2437 — Unnecessary bit operations should not be performed
-
-**Severity**: Blocker
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Unnecessary bit operations should not be performed Certain bit operations are just silly and should not be performed because their results are predictable. Specifically, using & -1 with any value will always result in the original value, as will anyValue ^ 0 and anyValue | 0.
-
----
-
-### java:S2689 — Files opened in append mode should not be used with "ObjectOutputStream"
-
-**Severity**: Blocker
-
-serialization Open the file to use the default action (writes stream header).
-
-**Noncompliant code example**
-
-```java
-FileOutputStream fos = new FileOutputStream(fileName , true);  // fos opened in append mode
-```
-
-**Compliant solution**
-
-```java
-FileOutputStream fos = new FileOutputStream(fileName);
-ObjectOutputStream out = new ObjectOutputStream(fos);
-```
-
----
-
-### java:S2695 — "PreparedStatement" and "ResultSet" methods should be called with valid indices
-
-**Severity**: Blocker
-
-Ensure the index passed to the PreparedStatement and ResultSet methods is valid.
-
-**Noncompliant code example**
-
-```java
-PreparedStatement ps = con.prepareStatement("SELECT fname, lname FROM employees where hireDate > ? and salary < ?");
-```
-
-**Compliant solution**
-
-```java
-PreparedStatement ps = con.prepareStatement("SELECT fname, lname FROM employees where hireDate > ? and salary < ?");
-
-ps.setDate(1, date);
-ps.setDouble(2, salary);
-
-
-ResultSet rs = ps.executeQuery();
-while (rs.next()) {
-
-  String fname = rs.getString(1);
-
-  // ...
-}
-```
-
----
-
-### java:S2975 — "clone" should not be overridden
-
-**Severity**: Blocker
-
-| Conventional A copy constructor, copy factory or a custom copy function are suitable alternatives to the Object.clone / java.lang.Cloneable mechanism. Consider the following example:
-
-**class Entity implements Cloneable { // Noncompliant, using `Cloneable`**
-
-```java
-public int value;
-  public List<Entity> children; // deep copy wanted
-
-  Entity() {
-    EntityManager.register(this); // invariant
-  }
-
-
-  @Override
-  public Entity clone() {
-    try {
-      Entity copy = (Entity) super.clone(); // invariant not enforced, because no constructor is caled
-      copy.children = children.stream().map(Entity::clone).toList();
-      return copy;
-    } catch (CloneNotSupportedException e) { // this will not happen due to behavioral contract
-      throw new AssertionError();
-    }
-
-  }
-}
-
-
-The Cloneable / Object.clone mechanism could easily be replaced by copy constructor:
-
-class Entity { // Compliant
-
-
-  public int value;
-  public List<Entity> children; // deep copy wanted
-
-  Entity() {
-    EntityManager.register(this); // invariant
-```
-
----
-
-### java:S1113 — The "Object.finalize()" method should not be overridden
+### java:S6209 — Members ignored during record serialization should not be used
 
 **Severity**: High
 
-unpredictable
-
-Before it reclaims storage from an object that is no longer referenced, the garbage collector calls finalize() on the object. But there is no guarantee that this method will be called as soon as the last references to the object are removed. It can be few microseconds to few minutes later. For this reason relying on overriding the finalize() method to release resources or to update the state of the program is highly discouraged. What is the potential impact? More unexpected issues can be caused by relying on the finalize() method to perform important operations on the application state: The JVM might terminate without ever calling this method on a particular object, leaving an unexpected or incomplete state of the program Uncaught exceptions will be ignored inside this method, making it harder to detect issues that could have been logged otherwise Finalizer methods can also be invoked concurrently, even on single-threaded applications, making it hard to maintain desired program invariants
+In Records, serialization is not done the same way as for ordinary serializable or externalizable classes. The serialized representation of a record object will be a sequence of values (record components). During the deserialization of records, the stream of components is read and components are constructed. Then the record object is recreated by invoking the record’s canonical constructor with the component values serving as arguments (or default values for absent arguments). This process cannot be customized, so any class-specific writeObject, readObject, readObjectNoData, writeExternal, and readExternal methods or serialPersistentFields fields in record classes are ignored during serialization and deserialization. However, there is a way to substitute serialized/deserialized objects in writeReplace and readResolve. This rule raises an issue when any of writeObject, readObject, readObjectNoData, writeExternal, readExternal or serialPersistentFields are present as members in a Record class.
 
 **Noncompliant code example:**
 
 ```java
-public class MyClass {
-
-  @Override
+record Record() implements Serializable {
+  @Serial
 ```
 
----
-
-### java:S115 — Constant names should comply with a naming convention
-
-**Severity**: High
-
-| Identifiable First, familiarize yourself with the particular naming convention of the project in question. Then, update the name of the constant to match the convention, as well as all usages of the name. For many IDEs, you can use built-in renaming and refactoring features to update all usages of a constant at once.
-
-**Noncompliant code example**
+**Compliant solution:**
 
 ```java
-The following example assumes that constant names should match the default regular expression ^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$:
+record Record() implements Serializable {}
 
-public class MyClass {
-```
-
-**Compliant solution**
-
-```java
-public class MyClass {
-
-  public static final float PI = 3.14159f;
-
-
-  void myMethod() {
-
-    System.out.println(PI);
-
-  }
-}
-
-public enum MyEnum {
-
-  OPTION_ONE,
-  OPTION_TWO;
-
-}
-```
-
----
-
-### java:S1174 — "Object.finalize()" should remain protected (versus public) when overriding
-
-**Severity**: High
-
-Adaptability
-
-The contract of the Object.finalize() method is clear: only the Garbage Collector is supposed to call this method. Making this method public is misleading, because it implies that any caller can use it.
-
-**Noncompliant code example:**
-
-```java
-public class MyClass {
-
-  @Override
-```
-
----
-
-### java:S1175 — The signature of "finalize()" should match that of "Object.finalize()"
-
-**Severity**: High
-
-Object.finalize() is called by the Garbage Collector at some point after the object becomes unreferenced. In general, overloading Object.finalize() is a bad idea because: The overload may not be called by the Garbage Collector. Users are not expected to call Object.finalize() and will get confused. But beyond that it’s a terrible idea to name a method "finalize" if it doesn’t actually override Object.finalize().
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-public int someBetterName(int someParameter) {  // Compliant
-  /* ... */
-}
-```
-
----
-
-### java:S1186 — Methods should not be empty
-
-**Severity**: High
-
-To fix this issue, either make the method do something, throw an exception, or add a comment to explain why it is empty.
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-public void doSomething() {
-  doSomething();
-
-}
-
-
-public void notImplemented() {
-  throw new UnsupportedOperationException("notImplemented() cannot be performed because ...");
-
-}
-
-@Override
-
-public void emptyOnPurpose() {
-  // comment explaining why the method is empty
-
-}
-```
-
----
-
-### java:S1192 — String literals should not be duplicated
-
-**Severity**: High
-
-Adaptability Use constants to replace the duplicated string literals. Constants can be referenced from many places, but only need to be updated in a single place.
-
-**Noncompliant code example**
-
-```java
-With the default threshold of 3:
-
-public void run() {
-```
-
-**Compliant solution**
-
-```java
-private static final String ACTION_1 = "action1";  // Compliant
-
-
-public void run() {
-
-  prepare(ACTION_1);                               // Compliant
-  execute(ACTION_1);
-  release(ACTION_1);
-
-}
-
-Parameters
-threshold	
-Number of times a literal must be duplicated to trigger an issue
-Default Value:
-3
-```
-
----
-
-### java:S1214 — Interfaces should not solely consist of constants
-
-**Severity**: High
-
-bad-practice Adaptability If the concrete value of the constants is not essential, and they serve as mere identifiers, replace the interface with an enum like in the following example:
-
-**public interface Status { // Noncompliant, enum should be used**
-
-```java
-int OPEN = 1;
-  int CLOSED = 2;
-
-}
-
-public enum Status {      // Compliant
-  OPEN,
-  CLOSED
-
-}
-
-
-In some cases, enums are not a suitable option because the concrete constant value is important. Then you should check whether it is appropriate to move them to a specific existing class, for example, if that class is the primary user of the constants:
-```
-
----
-
-### java:S1215 — Execution of the Garbage Collector should be triggered only by the JVM
-
-**Severity**: High
-
-unpredictable Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Execution of the Garbage Collector should be triggered only by the JVM unpredictable Calling System.gc() or Runtime.getRuntime().gc() is a bad idea for a simple reason: there is no way to know exactly what will be done under the hood by the JVM because the behavior will depend on its vendor, version and options: Will the whole application be frozen during the call? Is the -XX:DisableExplicitGC option activated? Will the JVM simply ignore the call? Like for System.gc(), there is no reason to manually call runFinalization() to force the call of finalization methods of any...
-
----
-
-### java:S131 — "switch" statements should have "default" clauses
-
-**Severity**: High
-
-Loading...
-
----
-
-### java:S1452 — Generic wildcard types should not be used in return types
-
-**Severity**: High
-
-A return type containing wildcards cannot be narrowed down in any context. This indicates that the developer’s intention was likely something else. The core problem lies in type variance. Expressions at an input position, such as arguments passed to a method, can have a more specific type than the type expected by the method, which is called covariance. Expressions at an output position, such as a variable that receives the return result from a method, can have a more general type than the method’s return type, which is called contravariance. This can be traced back to the Liskov substitution principle. In Java, type parameters of a generic type are invariant by default due to their potential occurrence in both input and output positions at the same time. A classic example of this is the...
-
-**List<? extends Animal> getAnimals() { ... } // Noncompliant, wildcard with no use**
-
----
-
-### java:S1598 — Package declaration should match source file directory
-
-**Severity**: High
-
-| Conventional Either move the source file so that the relative file path within the source directory matches the package name, or change the package name so that it matches the relative file path.
-
-**Noncompliant code example**
-
-```java
-// file: src/main/foo/Fubar.java
-
-package com.foo.bar;
-
-class Fubar {
-}
-```
-
-**Compliant solution**
-
-```java
-// file: src/main/com/foo/bar/Fubar.java
-
-package com.foo.bar;
-
-class Fubar {
-}
-
-// file: src/main/foo/Fubar.java
-package foo;
-
-class Fubar {
-}
-```
-
----
-
-### java:S1948 — Fields in a "Serializable" class should either be transient or serializable
-
-**Severity**: High
-
-Consider the following scenario. public class Address { public class Person implements Serializable { private static final long serialVersionUID = 1905122041950251207L; private String name;
-
-**  private Address address;  // Noncompliant, Address is not serializable**
-
-```java
-}
-
-
-How to fix this issue depends on the application’s needs. If the field’s value should be preserved during serialization and deserialization, you may want to make the field’s value serializable.
-
-public class Address implements Serializable {
-  private static final long serialVersionUID = 2405172041950251807L;
-
-
+record Record() implements Serializable {
+  private Object writeReplace() throws ObjectStreamException {
     ...
-}
-
-public class Person implements Serializable {
-  private static final long serialVersionUID = 1905122041950251207L;
-
-  private String name;
-
-  private Address address; // Compliant, Address is serializable
-
-}
-
-
-If the field’s value does not need to be preserved during serialization and deserialization, mark it as transient. The field will be ignored when the object is serialized. After deserialization, the field will be set to the default value corresponding to its type (e.g., null for object references).
-
-public class Address {
-    ...
-}
-
-public class Person implements Serializable {
-  private static final long serialVersionUID = 1905122041950251207L;
-
-  private String name;
-  private transient Address address; // Compliant, the field is transient
-```
-
----
-
-### java:S1994 — "for" loop increment clauses should modify the loops' counters
-
-**Severity**: High
-
-The counter of a for loop should be updated in the loop’s increment clause. The purpose of a for loop is to iterate over a range using a counter variable. It should not be used for other purposes, and alternative loops should be used in those cases. If the counter is not updated, the loop will be infinite with a constant counter variable. If this is intentional, use a while or do while loop instead of a for loop. If the counter variable is updated within the loop’s body, try to move it to the increment clause. If this is impossible due to certain conditions, replace the for loop with a while or do while loop.
-
-**Noncompliant code example**
-
-```java
-Move the counter variable update to the loop’s increment clause.
-```
-
-**Compliant solution**
-
-```java
-for (i = 0; i < 10; i++) { // Compliant
-
-  // ...
-}
-
-int sum = 0
-
-for (int i = 0; i < 10; i++) { // Compliant
-
-  // ...
-
-  sum++;
-
-}
-```
-
----
-
-### java:S2062 — "readResolve" methods should be inheritable
-
-**Severity**: High
-
-Developers may want to add some logic to handle deserialized objects before they are returned to the caller. This can be achieved by implementing the readResolve method. Non-final classes implementing readResolve should not set its visibility to private as this would make it unavailable to child classes. Instead, mark readResolve as protected, allowing it to be inherited.
-
-**Noncompliant code example:**
-
-```java
-public class Fruit implements Serializable {
-  private static final long serialVersionUID = 1;
-```
-
-**Compliant solution:**
-
-```java
-public class Fruit implements Serializable {
-  private static final long serialVersionUID = 1;
-```
-
----
-
-### java:S2119 — "Random" objects should be reused
-
-**Severity**: High
-
-Define and reuse the Random object.
-
-**Noncompliant code example**
-
-```java
-class MyClass {
-
-    public void doSomethingCommon() {
-```
-
-**Compliant solution**
-
-```java
-class MyClass {
-
-    private Random random = new Random();  // Compliant
-
-
-    public void doSomethingCommon() {
-
-      int rValue = this.random.nextInt();
-
-    }
-}
-```
-
----
-
-### java:S2151 — "runFinalizersOnExit" should not be called
-
-**Severity**: High
-
-| Conventional
-
-Enabling runFinalizersOnExit is unsafe as it might result in erratic behavior and deadlocks on application exit. Indeed, finalizers might be force-called on live objects while other threads are concurrently manipulating them. Instead, if you want to execute something when the virtual machine begins its shutdown sequence, you should attach a shutdown hook.
-
-**Noncompliant code example:**
-
-```java
-public static void main(String [] args) {
-```
-
-**Compliant solution:**
-
-```java
-public static void main(String [] args) {
-
-  Thread myThread = new Thread( () -> { doShutdownOperations(); });
-  Runtime.getRuntime().addShutdownHook(myThread);
-
-}
-
-```
-
----
-
-### java:S2157 — "Cloneables" should implement "clone"
-
-**Severity**: High
-
-This rule raises an issue when a class implements the interface java.lang.Cloneable, but does not override the Object.clone() method. Cloneable is a marker interface that defines the contract of the Object.clone method, which is to create a consistent copy of the instance. The clone method is not defined by the interface though, but by class Objects. The general problem with marker interfaces is that their definitions cannot be enforced by the compiler because they have no own API. When a class implements Cloneable but does not override Object.clone, it is highly likely that it violates the contract for Cloneable. Consider the following example:
-
-**class Foo implements Cloneable { // Noncompliant, override `clone` method**
-
-```java
-public int value;
-}
-
-
-Override the clone method in class Foo. By convention, it must call super.clone(). At this point, we know that:
-
-By behavioral contract, Object.clone will not throw a CloneNotSupportedException, because Foo implements Cloneable.
-The returned object is an instance of class Foo
-
-We can narrow down the return type of clone to Foo and handle the CloneNotSupportedException inside the function instead of throwing it:
-
-class Foo implements Cloneable { // Compliant
-
-
-  public int value;
-
-
-  @Override
-  public Foo clone() {
-    try {
-      return (Foo) super.clone();
-    } catch (CloneNotSupportedException e) {
-      throw new AssertionError();
-    }
   }
-
+  private Object readResolve() throws ObjectStreamException {
+    ...
+  }
 }
 
-
-Be aware that super.clone() returns a one-by-one copy of the fields of the original instance. This means that in our example, the Foo.value field is not required to be explicitly copied in the overridden function.
-
-If you require another copy behavior for some or all of the fields, for example, deep copy or certain invariants that need to be true for a field, these fields must be patched after super.clone():
 ```
 
 ---
 
-### java:S2176 — Class names should not shadow interfaces or superclasses
-
-**Severity**: High
-
-Two classes can have the same simple name if they are in two different packages. package org.foo.domain; public class User { package org.foo.presentation; public class User { However, this becomes an issue when a class has the same name as the superclass it extends or the interfaces it implements, also known as class name shadowing. It is problematic because it can be unclear which class is being referred to in the code, leading to ambiguity and potential bugs. Therefore, it is recommended to use unique and descriptive class names that do not conflict with the names of the superclass or interfaces. This rule raises an issue when a class name shadows its superclass or interface names. Rename the class using a more descriptive name.
-
-**Noncompliant code example**
-
-```java
-package org.foo.presentation;
-```
-
-**Compliant solution**
-
-```java
-package org.foo.presentation;
-
-
-import org.foo.domain.User;
-
-public class UserView implements User { // Compliant
-
-  // ...
-}
-```
-
 ---
 
-### java:S2390 — Classes should not access their own subclasses during class initialization
-
-**Severity**: High
-
-Adaptability
-
-Referencing a static member of a subclass from its parent during class initialization, makes the code more fragile and prone to future bugs. The execution of the program will rely heavily on the order of initialization of classes and their static members. What is the potential impact? This could create what is known as an "initialization cycle", or even a deadlock in some extreme cases. Additionally, if the order of the static class members is changed, the behavior of the program might change. These issues can be very hard to diagnose so it is highly recommended to avoid creating this kind of dependencies.
-
-**Noncompliant code example:**
-
-```java
-class Parent {
-```
-
 ---
-
-### java:S2479 — Whitespace and control characters in literals should be explicit
-
-**Severity**: High
-
-Non-encoded control characters and whitespace characters are often injected in the source code because of a bad manipulation. They are either invisible or difficult to recognize, which can result in bugs when the string is not what the developer expects. If you actually need to use a control character use their encoded version (ex: ASCII \n,\t,…​ or Unicode U+000D, U+0009,…​). This rule raises an issue when the following characters are seen in a literal string: ASCII control character. (character index < 32 or = 127) Unicode whitespace characters. Unicode C0 control characters Unicode characters U+200B, U+200C, U+200D, U+2060, U+FEFF, U+2028, U+2029 No issue will be raised on the simple space character. Unicode U+0020, ASCII 32.
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-String tabInside = "A\tB";  // Compliant, uses escaped value
-String zeroWidthSpaceInside = "foo\u200Bbar";  // Compliant, uses escaped value
-char tab = '\t';
-
-Parameters
-allowTabsInTextBlocks	
-Allow tabs in text blocks
-Default Value:
-false
-```
 
 ---
 
@@ -4221,295 +1939,519 @@ public class Raspberry extends Fruit {
 
 ---
 
-### java:S2696 — Instance methods should not write to "static" fields
-
-**Severity**: High
-
-multi-threading
+---
 
 ---
 
-### java:S3252 — "static" base class members should not be accessed via derived types
+---
+
+### java:S7190 — Methods annotated with "@BeforeTransaction" or "@AfterTransaction" must respect the contract
 
 **Severity**: High
 
-In object-oriented programming, inappropriately accessing static members of a base class via derived types is considered a code smell. Static members are associated with the class itself, not with any specific instance of the class or its children classes. Accessing through the wrong type suggests a misunderstanding of the ownership and role of this member. This can make the maintenance of the code more complicated. Therefore, the access should be done directly through the base class to maintain clarity and avoid potential misunderstandings.
+Ensure that methods annotated with @BeforeTransaction or @AfterTransaction have a void return type and do not accept any arguments.
 
 **Noncompliant code example**
 
 ```java
-class Parent {
-  public static int counter;
-}
+@Transactional
+public class TransactionalTest {
 
-class Child extends Parent {
-  public Child() {
-```
+    @BeforeTransaction
 
-**Compliant solution**
+    public String setupTransaction(int x) { // non-compliant, method should be void and have no argument
 
-```java
-class Parent {
-  public static int counter;
-}
+        // Setup logic
+    }
 
-class Child extends Parent {
-  public Child() {
+    @AfterTransaction
 
-    Parent.counter++;
+    public int cleanupTransaction(int x) { // non-compliant, method should be void and have no argument
 
-  }
-}
-```
-
----
-
-### java:S3776 — Cognitive Complexity of methods should not be too high
-
-**Severity**: High
-
-brain-overload Adaptability Reducing cognitive complexity can be challenging. Here are a few suggestions: Extract complex conditions in a new function. Mixed operators in condition will increase complexity. Extracting the condition in a new function with an appropriate name will reduce cognitive load. Break down large functions. Large functions can be hard to understand and maintain. If a function is doing too many things, consider breaking it down into smaller, more manageable functions. Each function should have a single responsibility. Avoid deep nesting by returning early. To avoid the nesting of conditions, process exceptional cases first and return early. Extraction of a complex condition in a new function.
-
-**Noncompliant code example**
-
-```java
-The code is using a complex condition and has a cognitive cost of 3.
-
-double calculateFinalPrice(User user, Cart cart) {
-  double total = calculateTotal(cart);
-
-  if (user.hasMembership()                            // +1 (if)
-    && user.ordersCount() > 10                        // +1 (more than one condition)
-    && user.isAccountActive()
-    && !user.hasDiscount()
-    || user.ordersCount() == 1) {                    // +1 (change of operator in condition)
-
-    total = applyDiscount(user, total);
-  }
-  return total;
+        // Cleanup logic
+    }
 }
 ```
 
 **Compliant solution**
 
 ```java
-Even if the cognitive complexity of the whole program did not change, it is easier for a reader to understand the code of the calculateFinalPrice function, which now only has a cognitive cost of 1.
+@Transactional
+public class TransactionalTest {
 
-double calculateFinalPrice(User user, Cart cart) {
-  double total = calculateTotal(cart);
+    @BeforeTransaction
 
-  if (isEligibleForDiscount(user)) {                  // +1 (if)
+    public void setupTransaction() {
 
-    total = applyDiscount(user, total);
-  }
-  return total;
+        // Setup logic
+    }
+
+    @AfterTransaction
+
+    public void cleanupTransaction() {
+
+        // Cleanup logic
+    }
 }
-
-
-boolean isEligibleForDiscount(User user) {
-  return user.hasMembership()
-    && user.ordersCount() > 10                        // +1 (more than one condition)
-    && user.isAccountActive()
-    && !user.hasDiscount()
-    || user.ordersCount() == 1;                       // +1 (change of operator in condition)
-}
-
-
-Break down large functions.
 ```
 
 ---
 
-### java:S3972 — Conditionals should start on new lines
+## 4. Testing Quality Rules (14 rules)
+
+These rules ensure test correctness and completeness.
+
+---
+
+---
+
+---
+
+### java:S7186 — Methods returning "Page" or "Slice" must take "Pageable" as an input parameter
 
 **Severity**: High
 
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Conditionals should start on new lines Placing an if statement on the same line as the closing } from a preceding if, else, or else if block can lead to confusion and potential errors. It may indicate a missing else statement or create ambiguity for maintainers who might fail to understand that the two statements are unconnected. The following code snippet is confusing: if (condition1) {
+| Conventional Ensure that query methods returning a Page or Slice include a Pageable parameter in their method signature.
 
-**} if (condition2) {  // Noncompliant**
+**Noncompliant code example**
 
 ```java
-//...
+interface ItemRepository extends JpaRepository<Item, Long> {
+
+    Page<Item> findItems(); //non compliant, no Pageable parameter
+
+}
+```
+
+**Compliant solution**
+
+```java
+interface ItemRepository extends JpaRepository<Item, Long> {
+
+    Page<Item> findItems(Pageable pageable);
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5826 — Methods setUp() and tearDown() should be correctly annotated starting with JUnit4
+
+**Severity**: High
+
+| Conventional Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Methods setUp() and tearDown() should be correctly annotated starting with JUnit4 | Conventional The setUp() and tearDown() methods (initially introduced with JUnit3 to execute a block of code before and after each test) need to be correctly annotated with the equivalent annotation in order to preserve the same behavior when migrating from JUnit3 to JUnit4 or JUnit5. This rule consequently raise issues on setUp() and tearDown() methods which are not annotated in test classes.
+
+**Noncompliant code example**
+
+```java
+JUnit4:
+```
+
+**Compliant solution**
+
+```java
+JUnit4:
+@Before
+public void setUp() { ... }
+
+@After
+public void tearDown() { ... }
+
+JUnit5:
+@BeforeEach
+void setUp() { ... }
+
+@AfterEach
+void tearDown() { ... }
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1186 — Methods should not be empty
+
+**Severity**: High
+
+To fix this issue, either make the method do something, throw an exception, or add a comment to explain why it is empty.
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+public void doSomething() {
+  doSomething();
+
 }
 
 
-Either the two conditions are unrelated and they should be visually separated:
-
-if (condition1) {
-  // ...
+public void notImplemented() {
+  throw new UnsupportedOperationException("notImplemented() cannot be performed because ...");
 
 }
 
-if (condition2) {
+@Override
 
+public void emptyOnPurpose() {
+  // comment explaining why the method is empty
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S6809 — Methods with Spring proxy should not be called via "this"
+
+**Severity**: High
+
+| Conventional Replace calls to @Async, @Cacheable or @Transactional methods via this with calls on an instance that was injected by Spring (@Autowired, @Resource or @Inject). The injected instance is a proxy on which the methods can be invoked safely.
+
+**Noncompliant code example**
+
+```java
+@Service
+public class AsyncNotificationProcessor implements NotificationProcessor {
+
+  @Override
+  public void process(Notification notification) {
+```
+
+**Compliant solution**
+
+```java
+@Service
+public class AsyncNotificationProcessor implements NotificationProcessor {
+
+
+  @Resource
+  private AsyncNotificationProcessor asyncNotificationProcessor;
+
+
+  @Override
+  public void process(Notification notification) {
+
+    asyncNotificationProcessor.processAsync(notification); // Compliant, call via injected proxy
+    asyncNotificationProcessor.retrieveNotification(notification.id); // Compliant, the call will be cached
+
+  }
+
+  @Async
+  public processAsync(Notification notification) {
+    // ...
+  }
+
+  @Cacheable
+  public Notification retrieveNotification(Long id) {
+    // ...
+  }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5969 — Mocking all non-private methods of a class should be avoided
+
+**Severity**: High
+
+Adaptability Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Mocking all non-private methods of a class should be avoided Adaptability If you end up mocking every non-private method of a class in order to write tests, it is a strong sign that your test became too complex, or that you misunderstood the way you are supposed to use the mocking mechanism. You should either refactor the test code into multiple units, or consider using the class itself, by either directly instantiating it, or creating a new one inheriting from it, with the expected behavior. This rule reports an issue when every member of a given class are mocked.
+
+**Noncompliant code example**
+
+```java
+@Test
+void test_requiring_MyClass() {
+```
+
+**Compliant solution**
+
+```java
+@Test
+void test_requiring_MyClass() {
+  MyClass myClass = new MyClassForTest();
   //...
 }
 
+class MyClassForTest extends MyClass {
 
-Or they were supposed to be exclusive and you should use else if instead:
+  @Override
+  int f() {
+    return 1;
+  }
 
-if (condition1) {
-  // ...
-} else if (condition2) {
+  @Override
+  int g() {
+    return 2;
+  }
+}
+
+
+or
+
+@Test
+void test_requiring_f() {
+  MyClass myClassMock = mock(MyClass.class);
+  when(myClassMock.f()).thenReturn(1);
   //...
 }
+
+@Test
+void test_requiring_g() {
+  MyClass myClassMock = mock(MyClass.class);
+  when(myClassMock.g()).thenReturn(2);
+  //...
 ```
 
 ---
 
-### java:S3973 — A conditionally executed single line should be denoted by indentation
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules A conditionally executed single line should be denoted by indentation When the line immediately after a conditional has neither curly braces nor indentation, the intent of the code is unclear and perhaps not what is executed. Additionally, such code is confusing to maintainers.
-
-**if (condition)  // Noncompliant**
-
-```java
-doTheThing();
-doTheOtherThing(); // Was the intent to call this function unconditionally?
-
-
-It becomes even more confusing and bug-prone if lines get commented out.
-```
+---
 
 ---
 
-### java:S4275 — Getters and setters should access the expected fields
+---
+
+### java:S6816 — Nullable injected fields and parameters should provide a default value
 
 **Severity**: High
 
-Getters and setters provide a way to enforce encapsulation by providing public methods that give controlled access to private fields. However, in classes with multiple fields, it is not unusual that copy and paste is used to quickly create the needed getters and setters, which can result in the wrong field being accessed by a getter or setter. This rule raises an issue in any of these cases: A setter does not update the field with the corresponding name. A getter does not access the field with the corresponding name.
+Add a default value to the @Value annotation. A default value can be supplied by using the colon (:) operator. As the field is nullable, the default value should most likely be #{null}.
 
 **Noncompliant code example**
 
 ```java
-class A {
-  private int x;
-  private int y;
+@Nullable
 ```
 
 **Compliant solution**
 
 ```java
-class A {
-  private int x;
-  private int y;
+@Nullable
 
-  public void setX(int val) {
-    this.x = val;
-  }
+@Value("${my.property:#{null}}") // Compliant, a default value is provided
 
-  public int getY() {
-    return this.y;
+private String myProperty;
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5783 — Only one method invocation is expected when testing checked exceptions
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Only one method invocation is expected when testing checked exceptions When verifying that code raises an exception, a good practice is to avoid having multiple method calls inside the tested code, to be explicit about what is exactly tested. When two of the methods can raise the same checked exception, not respecting this good practice is a bug, since it is not possible to know what is really tested. You should make sure that only one method can raise the expected checked exception in the tested code.
+
+**Noncompliant code example**
+
+```java
+@Test
+public void testG() {
+  // Do you expect g() or f() throwing the exception?
+```
+
+**Compliant solution**
+
+```java
+@Test
+public void testG() {
+  int y = f(1);
+  // It is explicit that we expect an exception from g() and not f()
+  assertThrows(IOException.class, () -> g(y) );
+}
+
+@Test
+public void testGTryCatchIdiom() {
+  int y = f(1);
+  try {
+    g(y);
+    Assert.fail("Expected an IOException to be thrown");
+  } catch (IOException e) {
+    // Test exception message...
   }
 }
 ```
 
 ---
 
-### java:S4524 — "default" clauses should be last
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "default" clauses should be last switch can contain a default clause for various reasons: to handle unexpected values, to show that all the cases were properly considered, etc. For readability purposes, to help a developer quickly spot the default behavior of a switch statement, it is recommended to put the default clause at the end of the switch statement. This rule raises an issue if the default clause is not the last one of the switch's cases. switch (param) { doSomething();
-
-**  default: // Noncompliant: default clause should be the last one**
-
-```java
-error();
-    break;
-  case 1:
-    doSomethingElse();
-    break;
-}
-```
+---
 
 ---
 
-### java:S4601 — "HttpSecurity" URL patterns should be correctly ordered
+---
+
+### java:S6814 — Optional REST parameters should have an object type
 
 **Severity**: High
 
-| Conventional Which component or framework contains the issue? The following code is vulnerable because it defines access control configuration in the wrong order.
+| Conventional Replace primitive types, such as boolean, char, int, with the corresponding wrapper type, such as Boolean, Character, Integer. Alternatively, you might choose to remove required = false from the annotation and use an Optional<T> type for the parameter, such as Optional<Boolean> or Optional<String>, which automatically makes the REST parameter optional. This is the preferred approach because it enforces the proper handling of null in the method implementation.
 
 **Noncompliant code example**
 
 ```java
-protected void configure(HttpSecurity http) throws Exception {
-    http.authorizeRequests()
-      .antMatchers("/resources/**", "/signup", "/about").permitAll()
-      .antMatchers("/admin/**").hasRole("ADMIN")
+@RequestMapping(value = {"/article", "/article/{id}"})
 ```
 
 **Compliant solution**
 
 ```java
-protected void configure(HttpSecurity http) throws Exception {
-    http.authorizeRequests()
-      .antMatchers("/resources/**", "/signup", "/about").permitAll()
+@RequestMapping(value = {"/article", "/article/{id}"})
 
-      .antMatchers("/admin/login").permitAll()
+public Article getArticle(@PathVariable(required = false) Integer articleId) { // Compliant
 
-      .antMatchers("/admin/**").hasRole("ADMIN")
-
-      .antMatchers("/db/**").access("hasRole('ADMIN') and hasRole('DBA')")
-
-      .antMatchers("/**", "/home").permitAll()
-      .and().formLogin().loginPage("/login").permitAll().and().logout().permitAll();
-  }
+   //...
+}
 ```
 
 ---
 
-### java:S4635 — String offset-based methods should be preferred for finding substrings from offsets
+---
+
+---
+
+---
+
+### java:S1598 — Package declaration should match source file directory
 
 **Severity**: High
 
-Looking for a given substring starting from a specified offset can be achieved by such code: str.substring(beginIndex).indexOf(char1). This works well, but it creates a new String for each call to the substring method. When this is done in a loop, a lot of Strings are created for nothing, which can lead to performance problems if str is large. To avoid performance problems, String.substring(beginIndex) should not be chained with the following methods: indexOf(int ch) indexOf(String str) lastIndexOf(int ch) lastIndexOf(String str) startsWith(String prefix) For each of these methods, another method with an additional parameter is available to specify an offset. Using these methods will avoid the creation of additional String instances. For indexOf methods, adjust the returned value by subtracting the substring index parameter to obtain the same result.
+| Conventional Either move the source file so that the relative file path within the source directory matches the package name, or change the package name so that it matches the relative file path.
 
-**Noncompliant code example:**
+**Noncompliant code example**
 
 ```java
+// file: src/main/foo/Fubar.java
 
+package com.foo.bar;
+
+class Fubar {
+}
 ```
 
-**Compliant solution:**
+**Compliant solution**
 
 ```java
-str.indexOf(char1, beginIndex) - beginIndex; // index for char1 not found is (-1-beginIndex)
+// file: src/main/com/foo/bar/Fubar.java
 
+package com.foo.bar;
+
+class Fubar {
+}
+
+// file: src/main/foo/Fubar.java
+package foo;
+
+class Fubar {
+}
 ```
 
 ---
 
-### java:S5361 — "String#replace" should be preferred to "String#replaceAll"
+---
+
+---
+
+---
+
+### java:S5996 — Regex boundaries should not be used in a way that can never be matched
 
 **Severity**: High
 
-The underlying implementation of String::replaceAll calls the java.util.regex.Pattern.compile() method each time it is called even if the first argument is not a regular expression. This has a significant performance cost and therefore should be used with care. When String::replaceAll is used, the first argument should be a real regular expression. If it’s not the case, String::replace does exactly the same thing as String::replaceAll without the performance drawback of the regex. This rule raises an issue for each String::replaceAll used with a String as first parameter which doesn’t contains special regex character or pattern.
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Regex boundaries should not be used in a way that can never be matched In regular expressions the boundaries ^ and \A can only match at the beginning of the input (or, in case of ^ in combination with the MULTILINE flag, the beginning of the line) and $, \Z and \z only at the end. These patterns can be misused, by accidentally switching ^ and $ for example, to create a pattern that can never match.
 
-**Noncompliant code example:**
-
-```java
-String init = "Bob is a Bird... Bob is a Plane... Bob is Superman!";
-```
-
-**Compliant solution:**
+**Noncompliant code example**
 
 ```java
-String init = "Bob is a Bird... Bob is a Plane... Bob is Superman!";
-String changed = init.replace("Bob is", "It's");
-changed = changed.replace("...", ";");
-
-
-Or, with a regex:
-
-String init = "Bob is a Bird... Bob is a Plane... Bob is Superman!";
-String changed = init.replaceAll("\\w*\\sis", "It's");
-changed = changed.replaceAll("\\.{3}", ";");
-
+// This can never match because $ and ^ have been switched around
 ```
+
+**Compliant solution**
+
+```java
+Pattern.compile("^[a-z]+$");
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S6002 — Regex lookahead assertions should not be contradictory
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Regex lookahead assertions should not be contradictory This rule raises an issue when a regex lookahead contradicts the rest of the regex. Lookahead assertions are a regex feature that makes it possible to look ahead in the input without consuming it. It is often used at the end of regular expressions to make sure that substrings only match when they are followed by a specific pattern. For example, the following pattern will match an "a" only if it is directly followed by a "b". This does not consume the "b" in the process: Pattern.compile("a(?=b)"); However, lookaheads can also be used in...
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+Pattern.compile("(?<=a)b");
+Pattern.compile("a(?=b)");
+```
+
+---
+
+## 5. Code Quality & Maintainability Rules (55 rules)
+
+These rules detect complexity, naming, structural, and design anti-patterns that increase maintenance cost.
+
+---
+
+---
+
+---
+
+### java:S5994 — Regex patterns following a possessive quantifier should not always fail
+
+**Severity**: High
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Regex patterns following a possessive quantifier should not always fail Possessive quantifiers in Regex patterns like below improve performance by eliminating needless backtracking: ?+ , *+ , ++ , {n}+ , {n,}+ , {n,m}+ But because possessive quantifiers do not keep backtracking positions and never give back, the following sub-patterns should not match only similar characters. Otherwise, possessive quantifiers consume all characters that could have matched the following sub-patterns and nothing remains for the following sub-patterns.
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+Pattern pattern1 = Pattern.compile("aa++bc");            // Compliant, for example it can match "aaaabc"
+Pattern pattern2 = Pattern.compile("\\d*+(?<=[02468])"); // Compliant, for example it can match an even number like "1234"
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -4540,199 +2482,9 @@ str.matches("(\\w+)-(\\d+)");
 
 ---
 
-### java:S5994 — Regex patterns following a possessive quantifier should not always fail
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Regex patterns following a possessive quantifier should not always fail Possessive quantifiers in Regex patterns like below improve performance by eliminating needless backtracking: ?+ , *+ , ++ , {n}+ , {n,}+ , {n,m}+ But because possessive quantifiers do not keep backtracking positions and never give back, the following sub-patterns should not match only similar characters. Otherwise, possessive quantifiers consume all characters that could have matched the following sub-patterns and nothing remains for the following sub-patterns.
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-Pattern pattern1 = Pattern.compile("aa++bc");            // Compliant, for example it can match "aaaabc"
-Pattern pattern2 = Pattern.compile("\\d*+(?<=[02468])"); // Compliant, for example it can match an even number like "1234"
-```
-
 ---
 
-### java:S6001 — Back references in regular expressions should only refer to capturing groups that are matched before the reference
-
-**Severity**: High
-
-Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Back references in regular expressions should only refer to capturing groups that are matched before the reference When a back reference in a regex refers to a capturing group that hasn’t been defined yet (or at all), it can never be matched. Named back references throw a PatternSyntaxException in that case; numeric back references fail silently when they can’t match, simply making the match fail. When the group is defined before the back reference but on a different control path (like in (.)|\1 for example), this also leads to a situation where the back reference can never match.
-
-**Noncompliant code example**
-
-**Compliant solution**
-
-```java
-Pattern.compile("(.)\\1");
-Pattern.compile("(?<x>.)\\k<x>");
-```
-
 ---
-
-### java:S6209 — Members ignored during record serialization should not be used
-
-**Severity**: High
-
-In Records, serialization is not done the same way as for ordinary serializable or externalizable classes. The serialized representation of a record object will be a sequence of values (record components). During the deserialization of records, the stream of components is read and components are constructed. Then the record object is recreated by invoking the record’s canonical constructor with the component values serving as arguments (or default values for absent arguments). This process cannot be customized, so any class-specific writeObject, readObject, readObjectNoData, writeExternal, and readExternal methods or serialPersistentFields fields in record classes are ignored during serialization and deserialization. However, there is a way to substitute serialized/deserialized objects in writeReplace and readResolve. This rule raises an issue when any of writeObject, readObject, readObjectNoData, writeExternal, readExternal or serialPersistentFields are present as members in a Record class.
-
-**Noncompliant code example:**
-
-```java
-record Record() implements Serializable {
-  @Serial
-```
-
-**Compliant solution:**
-
-```java
-record Record() implements Serializable {}
-
-record Record() implements Serializable {
-  private Object writeReplace() throws ObjectStreamException {
-    ...
-  }
-  private Object readResolve() throws ObjectStreamException {
-    ...
-  }
-}
-
-```
-
----
-
-### java:S6432 — Counter Mode initialization vectors should not be reused
-
-**Severity**: High
-
-Which component or framework contains the issue? BouncyCastle Java Cryptography Extension The example uses a hardcoded IV as a nonce, which causes AES-CCM to be insecure. To fix it, a nonce is randomly generated instead.
-
-**Noncompliant code example**
-
-```java
-public void encrypt(byte[] key, byte[] ptxt) {
-
-    byte[] nonce = "7cVgr5cbdCZV".getBytes(StandardCharsets.UTF_8);
-
-
-    BlockCipher engine = new AESEngine();
-    AEADParameters params = new AEADParameters(new KeyParameter(key), 128, nonce);
-    CCMBlockCipher cipher = new CCMBlockCipher(engine);
-```
-
-**Compliant solution**
-
-```java
-public void encrypt(byte[] key, byte[] ptxt) {
-
-    SecureRandom random = new SecureRandom();
-    byte[] nonce = new byte[12];
-    random.nextBytes(nonce);
-
-
-    BlockCipher engine = new AESEngine();
-    AEADParameters params = new AEADParameters(new KeyParameter(key), 128, nonce);
-    CCMBlockCipher cipher = new CCMBlockCipher(engine);
-
-
-    cipher.init(true, params);
-
-}
-```
-
----
-
-### java:S6814 — Optional REST parameters should have an object type
-
-**Severity**: High
-
-| Conventional Replace primitive types, such as boolean, char, int, with the corresponding wrapper type, such as Boolean, Character, Integer. Alternatively, you might choose to remove required = false from the annotation and use an Optional<T> type for the parameter, such as Optional<Boolean> or Optional<String>, which automatically makes the REST parameter optional. This is the preferred approach because it enforces the proper handling of null in the method implementation.
-
-**Noncompliant code example**
-
-```java
-@RequestMapping(value = {"/article", "/article/{id}"})
-```
-
-**Compliant solution**
-
-```java
-@RequestMapping(value = {"/article", "/article/{id}"})
-
-public Article getArticle(@PathVariable(required = false) Integer articleId) { // Compliant
-
-   //...
-}
-```
-
----
-
-### java:S6876 — Reverse iteration should utilize reversed view
-
-**Severity**: High
-
-| Conventional Replace the reported statement with a forward-iteration over the reversed view of the collection.
-
-**Noncompliant code example**
-
-```java
-void printLastToFirst(List<String> list) {
-
-  for (var it = list.listIterator(list.size()); it.hasPrevious();) {
-    var element = it.previous();
-
-    System.out.println(element);
-  }
-}
-```
-
-**Compliant solution**
-
-```java
-void printLastToFirst(List<String> list) {
-
-  for (var element: list.reversed()) {
-
-    System.out.println(element);
-  }
-}
-```
-
----
-
-### java:S6877 — Reverse view should be used instead of reverse copy in read-only cases
-
-**Severity**: High
-
-| Conventional Remove Collections.reverse(list); and replace list with list.reversed() after.
-
-**Noncompliant code example**
-
-```java
-void foo() {
-  var list = new ArrayList<String>();
-  list.add("A");
-  list.add("B");
-```
-
-**Compliant solution**
-
-```java
-void foo() {
-  var list = new ArrayList<String>();
-  list.add("A");
-  list.add("B");
-
-  for (var e : list.reversed()) {  // Compliant
-
-    // ...
-  }
-}
-```
 
 ---
 
@@ -4790,88 +2542,283 @@ class ShowCustomersPanel extends Panel {
 
 ---
 
-### javaarchitecture:S7789 — Classes should be located according to the intended architecture
+---
+
+---
+
+---
+
+### java:S6876 — Reverse iteration should utilize reversed view
 
 **Severity**: High
 
-Sonar Architecture (Java) architecture Adaptability Move the relevant class to its intended location or rename the relevant package as intended.
+| Conventional Replace the reported statement with a forward-iteration over the reversed view of the collection.
 
 **Noncompliant code example**
 
 ```java
-If the intended architecture declares developers should use the package name com.example.panel, not com.example.panels, then the following code example is noncompliant:
+void printLastToFirst(List<String> list) {
 
-package com.example.panels;
+  for (var it = list.listIterator(list.size()); it.hasPrevious();) {
+    var element = it.previous();
 
-
-class ShowCustomersPanel extends Panel {
-  // ...
+    System.out.println(element);
+  }
 }
 ```
 
 **Compliant solution**
 
 ```java
-The solution is to move the class to its appropriate package, or respectively, to rename the package panels to panel.
+void printLastToFirst(List<String> list) {
 
-package com.example.panel;
+  for (var element: list.reversed()) {
 
-
-
-import com.example.services.CustomerService;
-
-
-class ShowCustomersPanel extends Panel {
-  // ...
+    System.out.println(element);
+  }
 }
 ```
 
 ---
 
-### javaarchitecture:S8134 — Forbidden relationships should be removed to solve tangles as directed by the project's architect
+---
+
+---
+
+---
+
+### java:S6877 — Reverse view should be used instead of reverse copy in read-only cases
 
 **Severity**: High
 
-Sonar Architecture (Java) architecture Adaptability Remove or refactor the problematic dependency. This may involve replacing the dependency with an allowed one, moving code to appropriate classes or packages, or introducing new abstractions. The exact solution depends on your project’s specific situation.
+| Conventional Remove Collections.reverse(list); and replace list with list.reversed() after.
 
 **Noncompliant code example**
 
 ```java
-The following code contains two cycles: Order → Customer → Order, and Order → Product → Order. Furthermore, both cycles are connected to each other via class Order. This is called a tangle consisting of two cycles.
-
-class Order {
-    public Customer customer;
-    public List<Product> products;
-}
-
-class Customer {
-    public List<Order> orders;
-
-}
-
-class Product {
-    public List<Order> orders;
-}
+void foo() {
+  var list = new ArrayList<String>();
+  list.add("A");
+  list.add("B");
 ```
 
 **Compliant solution**
 
 ```java
-The issue can be resolved by changing the structure. Two service functions can replace the dependencies Customer → Order and Product → Order.
+void foo() {
+  var list = new ArrayList<String>();
+  list.add("A");
+  list.add("B");
 
-class Order {
-    public Customer customer;
-    public List<Product> products;
-}
+  for (var e : list.reversed()) {  // Compliant
 
-class Customer { }
-class Product { }
-interface OrderService {
-  List<Order> getOrdersByCustomer(Customer customer);
-  List<Order> getOrdersByProduct(Product product);
-
+    // ...
+  }
 }
 ```
+
+---
+
+---
+
+---
+
+---
+
+### java:S6857 — SpEL expression should have a valid syntax
+
+**Severity**: High
+
+| Conventional Correct the syntax error in the SpEL expression.
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+@Value("#{systemProperties['user.region']}") // Compliant
+
+private String region;
+
+@Value("#{'${listOfValues}'.split(',')}") // Compliant
+
+private List<String> valuesList;
+
+@Value("#{T(java.lang.Math).random() * 100.0}") // Compliant
+
+private Double randPercent;
+
+@Query("SELECT u FROM User u WHERE u.status = :#{#status+42}") // Compliant
+
+List<User> findUsersByStatus(@Param("status") String status);
+
+@Value("${myapp.prop}") // Compliant
+
+private String myProperty;
+
+@Value("${my.property:#{1*1}}") // Compliant
+
+private Integer myValue;
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1192 — String literals should not be duplicated
+
+**Severity**: High
+
+Adaptability Use constants to replace the duplicated string literals. Constants can be referenced from many places, but only need to be updated in a single place.
+
+**Noncompliant code example**
+
+```java
+With the default threshold of 3:
+
+public void run() {
+```
+
+**Compliant solution**
+
+```java
+private static final String ACTION_1 = "action1";  // Compliant
+
+
+public void run() {
+
+  prepare(ACTION_1);                               // Compliant
+  execute(ACTION_1);
+  release(ACTION_1);
+
+}
+
+Parameters
+threshold	
+Number of times a literal must be duplicated to trigger an issue
+Default Value:
+3
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S4635 — String offset-based methods should be preferred for finding substrings from offsets
+
+**Severity**: High
+
+Looking for a given substring starting from a specified offset can be achieved by such code: str.substring(beginIndex).indexOf(char1). This works well, but it creates a new String for each call to the substring method. When this is done in a loop, a lot of Strings are created for nothing, which can lead to performance problems if str is large. To avoid performance problems, String.substring(beginIndex) should not be chained with the following methods: indexOf(int ch) indexOf(String str) lastIndexOf(int ch) lastIndexOf(String str) startsWith(String prefix) For each of these methods, another method with an additional parameter is available to specify an offset. Using these methods will avoid the creation of additional String instances. For indexOf methods, adjust the returned value by subtracting the substring index parameter to obtain the same result.
+
+**Noncompliant code example:**
+
+```java
+
+```
+
+**Compliant solution:**
+
+```java
+str.indexOf(char1, beginIndex) - beginIndex; // index for char1 not found is (-1-beginIndex)
+
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1113 — The "Object.finalize()" method should not be overridden
+
+**Severity**: High
+
+unpredictable
+
+Before it reclaims storage from an object that is no longer referenced, the garbage collector calls finalize() on the object. But there is no guarantee that this method will be called as soon as the last references to the object are removed. It can be few microseconds to few minutes later. For this reason relying on overriding the finalize() method to release resources or to update the state of the program is highly discouraged. What is the potential impact? More unexpected issues can be caused by relying on the finalize() method to perform important operations on the application state: The JVM might terminate without ever calling this method on a particular object, leaving an unexpected or incomplete state of the program Uncaught exceptions will be ignored inside this method, making it harder to detect issues that could have been logged otherwise Finalizer methods can also be invoked concurrently, even on single-threaded applications, making it hard to maintain desired program invariants
+
+**Noncompliant code example:**
+
+```java
+public class MyClass {
+
+  @Override
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1175 — The signature of "finalize()" should match that of "Object.finalize()"
+
+**Severity**: High
+
+Object.finalize() is called by the Garbage Collector at some point after the object becomes unreferenced. In general, overloading Object.finalize() is a bad idea because: The overload may not be called by the Garbage Collector. Users are not expected to call Object.finalize() and will get confused. But beyond that it’s a terrible idea to name a method "finalize" if it doesn’t actually override Object.finalize().
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+public int someBetterName(int someParameter) {  // Compliant
+  /* ... */
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2093 — Try-with-resources should be used
+
+**Severity**: High
+
+| Conventional Use the try-with-resources syntax by moving the Closable variable declarations after the try keyword surrounded by parentheses and separated by ;: try (/* resources declarations */) { // resources usage ...
+
+**Noncompliant code example**
+
+```java
+FileReader fr = null;
+BufferedReader br = null;
+```
+
+**Compliant solution**
+
+```java
+try ( // Compliant, all resources are instantiated within a try-with-resources statement and hence automatically closed after use
+    FileReader fr = new FileReader(fileName);
+    BufferedReader br = new BufferedReader(fr)
+  ) {
+
+  return br.readLine();
+}
+
+catch (...) {}
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -4920,728 +2867,1146 @@ will cause the quality gate to **Fail**.
 
 ## 10. Security Rules — Medium (19 rules)
 
-### javasecurity:S6547 — Environment variables should not be defined from untrusted input
+---
 
-**Severity**: Medium
+---
 
-Environment variable injection occurs in an application when the application receives data from a user or a third-party service and, without
-sanitizing it first, does the following:
+---
+
+### java:S6817 — Use of the "@Async" annotation on methods declared within a "@Configuration" class in Spring Boot
+
+**Severity**: High
+
+Don’t use @Async annotations on methods of @Configuration classes.
 
 **Noncompliant code example**
 
 ```java
-protected void doGet(HttpServletRequest request, HttpServletResponse response) {
-  Runtime r = Runtime.getRuntime();
-  String userInput = request.getParameter("example");
-
-  if (userInput != null) {
-    String[] envs = {userInput};
-    r.exec("/path/to/example", envs);
-  } else{
-    r.exec("/path/to/example");
-  }
-}
+@EnableAsync
+@Configuration
+public class MyConfiguration {
 ```
 
 **Compliant solution**
 
 ```java
-protected void doGet(HttpServletRequest request, HttpServletResponse response) {
-  Runtime r = Runtime.getRuntime();
-  String userInput = request.getParameter("example");
+@EnableAsync
+@Configuration
+public class MyConfiguration {
 
-  if (userInput != null && userInput.matches("^[a-zA-Z0-9]*$")) {
-    String[] envs = {"ENV_VAR=%s".format(userInput)};
-    r.exec("/path/to/example", envs);
-  } else {
-    r.exec("/path/to/example");
+
+  public void method() {
+
+    // ...
   }
 }
 ```
 
 ---
 
-### javasecurity:S6549 — Accessing files should not lead to filesystem oracle attacks
+---
 
-**Severity**: Medium
+---
 
-Applications behave as filesystem oracles when they disclose to attackers if resources from the filesystem exist or not.
+---
+
+### java:S6881 — Virtual threads should be used for tasks that include heavy blocking operations
+
+**Severity**: High
+
+multi-threading Replace platform thread instances or platform thread pools with virtual threads, if their task involves blocking operations.
 
 **Noncompliant code example**
 
 ```java
-import java.io.File;
+The following example creates a platform thread to handle a blocking operation, here denoted by Thread.sleep(1000). The overhead for instantiating a platform thread is higher than for a virtual thread. Further, instantiating too many platform threads can lead to problems if the number of instantiated threads exceeds the maximum number of platform threads allowed by the OS.
 
+new Thread(() -> {
+
+    try {
+```
+
+**Compliant solution**
+
+```java
+Using virtual threads allows the developer to abstract from any pooling logic as they are much lighter than platform threads, and the number of virtual threads that can be instantiated is only limited by the available memory. In this example, the execution of 10000 requests would take just over ~1 second without any risk of exceeding the allowed number of platform threads.
+
+Thread.ofVirtual().start(() -> {
+
+    try {
+
+        Thread.sleep(1000); // Compliant
+
+    } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+    }
+});
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2479 — Whitespace and control characters in literals should be explicit
+
+**Severity**: High
+
+Non-encoded control characters and whitespace characters are often injected in the source code because of a bad manipulation. They are either invisible or difficult to recognize, which can result in bugs when the string is not what the developer expects. If you actually need to use a control character use their encoded version (ex: ASCII \n,\t,…​ or Unicode U+000D, U+0009,…​). This rule raises an issue when the following characters are seen in a literal string: ASCII control character. (character index < 32 or = 127) Unicode whitespace characters. Unicode C0 control characters Unicode characters U+200B, U+200C, U+200D, U+2060, U+FEFF, U+2028, U+2029 No issue will be raised on the simple space character. Unicode U+0020, ASCII 32.
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+String tabInside = "A\tB";  // Compliant, uses escaped value
+String zeroWidthSpaceInside = "foo\u200Bbar";  // Compliant, uses escaped value
+char tab = '\t';
+
+Parameters
+allowTabsInTextBlocks	
+Allow tabs in text blocks
+Default Value:
+false
+```
+
+---
+
+---
+
+---
+
+---
+
+### javabugs:S3518 — Zero should not be a possible denominator
+
+**Severity**: High
+
+Dataflow Bug Detection SonarAnalyzer (Java)
+
+---
+
+---
+
+---
+
+---
+
+### java:S3753 — "@Controller" classes that use "@SessionAttributes" must call "setComplete" on their "SessionStatus" objects
+
+**Severity**: Blocker
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "@Controller" classes that use "@SessionAttributes" must call "setComplete" on their "SessionStatus" objects A Spring @Controller that uses @SessionAttributes is designed to handle a stateful / multi-post form. Such @Controllers use the specified @SessionAttributes to store data on the server between requests. That data should be cleaned up when the session is over, but unless setComplete() is called on the SessionStatus object from a @RequestMapping method, neither Spring nor the JVM will know it’s time to do that. Note that the SessionStatus object must be passed to that method as a...
+
+**Noncompliant code example**
+
+```java
 @Controller
-public class ExampleController
-{
-    static private String targetDirectory = "/path/to/target/directory/";
-
-    @GetMapping(value = "/exists")
-    public void exists(@RequestParam("filename") String filename) throws IOException {
-
-        File file = new File(targetDirectory + filename);
-        if (!file.exists()) { // Noncompliant
-            throw new IOException("File does not exist in the target directory");
-        }
-    }
-}
 ```
 
 **Compliant solution**
 
 ```java
-import java.io.File;
-
 @Controller
-public class ExampleController
-{
-    static private String targetDirectory = "/path/to/target/directory/";
+@SessionAttributes("hello")
+public class HelloWorld {
 
-    @GetMapping(value = "/exists")
-    public void exists(@RequestParam("filename") String filename) throws IOException {
+  @RequestMapping("/greet", method = GET)
+  public String greet(String greetee) {
 
-        File file = new File(targetDirectory + filename);
-        String canonicalDestinationPath = file.getCanonicalPath();
+    return "Hello " + greetee;
+  }
 
-        if (!canonicalDestinationPath.startsWith(targetDirectory)) {
-            throw new IOException("Entry is outside of the target directory");
-        } else if (!file.exists()) {
-            throw new IOException("File does not exist in the target directory");
-        }
+  @RequestMapping("/goodbye", method = POST)
+  public String goodbye(SessionStatus status) {
+    //...
+    status.setComplete();
+  }
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S4602 — "@SpringBootApplication" and "@ComponentScan" should not be used in the default package
+
+**Severity**: Blocker
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "@SpringBootApplication" and "@ComponentScan" should not be used in the default package @ComponentScan is used to determine which Spring Beans are available in the application context. The packages to scan can be configured thanks to the basePackageClasses or basePackages (or its alias value) parameters. If neither parameter is configured, @ComponentScan will consider only the package of the class annotated with it. When @ComponentScan is used on a class belonging to the default package, the entire classpath will be scanned. This will slow-down the start-up of the application and it is...
+
+**Noncompliant code example**
+
+```java
+import org.springframework.boot.SpringApplication;
+```
+
+**Compliant solution**
+
+```java
+package hello;
+
+import org.springframework.boot.SpringApplication;
+
+@SpringBootApplication // Compliant; RootBootApp belongs to the "hello" package
+public class RootBootApp {
+...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2975 — "clone" should not be overridden
+
+**Severity**: Blocker
+
+| Conventional A copy constructor, copy factory or a custom copy function are suitable alternatives to the Object.clone / java.lang.Cloneable mechanism. Consider the following example:
+
+**class Entity implements Cloneable { // Noncompliant, using `Cloneable`**
+
+```java
+public int value;
+  public List<Entity> children; // deep copy wanted
+
+  Entity() {
+    EntityManager.register(this); // invariant
+  }
+
+
+  @Override
+  public Entity clone() {
+    try {
+      Entity copy = (Entity) super.clone(); // invariant not enforced, because no constructor is caled
+      copy.children = children.stream().map(Entity::clone).toList();
+      return copy;
+    } catch (CloneNotSupportedException e) { // this will not happen due to behavioral contract
+      throw new AssertionError();
+    }
+
+  }
+}
+
+
+The Cloneable / Object.clone mechanism could easily be replaced by copy constructor:
+
+class Entity { // Compliant
+
+
+  public int value;
+  public List<Entity> children; // deep copy wanted
+
+  Entity() {
+    EntityManager.register(this); // invariant
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2695 — "PreparedStatement" and "ResultSet" methods should be called with valid indices
+
+**Severity**: Blocker
+
+Ensure the index passed to the PreparedStatement and ResultSet methods is valid.
+
+**Noncompliant code example**
+
+```java
+PreparedStatement ps = con.prepareStatement("SELECT fname, lname FROM employees where hireDate > ? and salary < ?");
+```
+
+**Compliant solution**
+
+```java
+PreparedStatement ps = con.prepareStatement("SELECT fname, lname FROM employees where hireDate > ? and salary < ?");
+
+ps.setDate(1, date);
+ps.setDouble(2, salary);
+
+
+ResultSet rs = ps.executeQuery();
+while (rs.next()) {
+
+  String fname = rs.getString(1);
+
+  // ...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1219 — "switch" statements should not contain non-case labels
+
+**Severity**: Blocker
+
+Even if it is legal, mixing case and non-case labels in the body of a switch statement is very confusing and can even be the result of a typing error.
+
+**Noncompliant code example**
+
+```java
+switch (day) {
+  case MONDAY:
+  case TUESDAY:
+```
+
+**Compliant solution**
+
+```java
+switch (day) {
+  case MONDAY:
+  case TUESDAY:
+  case WEDNESDAY:
+    doSomething();
+    break;
+  ...
+}
+
+switch (day) {
+  case MONDAY:
+    break;
+  case TUESDAY:
+    compute(args); // put the content of the labelled "for" statement in a dedicated method
+    break;
+
+    /* ... */
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3014 — "ThreadGroup" should not be used
+
+**Severity**: Blocker
+
+| Conventional Instead, use implementations of java.util.concurrent.ExecutorService to safely manage groups of threads.
+
+**Noncompliant code example**
+
+```java
+class NetworkHandler {
+```
+
+**Compliant solution**
+
+```java
+class NetworkHandler {
+
+  void handleThreadsProperly() {
+    ThreadFactory threadFactory = Executors.defaultThreadFactory();
+    ThreadPoolExecutor executorPool = new ThreadPoolExecutor(3, 10, 5, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(2), threadFactory);
+    for (int i = 0; i < 10; i++) {
+      executorPool.execute(new Thread("Job: " + i));
+    }
+    executorPool.shutdown();
+  }
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3046 — "wait" should not be called when multiple locks are held
+
+**Severity**: Blocker
+
+multi-threading Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules "wait" should not be called when multiple locks are held multi-threading When two locks are held simultaneously, a wait call only releases one of them. The other will be held until some other thread requests a lock on the awaited object. If no unrelated code tries to lock on that object, then all other threads will be locked out, resulting in a deadlock.
+
+**Noncompliant code example**
+
+```java
+synchronized (this.mon1) {  // threadB can't enter this block to request this.mon2 lock & release threadA
+	synchronized (this.mon2) {
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2276 — "wait(...)" should be used instead of "Thread.sleep(...)" when a lock is held
+
+**Severity**: Blocker
+
+Call wait(…​) on the monitor object instead of using Thread.sleep(…​). While wait(…​) is executed, the lock is temporarily released and hence other threads can run in the meantime.
+
+**Noncompliant code example**
+
+```java
+public void doSomething(){
+  synchronized(monitor) {
+    while(notReady()){
+```
+
+**Compliant solution**
+
+```java
+public void doSomething(){
+  synchronized(monitor) {
+    while(notReady()){
+
+      monitor.wait(200); // Compliant, the current monitor is released.
+
+    }
+    process();
+  }
+  ...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2970 — Assertions should be complete
+
+**Severity**: Blocker
+
+Adaptability Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Assertions should be complete Adaptability It is very easy to write incomplete assertions when using some test frameworks. This rule enforces complete assertions in the following cases: Fest: assertThat is not followed by an assertion invocation AssertJ: assertThat is not followed by an assertion invocation Mockito: verify is not followed by a method invocation Truth: assertXXX is not followed by an assertion invocation In such cases, what is intended to be a test doesn’t actually verify anything
+
+**Noncompliant code example**
+
+```java
+// Fest
+boolean result = performAction();
+// let's now check that result value is true
+```
+
+**Compliant solution**
+
+```java
+// Fest
+boolean result = performAction();
+// let's now check that result value is true
+assertThat(result).isTrue();
+
+// Mockito
+List mockedList = Mockito.mock(List.class);
+mockedList.add("one");
+mockedList.clear();
+// let's check that "add" and "clear" methods are actually called
+Mockito.verify(mockedList).add("one");
+Mockito.verify(mockedList).clear();
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2387 — Child class fields should not shadow parent class fields
+
+**Severity**: Blocker
+
+Having a variable with the same name in two unrelated classes is fine, but do the same thing within a class hierarchy and you’ll get confusion at best, chaos at worst.
+
+**Noncompliant code example**
+
+```java
+public class Fruit {
+  protected Season ripe;
+  protected Color flesh;
+
+  // ...
+}
+
+public class Raspberry extends Fruit {
+```
+
+**Compliant solution**
+
+```java
+public class Fruit {
+  protected Season ripe;
+  protected Color flesh;
+
+  // ...
+}
+
+public class Raspberry extends Fruit {
+  private boolean ripened;
+  private static Color FLESH_COLOR;
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2168 — Double-checked locking should not be used
+
+**Severity**: Blocker
+
+Given significant performance improvements of synchronized methods in recent JVM versions, synchronized methods are now preferred over the less robust double-checked locking. If marking the entire method as synchronized is not an option, consider using an inner static class to hold the reference instead. Inner static classes are guaranteed to be initialized lazily.
+
+**Noncompliant code example**
+
+```java
+public class ResourceFactory {
+    private static Resource resource;
+
+
+    public static Resource getInstance() {
+        if (resource == null) {
+```
+
+**Compliant solution**
+
+```java
+public class ResourceFactory {
+    private static Resource resource;
+
+
+    public static synchronized Resource getInstance() { // Compliant, the entire method is synchronized and hence thread-safe
+        if (resource == null)
+            resource = new Resource();
+
+        return resource;
     }
 }
 ```
 
 ---
 
-### javasecurity:S5144 — Server-side requests should not be vulnerable to forging attacks
+---
 
-**Severity**: Medium
+---
 
-Server-Side Request Forgery (SSRF) occurs when attackers can coerce a server to perform arbitrary requests on their behalf.
+---
+
+### java:S2689 — Files opened in append mode should not be used with "ObjectOutputStream"
+
+**Severity**: Blocker
+
+serialization Open the file to use the default action (writes stream header).
 
 **Noncompliant code example**
 
 ```java
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    String location = req.getParameter("url");
-
-    URL url = new URL(location);
-
-    HttpURLConnection  conn = (HttpURLConnection) url.openConnection();
-}
+FileOutputStream fos = new FileOutputStream(fileName , true);  // fos opened in append mode
 ```
 
 **Compliant solution**
 
 ```java
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-    String location = req.getParameter("url");
-
-    List<String> allowedHosts = new ArrayList<String>();
-    allowedHosts.add("https://trusted1.example.com/");
-    allowedHosts.add("https://trusted2.example.com/");
-
-    URL url = new URL(location);
-
-    if (allowedHosts.contains(location))
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-}
+FileOutputStream fos = new FileOutputStream(fileName);
+ObjectOutputStream out = new ObjectOutputStream(fos);
 ```
 
 ---
 
-### java:S6376 — XML parsers should not be vulnerable to Denial of Service attacks
+---
 
-**Severity**: Medium
+---
 
-XML files are complex data structures. When a malicious user is able to submit an XML file, it triggers complex processing that may overwhelm the
-parser. Most of the time, those complex processing are enabled by default, and XML parsers do not take preventive measures against Denial of Service
-attacks.
+---
+
+### java:S1190 — Future keywords should not be used as names
+
+**Severity**: Blocker
+
+| Conventional Rename the _ identifiers.
 
 **Noncompliant code example**
 
 ```java
-import org.jdom2.input.SAXBuilder;
-
-SAXBuilder builder = new SAXBuilder();
-builder.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, false);  // Noncompliant
+public class MyClass {
 ```
 
 **Compliant solution**
 
 ```java
-import org.jdom2.input.SAXBuilder;
+public class MyClass {
 
-SAXBuilder builder = new SAXBuilder();
-builder.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+    String s = "";            // Compliant
+
+}
 ```
 
 ---
 
-### java:S6301 — Mobile database encryption keys should not be disclosed
+---
 
-**Severity**: Medium
+---
 
-Mobile applications often need to store data (which might be sensitive) locally. For Android, there exist several libraries that simplify this
-process by offering a feature-rich database system. 
-[SQLCipher](https://www.zetetic.net/sqlcipher/)
- and 
-[Realm](https://realm.io/)
- are examples of such libraries. These libraries often add support for database encryption, to protect the contents
-from being read by other apps or by attackers.
+---
+
+### java:S2188 — JUnit test cases should call super methods
+
+**Severity**: Blocker
+
+Add an explicit call to super.setUp() and super.tearDown() in the overriding methods.
 
 **Noncompliant code example**
 
 ```java
-String key = "gb09ym9ydoolp3w886d0tciczj6ve9kszqd65u7d126040gwy86xqimjpuuc788g";
-SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase("test.db", key, null); // Noncompliant
+public class MyClassTest extends MyAbstractTestCase {
+
+  private MyClass myClass;
+
+  @Override
 ```
 
 **Compliant solution**
 
 ```java
-SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase("test.db", getKey(), null);
-```
+public class MyClassTest extends MyAbstractTestCase {
 
----
+  private MyClass myClass;
 
-### java:S5679 — OpenSAML2 should be configured to prevent authentication bypass
+  @Override
 
-**Severity**: Medium
+  protected void setUp() throws Exception {
+    super.setUp();
 
-If the Service Provider does not manage to properly validate the incoming SAML response message signatures, attackers might be able to manipulate
-the response content without the application noticing. Especially, they might be able to alter the authentication-targeted user.
-
-**Noncompliant code example**
-
-```java
-import org.opensaml.xml.parse.StaticBasicParserPool;
-import org.opensaml.xml.parse.ParserPool;
-
-public ParserPool parserPool() {
-  StaticBasicParserPool staticBasicParserPool = new StaticBasicParserPool();
-  staticBasicParserPool.setIgnoreComments(false); // Noncompliant
-  return staticBasicParserPool;
-}
-```
-
-**Compliant solution**
-
-```java
-import org.opensaml.xml.parse.BasicParserPool;
-import org.opensaml.xml.parse.ParserPool;
-
-public ParserPool parserPool() {
-  BasicParserPool basicParserPool = new BasicParserPool();
-  basicParserPool.setIgnoreComments(false); // Noncompliant
-  return basicParserPool;
-}
-```
-
----
-
-### javasecurity:S6173 — Reflection should not be vulnerable to injection attacks
-
-**Severity**: Medium
-
-Reflection injections occur in a web application when it retrieves data from a user or a third-party service and fully or partially uses it to
-inspect, load or invoke a component by name.
-
-**Noncompliant code example**
-
-```java
-import java.lang.Class;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-
-@RestController
-public class EffectController
-{
-    @GetMapping(value = "/filter/apply")
-    @ResponseBody
-    public ResponseEntity<String> apply(@RequestParam("effect") String effectName)
-    {
-        try
-        {
-            Class effectClass                = Class.forName(effectName);  // Noncompliant
-            Constructor<?> effectConstructor = effectClass.getConstructor();
-            Object EffectObject              = effectConstructor.newInstance();
-            Method applyMethod               = effectClass.getMethod("applyFilter");
-
-            boolean result = (boolean) applyMethod.invoke(EffectObject);
-
-            if (result) {
-                return new ResponseEntity<>("Filter Applied", HttpStatus.OK);
-            }
-
-        } catch (Exception e) {}
-
-        return new ResponseEntity<>("Filter Failure", HttpStatus.FORBIDDEN);
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-import java.lang.Class;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-
-@RestController
-public class EffectController
-{
-    private static Set<String> EFFECT_ALLOW_LIST = new HashSet<>();
-
-    static
-    {
-        allowList.add("SepiaEffect");
-        allowList.add("BlackAndWhiteEffect");
-        allowList.add("WaterColorEffect");
-        allowList.add("OilPaintingEffect");
-    }
-
-    @GetMapping(value = "/filter/apply")
-    @ResponseBody
-    public ResponseEntity<String> apply(@RequestParam("effect") String effectName)
-    {
-        if (!EFFECT_ALLOW_LIST.contains(effectName)) {
-            return new ResponseEntity<>("Filter Failure", HttpStatus.FORBIDDEN);
-        }
-
-        try
-        {
-            Class effectClass                = Class.forName(effectName);
-            Constructor<?> effectConstructor = effectClass.getConstructor();
-            Object EffectObject              = effectConstructor.newInstance();
-// ...
-```
-
----
-
-### javasecurity:S6287 — Applications should not create session cookies from untrusted input
-
-**Severity**: Medium
-
-Session Cookie Injection occurs when a web application assigns session cookies to users using untrusted data.
-
-**Noncompliant code example**
-
-```java
-protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    Optional<Cookie> cookieOpt = Arrays.stream(request.getCookies())
-                                    .filter(c -> c.getName().equals("jsessionid"))
-                                    .findFirst();
-
-    if (!cookieOpt.isPresent()) {
-        String cookie = request.getParameter("cookie");
-        Cookie cookieObj = new Cookie("jsessionid", cookie);
-        response.addCookie(cookieObj);
-    }
-
-    response.sendRedirect("/welcome.jsp");
-}
-```
-
-**Compliant solution**
-
-```java
-protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-    Optional<Cookie> cookieOpt = Arrays.stream(request.getCookies())
-                                    .filter(c -> c.getName().equals("jsessionid"))
-                                    .findFirst();
-
-    if (!cookieOpt.isPresent()) {
-        response.sendRedirect("/getCookie.jsp");
-    } else {
-        response.sendRedirect("/welcome.jsp");
-    }
-}
-```
-
----
-
-### javasecurity:S6398 — JSON operations should not be vulnerable to injection attacks
-
-**Severity**: Medium
-
-JSON injections occur when an application builds a JSON-formatted string from user input without prior validation or sanitation. In such a case, a
-tainted user-controlled value can tamper with the JSON string content. Especially, unexpected arbitrary elements can be inserted in the corresponding
-JSON object. Those modifications can include:
-
-**Noncompliant code example**
-
-```java
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-//[...]
-public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-  String tainted = request.getParameter("value");
-  String json = "{\"key\":\""+ tainted +"\"}";
-  ObjectMapper obj = new ObjectMapper();
-  try {
-    obj.readValue(json, Object.class); // Noncompliant
-  } catch (JsonProcessingException e) {
-    response.sendError(400);
+    myClass = new MyClass();
   }
 }
 ```
 
-**Compliant solution**
-
-```java
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
-//[...]
-public void doGet(HttpServletRequest request, HttpServletResponse response) {
-  ObjectMapper obj = new ObjectMapper();
-  ObjectNode myObject = obj.createObjectNode();
-  myObject.put("key", request.getParameter("value"));
-}
-```
+---
 
 ---
 
-### javasecurity:S6399 — XML operations should not be vulnerable to injection attacks
+---
 
-**Severity**: Medium
+---
 
-XML injections occur when an application builds an XML-formatted string from user input without prior validation or sanitation. In such a case, a
-tainted user-controlled value can tamper with the XML string content. Especially, unexpected arbitrary elements and attributes can be inserted in the
-corresponding XML description.
+### java:S2189 — Loops should not be infinite
 
-**Noncompliant code example**
+**Severity**: Blocker
+
+symbolic-execution
+
+An infinite loop will never end while the program runs, meaning you have to kill the program to get out of the loop. Every loop should have an end condition, whether by meeting the loop's termination condition or via a break statement.
+
+**Noncompliant code example:**
 
 ```java
-attacker</username><role>admin</role></user>
-<user><username>foo
+for (;;) {  // Noncompliant; end condition omitted
+  // ...
+}
+
+int j;
+while (true) { // Noncompliant; end condition omitted
+  j++;
+}
+
+int k;
+boolean b = true;
+while (b) { // Noncompliant; b never written to in loop
+  k++;
+}
 ```
 
-**Compliant solution**
+**Compliant solution:**
 
 ```java
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-
-protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-  String xml = """
-    <user>
-      <username>"""
-      + req.getParameter("username") + """
-      </username>
-      <role>user</role>
-    </user>""";
-
-  DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-
-  try {
-    DocumentBuilder builder = factory.newDocumentBuilder();
-    builder.parse(new InputSource(new StringReader(xml))); // Noncompliant
-  } catch (ParserConfigurationException | SAXException e) {
-    resp.sendError(400);
+int j;
+while (true) { // reachable end condition added
+  j++;
+  if (j == Integer.MIN_VALUE) {  // true at Integer.MAX_VALUE +1
+    break;
   }
 }
+
+int k;
+boolean b = true;
+while (b) {
+  k++;
+  b = k < Integer.MAX_VALUE;
+}
 ```
 
 ---
 
-### javasecurity:S7044 — Server-side requests should not be vulnerable to traversing attacks
+---
 
-**Severity**: Medium
+---
 
-Path Traversal Server-Side Request Forgery is a sub-class of Server-Side Request Forgery (SSRF). In this type of attack, the attacker manipulates
-the path of the URL in the server-side request, rather than controlling the entire URL. This can lead to unauthorized access to endpoints or data by
-altering the request path.
+---
+
+### java:S2236 — Methods "wait(...)", "notify()" and "notifyAll()" should not be called on Thread instances
+
+**Severity**: Blocker
+
+multi-threading
+
+---
+
+---
+
+---
+
+---
+
+### java:S1845 — Methods and field names should not be the same or differ only by capitalization
+
+**Severity**: Blocker
+
+| Identifiable Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Methods and field names should not be the same or differ only by capitalization | Identifiable This rule raises an issue when there is a method and a field in a class with names that differ only by capitalization. Looking at the set of methods in a class, including superclass methods, and finding two methods or fields that differ only by capitalization is confusing to users of the class. It is similarly confusing to have a method and a field which differ only in capitalization or a method and a field with exactly the same name and visibility. In the case of methods, it may...
 
 **Noncompliant code example**
 
 ```java
-@GetMapping("/user")
-public String getUser(@RequestParam(value = "id") String id) {
-    URL url = new URL("http://example.com/api/user/" + id); // Noncompliant
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+public class Car{
+
+
+  public DriveTrain drive;
+
+
+  public void tearDown(){...}
+```
+
+**Compliant solution**
+
+```java
+public class Car{
+
+
+  private DriveTrain drive;
+
+
+  public void tearDown(){...}
+
+
+  public void drive() {...}  // field visibility reduced
+
+}
+
+public class MyCar extends Car{
+
+  @Override
+  public void tearDown(){...}
+
+
+  public void drivefast(){...}
+
+
+  public void driveReallyFast(){...}
+
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3516 — Methods returns should not be invariant
+
+**Severity**: Blocker
+
+symbolic-execution Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Methods returns should not be invariant symbolic-execution When a method is designed to return an invariant value, it may be poor design, but it shouldn’t adversely affect the outcome of your program. However, when it happens on all paths through the logic, it is surely a bug. This rule raises an issue when a method contains several return statements that all return the same value.
+
+**Noncompliant code example**
+
+```java
+int foo(int a) {
+  int b = 12;
+  if (a == 1) {
+    return b;
+  }
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2229 — Methods should not call same-class methods with incompatible "@Transactional" values
+
+**Severity**: Blocker
+
+| Conventional Change the corresponding functions into a compatible propagation type.
+
+**Noncompliant code example**
+
+```java
+public void doTheThing() {
+  // ...
+```
+
+**Compliant solution**
+
+```java
+@Transactional
+
+public void doTheThing() {
+  // ...
+
+  actuallyDoTheThing(); // Compliant
+
+}
+
+@Transactional
+public void actuallyDoTheThing() {
+  // ...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2275 — Printf-style format strings should not lead to unexpected behavior at runtime
+
+**Severity**: Blocker
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Printf-style format strings should not lead to unexpected behavior at runtime Because printf-style format strings are interpreted at runtime, rather than validated by the Java compiler, they can contain errors that lead to unexpected behavior or runtime errors. This rule statically validates the good behavior of printf-style formats when calling the format(...) methods of java.util.Formatter, java.lang.String, java.io.PrintStream, MessageFormat, and java.io.PrintWriter classes and the printf(...) methods of java.io.PrintStream or java.io.PrintWriter classes.
+
+**Noncompliant code example**
+
+**Compliant solution**
+
+```java
+String.format("The value of my integer is %d", 3);
+String.format("Duke's Birthday year is %tY", c);
+String.format("Display %1$d and then %d", 1);
+String.format("Not enough arguments %d and %d", 1, 2);
+String.format("%d is equals to %<", 2);
+
+MessageFormat.format("Result {0}.", value);
+MessageFormat.format("Result {0} & {1}.", value, value);
+MessageFormat.format("Result {0}.", myObject);
+
+java.util.logging.Logger logger;
+logger.log(java.util.logging.Level.SEVERE, "Result {1},{2}!", 14, 2);
+
+org.slf4j.Logger slf4jLog;
+org.slf4j.Marker marker;
+
+slf4jLog.debug(marker, "message {}", 1);
+
+org.apache.logging.log4j.Logger log4jLog;
+log4jLog.debug("message {}", 1);
+```
+
+---
+
+---
+
+---
+
+---
+
+### javabugs:S2190 — Recursion should not be infinite
+
+**Severity**: Blocker
+
+Dataflow Bug Detection SonarAnalyzer (Java) To correctly implement recursion, you must ensure that the following conditions are met: On every recursive call, the input to the call needs to become smaller, meaning it needs to be brought closer to the base case. For instance, if you are operating on a list, you can split it into smaller segments. If the input is numerical, you can ensure that you only make recursive calls on numbers that are strictly smaller. The recursive method must contain a termination condition that checks whether the base case has been reached. If so, it must not perform another recursive call. For example, a base case can be that the input is an empty list. You need to ensure that your process for splitting the input into smaller instances will actually lead to the...
+
+**Noncompliant code example**
+
+```java
+int myPow(int num, int exponent) {
+```
+
+**Compliant solution**
+
+```java
+int myPow(int num, int exponent) {
+
+  if (exponent == 0) { // <- termination condition
+    return 1;
+  }
+
+  if (exponent < 0) {
+    throw new IllegalArgumentException("Negative exponents are not supported.");
+  }
+
+  num = num * myPow(num, exponent - 1);
+  return num;
+
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2095 — Resources should be closed
+
+**Severity**: Blocker
+
+Connections, streams, files, and other classes that implement the `Closeable` interface or its super-interface `AutoCloseable`, need to be closed after use. Further, that close call must be made in a `finally` block otherwise an exception could keep the close call from being made. Failing to properly close resources will result in a resource leak which could bring first the application and then the box it runs on to their knees.
+
+**Noncompliant code example**
+
+```java
+private void readTheFile() throws IOException {
+  Path path = Paths.get(this.fileName);
+  BufferedReader reader = Files.newBufferedReader(path, this.charset);
+  // ...
+  reader.close();  // Noncompliant
+  // ...
+  Files.lines("input.txt").forEach(System.out::println); // Noncompliant
 }
 ```
 
 **Compliant solution**
 
 ```java
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-
-@GetMapping("/user")
-public String getUser(@RequestParam(value = "id") String id) {
-    String encodedId = URLEncoder.encode(id, StandardCharsets.UTF_8);
-    URL url = new URL("http://example.com/api/user/?id=" + encodedId);
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+private void readTheFile(String fileName) throws IOException {
+    Path path = Paths.get(fileName);
+    try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+      reader.readLine();
+      // ...
+    }
+    try (Stream<String> input = Files.lines("input.txt")) {
+      input.forEach(System.out::println);
+    }
 }
 ```
 
 ---
 
-### java:S6813 — Field dependency injection should be avoided
+---
 
-**Severity**: Medium
+---
 
-Dependency injection frameworks such as Spring, Quarkus, and others support dependency injection by using annotations such as 
-`@Inject`
+---
+
+### java:S2178 — Short-circuit logic should be used in boolean contexts
+
+**Severity**: Blocker
+
+The use of non-short-circuit logic in a boolean context is likely a mistake - one that could cause serious program errors as conditions are evaluated under the wrong circumstances.
+
+**Noncompliant code example:**
+
+```java
+
+```
+
+**Compliant solution:**
+
+```java
+if(getTrue() || getFalse()) { ... } // true short-circuit logic
+
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S128 — Switch cases should end with an unconditional "break" statement
+
+**Severity**: Blocker
+
+When the execution is not explicitly terminated at the end of a switch case, it continues to execute the statements of the following case. While this is sometimes intentional, it often is a mistake which leads to unexpected behavior.
 
 **Noncompliant code example**
 
 ```java
-public class SomeService {
-    @Autowired
-    private SomeDependency someDependency; // Noncompliant
-
-    private String name = someDependency.getName(); // Will throw a NullPointerException
+switch (myVariable) {
+  case 1:
+    foo();
+    break;
+  case 2:  // Both 'doSomething()' and 'doSomethingElse()' will be executed. Is it on purpose ?
+    doSomething();
+  default:
+    doSomethingElse();
+    break;
 }
 ```
 
 **Compliant solution**
 
 ```java
-public class SomeService {
-    private final SomeDependency someDependency;
-    private final String name;
-
-    @Autowired
-    public SomeService(SomeDependency someDependency) {
-        this.someDependency = someDependency;
-        name = someDependency.getName();
-    }
+switch (myVariable) {
+  case 1:
+    foo();
+    break;
+  case 2:
+    doSomething();
+    break;
+  default:
+    doSomethingElse();
+    break;
 }
 ```
 
 ---
 
-### java:S6832 — Non-singleton Spring beans should not be injected into singleton beans
+---
 
-**Severity**: Medium
+---
 
-In Spring, singleton beans and their dependencies are initialized when the application context is created.
+---
+
+### java:S2187 — TestCases should contain tests
+
+**Severity**: Blocker
+
+Adaptability Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules TestCases should contain tests Adaptability There’s no point in having a JUnit TestCase without any test methods. Similarly, you shouldn’t have a file in the tests directory named *Test, *Tests, or *TestCase, but no tests in the file. Doing either of these things may lead someone to think that uncovered classes have been tested. This rule raises an issue when files in the test directory are named *Test, *Tests, or *TestCase or implement TestCase but don’t contain any tests. Supported frameworks: TestClassNamePattern Test class name pattern (regular expression) Default Value:...
+
+---
+
+---
+
+---
+
+---
+
+### java:S2699 — Tests should include assertions
+
+**Severity**: Blocker
+
+Adaptability Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Tests should include assertions Adaptability A test case without assertions ensures only that no exceptions are thrown. Beyond basic runnability, it ensures nothing about the behavior of the code under test. This rule raises an exception when no assertions from any of the following known frameworks are found in a test: Eclipse Vert.x Fest 1.x and 2.x Rest-assured 2.x, 3.x and 4.x RxJava 1.x and 2.x Spring’s org.springframework.test.web.servlet.ResultActions.andExpect() and org.springframework.test.web.servlet.ResultActions.andExpectAll() Truth Framework Furthermore, as new or...
 
 **Noncompliant code example**
 
 ```java
-@Component
-@Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
-public class RequestBean {
-    //...
-}
-
-public class SingletonBean {
-    @Autowired
-    private final RequestBean requestBean; // Noncompliant, the same instance of RequestBean is used for each HTTP request.
-
-    public RequestBean getRequestBean() {
-        return requestBean;
-    }
-}
+@Test
 ```
 
 **Compliant solution**
 
 ```java
-@Component
-@Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
-public class RequestBean {
-    //...
+Example when com.company.CompareToTester#compare* is used as parameter to the rule.
+
+import com.company.CompareToTester;
+
+@Test
+public void testDoSomething() {
+  MyClass myClass = new MyClass();
+  assertNull(myClass.doSomething());  // JUnit assertion
+  assertThat(myClass.doSomething()).isNull();  // Fest assertion
 }
 
-public class SingletonBean {
-    private final ObjectFactory<RequestBean> requestBeanFactory;
-
-    @Autowired
-    public SingletonBean(ObjectFactory<RequestBean> requestBeanFactory) {
-        this.requestBeanFactory = requestBeanFactory;
-    }
-
-    public RequestBean getRequestBean() {
-        return requestBeanFactory.getObject();
-    }
+@Test
+public void testDoSomethingElse() {
+  MyClass myClass = new MyClass();
+  new CompareToTester().compareWith(myClass);  // Compliant - custom assertion method defined as rule parameter
+  CompareToTester.compareStatic(myClass);  // Compliant
 }
+
+Parameters
+customAssertionMethods	
+Comma-separated list of fully qualified method symbols that should be considered as assertion methods. The wildcard character can be used at the end of the method name.
 ```
 
 ---
 
-### java:S6804 — "@Value" annotation should inject property or SpEL expression
+---
+
+---
+
+---
+
+### java:S2437 — Unnecessary bit operations should not be performed
+
+**Severity**: Blocker
+
+Skip to rules filters Quality Profiles Quality Gates Clear All Filters Software quality Security Hotspots Show Security Hotspots Only Available Since Security Category Quality Profile Prioritized Rules Unnecessary bit operations should not be performed Certain bit operations are just silly and should not be performed because their results are predictable. Specifically, using & -1 with any value will always result in the original value, as will anyValue ^ 0 and anyValue | 0.
+
+---
+
+---
+
+---
+
+---
+
+### java:S1144 — Unused "private" methods should be removed
 
 **Severity**: Medium
 
-The purpose of the 
-`@Value`
- annotation in 
-`org.springframework.beans.factory.annotation`
- is to inject a value into a field or
-method based on the Spring context after it has been established.
-
-**Noncompliant code example**
-
-```java
-@Value("catalog.name") // Noncompliant, this will not inject the property
-String catalog;
-```
-
-**Compliant solution**
-
-```java
-@Value("${catalog.name}") // Compliant
-String catalog;
-```
+A method that is never called is dead code, and should be removed. Cleaning out dead code decreases the size of the maintained codebase, making it
+easier to understand the program and preventing bugs from being introduced.
 
 ---
 
-### java:S2123 — Values should not be uselessly incremented
+---
+
+---
+
+---
+
+### java:S110 — Inheritance tree of classes should not be too deep
 
 **Severity**: Medium
 
-A value that is incremented or decremented and then not stored is at best wasted code and at worst a bug.
-
-Noncompliant code example
-
-```
-
-public int pickNumber() {
-  int i = 0;
-  int j = 0;
-
-  i = i++; // Noncompliant; i is still zero
-
-  return j++; // Noncompliant; 0 returned
-}
-
-```
-
-Compliant solution
-
-```
-
-public int pickNumber() {
-  int i = 0;
-  int j = 0;
-
-  i++;
-  return ++j;
-}
-
-```
+Inheritance is one of the most valuable concepts in object-oriented programming. It’s a way to categorize and reuse code by creating collections of
+attributes and behaviors called classes, which can be based on previously created classes.
 
 ---
 
-### java:S5808 — Authorizations should be based on strong decisions
-
-**Severity**: Medium
-
-Access control is a critical aspect of web frameworks that ensures proper authorization and restricts access to sensitive resources or actions. To
-enable access control, web frameworks offer components that are responsible for evaluating user permissions and making access control decisions. They
-might examine the user’s credentials, such as roles or privileges, and compare them against predefined rules or policies to determine whether the user
-should be granted access to a specific resource or action.
-
-**Noncompliant code example**
-
-```java
-public class WeakNightVoter implements AccessDecisionVoter {
-    @Override
-    public int vote(Authentication authentication, Object object, Collection collection) {
-        Calendar calendar = Calendar.getInstance();
-        int currentHour = calendar.get(Calendar.HOUR_OF_DAY);
-
-        if (currentHour >= 8 && currentHour <= 19) {
-            return ACCESS_GRANTED;
-        }
-
-        return ACCESS_ABSTAIN; // Noncompliant: when users connect during the night, no decision is made
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-public class MyPermissionEvaluator implements PermissionEvaluator {
-    @Override
-    public boolean hasPermission(Authentication authentication, Object targetDomainObject, Object permission) {
-        Object user = authentication.getPrincipal();
-
-        if (user.getRole().equals(permission)) {
-              return true;
-        }
-
-        return true; // Noncompliant
-    }
-}
-```
+---
 
 ---
 
-### java:S6242 — Credentials Provider should be set explicitly when creating a new "AwsClient"
-
-**Severity**: Medium
-
-If the credentials provider is not specified when creating a new AwsClient with an 
-[AwsClientBuilder](https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/awscore/client/builder/AwsClientBuilder.html)
-, the AWS SDK
-will execute some logic to identify it automatically.
-
 ---
-
-### java:S3011 — Reflection should not be used to increase accessibility of classes, methods, or fields
-
-**Severity**: Medium
-
-Altering or bypassing the accessibility of classes, methods, or fields through reflection violates the encapsulation principle. This can break the
-internal contracts of the accessed target and lead to maintainability issues and runtime errors.
-
-This rule raises an issue when reflection is used to change the visibility of a class, method or field, and when it is used to directly update a
-field value.
-
-```
-
-public void makeItPublic(String methodName) throws NoSuchMethodException {
-
-  this.getClass().getMethod(methodName).setAccessible(true); // Noncompliant
-}
-
-public void setItAnyway(String fieldName, int value) {
-  this.getClass().getDeclaredField(fieldName).setInt(this, value); // Noncompliant; bypasses controls in setter
-}
-
-```
-
----
-
-### java:S6216 — Reflection should not be used to increase accessibility of records' fields
-
-**Severity**: Medium
-
-In general, altering or bypassing the accessibility of classes, methods, or fields violates the encapsulation principle and could lead to runtime
-errors. For records the case is even trickier: you cannot change the visibility of records’s fields and trying to update the existing value will lead
-to 
-`IllegalAccessException`
- at runtime.
-
-This rule raises an issue when reflection is used to change the visibility of a record’s field, and when it is used to directly update a record’s
-field value.
-
-Noncompliant code example
-
-```
-
-record Person(String name, int age) {}
-
-Person person = new Person("A", 26);
-Field field = Person.class.getDeclaredField("name");
-field.setAccessible(true); // secondary
-field.set(person, "B"); // Noncompliant
-
-```
-
----
-
-## 11. Reliability & Bug Prevention Rules — Medium (30 rules)
 
 ### javabugs:S2259 — Null pointers should not be dereferenced
 
@@ -5676,6 +4041,12 @@ public void method(Object input) {
   }
   System.out.println(input.toString());
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -5724,12 +4095,95 @@ private void performSomeAction(Object syncValue) {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S2864 — "entrySet()" should be iterated when both the key and value are needed
+
+**Severity**: Medium
+
+`Map`
+ is an object that maps keys to values. A map cannot contain duplicate keys, which means each key can map to at most one value.
+
+---
+
+---
+
+---
+
+---
+
 ### java:S6906 — Virtual threads should not run tasks that include synchronized code
 
 **Severity**: Medium
 
 Java virtual threads enable the JVM to optimize the use of OS threads by mounting and unmounting them as needed. This makes them more efficient
 when dealing with blocking operations such as I/O or HTTP requests.
+
+---
+
+---
+
+---
+
+---
+
+### java:S1854 — Unused assignments should be removed
+
+**Severity**: Medium
+
+Dead stores refer to assignments made to local variables that are subsequently never used or immediately overwritten. Such assignments are
+unnecessary and don’t contribute to the functionality or clarity of the code. They may even negatively impact performance. Removing them enhances code
+cleanliness and readability. Even if the unnecessary operations do not do any harm in terms of the program’s correctness, they are - at best - a waste
+of computing resources.
+
+Exceptions
+
+This rule ignores initializations to 
+`-1`
+, 
+`0`
+, 
+`1`
+, 
+`null`
+, 
+`true`
+, 
+`false`
+ and
+
+`""`
+.
+
+**Noncompliant code example**
+
+```java
+int foo(int y) {
+  int x = 100; // Noncompliant: dead store
+  x = 150;     // Noncompliant: dead store
+  x = 200;
+  return x + y;
+}
+```
+
+**Compliant solution**
+
+```java
+int foo(int y) {
+  int x = 200; // Compliant: no unnecessary assignment
+  return x + y;
+}
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -5785,6 +4239,12 @@ void doSomething(Condition condition) {
 }
 
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -5853,765 +4313,212 @@ class MyIterator implements Iterator<Integer> {
 
 ---
 
-### java:S1217 — "Thread.run()" should not be called directly
-
-**Severity**: Medium
-
-The likely intention of a user calling 
-`Thread.run()`
- is to start the execution of code within a new thread. This, however, is not what
-happens when this method is called.
-
-The purpose of 
-`Thread.run()`
- is to provide a method that users can overwrite to specify the code to be executed. The actual thread is
-then started by calling 
-`Thread.start()`
-. When 
-`Thread.run()`
- is called directly, it will be executed as a regular method within
-the current thread.
-
-**Noncompliant code example**
-
-```java
-Thread myThread = new Thread(runnable);
-myThread.run(); // Noncompliant, does not start a thread
-```
-
-**Compliant solution**
-
-```java
-Thread myThread = new Thread(runnable);
-myThread.start(); // Compliant
-```
+---
 
 ---
 
-### java:S2885 — Non-thread-safe fields should not be static
-
-**Severity**: Medium
-
-When an object is marked as 
-`static`
-, it means that it belongs to the class rather than any class instance. This means there is only one
-copy of the static object in memory, regardless of how many class instances are created. Static objects are shared among all instances of the class
-and can be accessed using the class name rather than an instance of the class.
-
-**Noncompliant code example**
-
-```java
-public class MyClass {
-  private static Calendar calendar = Calendar.getInstance();  // Noncompliant
-  private static SimpleDateFormat format = new SimpleDateFormat("HH-mm-ss");  // Noncompliant
-}
-```
-
-**Compliant solution**
-
-```java
-public class MyClass {
-  private Calendar calendar = Calendar.getInstance();
-  private SimpleDateFormat format = new SimpleDateFormat("HH-mm-ss");
-}
-```
-
 ---
 
-### java:S2886 — Getters and setters should be synchronized in pairs
+### java:S3034 — Raw byte values should not be used in bitwise operations in combination with shifts
 
 **Severity**: Medium
 
-A synchronized method is a method marked with the 
-`synchronized`
- keyword, meaning it can only be accessed by one thread at a time. If
-multiple threads try to access the synchronized method simultaneously, they will be blocked until the method is available.
-
-**Noncompliant code example**
-
-```java
-public class Person {
-  String name;
-  int age;
-
-  public synchronized void setName(String name) {
-    this.name = name;
-  }
-
-  public String getName() {  // Noncompliant
-    return this.name;
-  }
-
-  public void setAge(int age) {  // Noncompliant
-    this.age = age;
-  }
-
-  public int getAge() {
-    synchronized (this) {
-      return this.age;
-    }
-  }
-}
-```
-
-**Compliant solution**
-
-```java
-public class Person {
-  String name;
-  int age;
-
-  public synchronized void setName(String name) {
-    this.name = name;
-  }
-
-  public synchronized String getName() {
-    return this.name;
-  }
-
-  public void setAge(int age) {
-    synchronized (this) {
-      this.age = age;
-   }
-  }
-
-  public int getAge() {
-    synchronized (this) {
-      return this.age;
-    }
-  }
-}
-```
-
----
-
-### javabugs:S6417 — Collections should not be modified while they are iterated
-
-**Severity**: Medium
-
-Iterating over a collection using a 
-`for-each`
- loop in Java relies on iterators.
-
----
-
-### java:S3436 — Value-based classes should not be used for locking
-
-**Severity**: Medium
-
-According to the documentation,
-
----
-
-### java:S1141 — Try-catch blocks should not be nested
-
-**Severity**: Medium
-
-Nesting 
-`try`
-/
-`catch`
- blocks severely impacts the readability of source code because it makes it too difficult to understand
-which block will catch which exception.
-
----
-
-### java:S1149 — Synchronized classes "Vector", "Hashtable", "Stack" and "StringBuffer" should not be used
-
-**Severity**: Medium
-
-Early classes of the Java API, such as 
-`Vector`
-, 
-`Hashtable`
- and 
-`StringBuffer`
-, were synchronized to make them
-thread-safe. However, synchronization has a significant negative impact on performance, even when using these collections from a single thread.
-
----
-
-### java:S2445 — Blocks should be synchronized on "private final" fields
-
-**Severity**: Medium
-
-Synchronizing on a class field synchronizes not on the field itself, but on the object assigned to it. So synchronizing on a non-
-`final`
-
----
-
-### java:S2446 — "notifyAll()" should be preferred over "notify()"
-
-**Severity**: Medium
-
-`notify`
- and 
-`notifyAll`
- both wake up sleeping threads waiting on the object’s monitor, but 
-`notify`
- only wakes up
-one single thread, while 
-`notifyAll`
- wakes them all up. Unless you do not care which specific thread is woken up, 
-`notifyAll`
-
-should be used instead.
-
-Noncompliant code example
-
-```
-
-class MyThread implements Runnable {
-  Object lock = new Object();
-
-  @Override
-  public void run() {
-    synchronized(lock) {
-      // ...
-      lock.notify();  // Noncompliant
-    }
-  }
-}
-
-```
-
-Compliant solution
-
-```
-
-class MyThread implements Runnable {
-  Object lock = new Object();
-
-  @Override
-  public void run() {
-    synchronized(lock) {
-      // ...
-      lock.notifyAll();
-    }
-  }
-}
-
-```
-
----
-
-### java:S2442 — Synchronizing on a "Lock" object should be avoided
-
-**Severity**: Medium
-
-`java.util.concurrent.locks.Lock`
- offers far more powerful and flexible locking operations than are available with
-
-`synchronized`
- blocks. So synchronizing on a 
-`Lock`
- instance throws away the power of the object, as it overrides its better
-locking mechanisms. Instead, such objects should be locked and unlocked using one of their 
-`lock`
- and 
-`unlock`
- method
-variants.
-
-Noncompliant code example
-
-```
-
-Lock lock = new MyLockImpl();
-synchronized(lock) {  // Noncompliant
-  // ...
-}
-
-```
-
-Compliant solution
-
-```
-
-Lock lock = new MyLockImpl();
-if (lock.tryLock()) {
-  try {
-    // ...
-  } finally {
-    lock.unlock();
-  }
-}
-
-```
-
----
-
-### java:S2681 — Multiline blocks should be enclosed in curly braces
-
-**Severity**: Medium
-
-Having inconsistent indentation and omitting curly braces from a control structure, such as an 
-`if`
- statement or 
-`for`
- loop,
-is misleading and can induce bugs.
-
----
-
-### java:S2142 — "InterruptedException" and "ThreadDeath" should not be ignored
-
-**Severity**: Medium
-
-If an 
-`InterruptedException`
- or a 
-`ThreadDeath`
- error is not handled properly, the information that the thread was
-interrupted will be lost. Handling this exception means either to re-throw it or manually re-interrupt the current thread by calling
-
----
-
-### java:S5664 — Whitespace for text block indent should be consistent
-
-**Severity**: Medium
-
-Either use only spaces or only tabs for the indentation of a text block. Mixing white space will lead to a result with irregular indentation.
-
-Noncompliant code example
-
-```
-
-String textBlock = """
-        this is
-<tab>text block!
-        !!!!
-      """;
-
-```
-
-Compliant solution
-
-```
-
-String textBlock = """
-        this is
-        text block!
-        !!!!
-      """;
-
-```
-
----
-
-### java:S2134 — Classes extending java.lang.Thread should provide a specific "run" behavior
-
-**Severity**: Medium
-
-The default implementation of 
-`java.lang.Thread`
- 's 
-`run`
- will only perform a task passed as a 
-`Runnable`
-. If no
-
-`Runnable`
- has been provided at construction time, then the thread will not perform any action.
-
-When extending 
-`java.lang.Thread`
-, you should override the 
-`run`
- method or pass a 
-`Runnable`
- target to the
-constructor of 
-`java.lang.Thread`
+In Java, numeric promotions happen when two operands of an arithmetic expression have different sizes. More specifically, narrower operands get
+promoted to the type of wider operands. For instance, an operation between a 
+`byte`
+ and an 
+`int`
+, will trigger a promotion of
+the 
+`byte`
+ operand, converting it into an 
+`int`
 .
 
-Noncompliant code example
+**Noncompliant code example**
 
-```
+```java
+public static void main(String[] args) {
+    byte[] bytes12 = BigInteger.valueOf(12).toByteArray(); // This byte array will be simply [12]
+    System.out.println(intFromBuffer(bytes12)); // In this case, the bytes promotion will not cause any issues, and "12" will be printed.
 
-public class MyThread extends Thread { // Noncompliant
-  public void doSomething() {
-    System.out.println("Hello, World!");
+    // Here the bytes will be [2, -128] since 640 in binary is represented as 0b0000_0010_1000_0000
+    // which is equivalent to the concatenation of 2 bytes: 0b0000_0010 = 2, and 0b1000_0000 = -128
+    byte[] bytes640 = BigInteger.valueOf(640).toByteArray();
+
+    // In this case, the shifting operation combined with the bitwise OR, will produce the wrong binary string and "-128" will be printed.
+    System.out.println(intFromBuffer(bytes640));
   }
-}
 
+  static int intFromBuffer(byte[] bytes) {
+    int originalInt = 0;
+    for (int i = 0; i < bytes.length; i++) {
+      // Here the right operand of the bitwise OR, which is a byte, will be promoted to an `int`
+      // and if its value was negative, the added ones in front of the binary string will alter the value of the `originalInt`
+      originalInt = (originalInt << 8) | bytes[i]; // Noncompliant
+    }
+    return originalInt;
+  }
 ```
+
+**Compliant solution**
+
+```java
+public static void main(String[] args) {
+    byte[] bytes12 = BigInteger.valueOf(12).toByteArray(); // This byte array will be simply [12]
+    System.out.println(intFromBuffer(bytes12)); // In this case, the bytes promotion will not cause any issues, and "12" will be printed.
+
+    // Here the bytes will be [2, -128] since 640 in binary is represented as 0b0000_0010_1000_0000
+    // which is equivalent to the concatenation of 2 bytes: 0b0000_0010 = 2, and 0b1000_0000 = -128
+    byte[] bytes640 = BigInteger.valueOf(640).toByteArray();
+
+    // This will correctly print "640" now.
+    System.out.println(intFromBuffer(bytes640));
+  }
+
+  static int intFromBuffer(byte[] bytes) {
+    int originalInt = 0;
+    for (int i = 0; i < bytes.length; i++) {
+      originalInt = (originalInt << 8) | Byte.toUnsignedInt(bytes[i]); // Compliant, only the relevant 8 least significant bits will affect the bitwise OR
+    }
+    return originalInt;
+  }
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1191 — Classes from "sun.*" packages should not be used
+
+**Severity**: Medium
+
+The classes in the 
+`sun.*`
+ packages are not part of the official Java API and are not intended for public use. They are internal
+implementation details specific to the Oracle JDK (Java Development Kit). Therefore, their availability, behavior, or compatibility is not guaranteed
+across different Java implementations or versions.
+
+---
+
+---
+
+---
+
+---
+
+### java:S7482 — Don't provide an initializer for a stateless stream gatherer
+
+**Severity**: Medium
+
+Stateless stream gatherers, which process each element of the stream independently, don’t need an initializer function. That’s because the role of
+the initializer function is to set up the gatherer’s private state object.
+
+---
+
+---
+
+---
+
+---
+
+### java:S4030 — Collection contents should be used
+
+**Severity**: Medium
+
+If a collection is declared and populated but its values are never read anywhere in the code, it can be considered unused. This often arises from
+incomplete refactoring, copy-pasting errors, or typos. Unused collections can lead to wasted memory and degraded application performance.
+Additionally, their presence makes the code harder to read and understand.
 
 **Noncompliant code example**
 
 ```java
-public class MyThread extends Thread {
-  @Override
-  public void run() {
-    System.out.println("Hello, World!");
-  }
+int getLength(String a, String b, String c) {
+  List<String> strings = new ArrayList<>();  // Noncompliant: List is declared and populated but never read.
+  strings.add(a);
+  strings.add(b);
+  strings.add(c);
+
+  return a.length() + b.length() + c.length();
 }
 ```
 
 **Compliant solution**
 
 ```java
-public class MyRunnable implements Runnable {
-  @Override
-  public void run() {
-    System.out.println("Hello, World!");
-  }
-}
-public class MyThread extends Thread {
-  public MyThread(Runnable runnable) {
-    super(runnable);
-  }
-}
-
-public class Main() {
-  public static void main(String [] args) {
-    Runnable runnable = new MyRunnable();
-    Thread customThread = new MyThread(runnable);
-    Thread regularThread = new Thread(runnable);
-  }
+int getLength(String a, String b, String c) {
+  return a.length() + b.length() + c.length();
 }
 ```
 
 ---
 
-### java:S6901 — "setDaemon", "setPriority" and "getThreadGroup" should not be invoked on virtual threads
-
-**Severity**: Medium
-
-The 
-`Thread`
- class has some methods that are used to monitor and manage its execution. With the introduction of virtual threads in Java
-21, there are three of these methods that behave differently between the standard platform threads and the virtual ones.
+---
 
 ---
 
-### java:S2438 — "Thread" should not be used where a "Runnable" argument is expected
+---
+
+### java:S3063 — "StringBuilder" data should be used
 
 **Severity**: Medium
 
-The semantics of 
-`Thread`
+`StringBuffer`
  and 
-`Runnable`
- are different, and while it is technically correct to use 
-`Thread`
- where
-a 
-`Runnable`
- is expected, it is a bad practice to do so.
+`StringBuilder`
+ instances that are 
+`append`
+ed but never 
+`toString`
+ed needlessly
+clutter the code, and worse are a drag on performance. Either they should be removed, or the missing 
+`toString`
+ call added.
 
 ---
 
-### java:S2675 — "readObject" should not be "synchronized"
+---
+
+---
+
+---
+
+### java:S2226 — Servlets should not have mutable instance fields
 
 **Severity**: Medium
 
 The 
-`readObject`
- method is implemented when a 
-`Serializable`
- object requires special handling to be reconstructed from a
-file. The object created by 
-`readObject`
- is accessed only by the thread that called the method, thus using the 
-`synchronized`
-
-keyword in this context is unnecessary and causes confusion.
-
-Noncompliant code example
-
-```
-
-private synchronized void readObject(java.io.ObjectInputStream in)
-     throws IOException, ClassNotFoundException { // Noncompliant
-  //...
-}
-
-```
-
-Compliant solution
-
-```
-
-private void readObject(java.io.ObjectInputStream in)
-     throws IOException, ClassNotFoundException { // Compliant
-  //...
-}
-
-```
-
----
-
-### java:S6126 — String multiline concatenation should be replaced with Text Blocks
-
-**Severity**: Medium
-
-In Java 15 Text Blocks are now official and can be used. The most common pattern for multiline strings in Java < 15 was to write String
-concatenation. Now it’s possible to do it in a more natural way using Text Blocks.
-
-Noncompliant code example
-
-```
-
-String textBlock =
-               "<html>\n" +
-               "    <body>\n" +
-               "        <tag>\n" +
-               "        </tag>\n" +
-               "    </body>\n" +
-               "</html>";
-
-```
-
-Compliant solution
-
-```
-
-String textBlock = """
-        <html>
-            <body>
-                <tag>
-                </tag>
-            </body>
-        </html>""";
-
-```
-
----
-
-### java:S5164 — "ThreadLocal" variables should be cleaned up when no longer used
-
-**Severity**: Medium
-
-`ThreadLocal`
- variables are supposed to be garbage collected once the holding thread is no longer alive. Memory leaks can occur when
-holding threads are re-used which is the case on application servers using pool of threads.
-
----
-
-### java:S108 — Nested blocks of code should not be left empty
-
-**Severity**: Medium
-
-An empty code block is confusing. It will require some effort from maintainers to determine if it is intentional or indicates the implementation is
-incomplete.
-
-```
-
-for (int i = 0; i < 42; i++){}  // Noncompliant: is the block empty on purpose, or is code missing?
-
-```
-
-Removing or filling the empty code blocks takes away ambiguity and generally results in a more straightforward and less surprising code.
-
-Exceptions
-
-The rule ignores code blocks that contain comments unless they are 
-`synchronized`
- blocks because these can affect program flow.
-
----
-
-### java:S3042 — "writeObject" should not be the only "synchronized" code in a class
-
-**Severity**: Medium
-
-Synchronization is a mechanism used when multithreading in Java to ensure that only one thread executes a given block of code at a time. This is
-done to avoid bugs that can occur when multiple threads share a given state and try to manipulate simultaneously.
-
-Object serialization is not thread-safe by default. In a multithreaded environment, one option is to mark 
-`writeObject`
- with
-
-`synchronized`
- to improve thread safety. It is highly suspicious, however, if 
-`writeObject`
- is the only
-
-`synchronized`
- method in a class. It may indicate that serialization is not required, as multithreading is not used. Alternatively, it
-could also suggest that other methods in the same class have been forgotten to be made thread-safe.
+`processHttpRequest`
+ method and methods called from it can be executed by multiple threads within the same servlet instance, and
+state changes to the instance caused by these methods are, therefore, not threadsafe.
 
 **Noncompliant code example**
 
 ```java
-public class RubberBall implements Serializable {
-
-  private Color color;
-  private int diameter;
-
-  public RubberBall(Color color, int diameter) {
-    // ...
-  }
-
-  public void bounce(float angle, float velocity) {
-    // ...
-  }
-
-  private synchronized void writeObject(ObjectOutputStream stream) throws IOException { // Noncompliant, "writeObject" is the only synchronized method in this class
-    // ...
-  }
+public class MyServlet extends HttpServlet {
+  String apiVersion = "0.9.1"; // Noncompliant, field changes are not thread-safe
 }
 ```
 
 **Compliant solution**
 
 ```java
-public class RubberBall implements Serializable {
-
-  private Color color;
-  private int diameter;
-
-  public RubberBall(Color color, int diameter) {
-    // ...
-  }
-
-  public void bounce(float angle, float velocity) {
-    // ...
-  }
-
-  private void writeObject(ObjectOutputStream stream) throws IOException { // Compliant, no methods in this class are synchronized
-    // ...
-  }
+public class MyServlet extends HttpServlet {
+  final String apiVersion = "0.9.1"; // Compliant, field cannot be changed
 }
 ```
 
 ---
 
-### java:S4348 — "iterator" should not return "this"
-
-**Severity**: Medium
-
-An 
-`Iterable`
- should not implement the 
-`Iterator`
- interface or return 
-`this`
- as an 
-`Iterator`
-. The
-reason is that 
-`Iterator`
- represents the iteration process itself, while 
-`Iterable`
- represents the object we want to iterate
-over.
-
-**Noncompliant code example**
-
-```java
-class FooIterator implements Iterator<Foo>, Iterable<Foo> {
-  private Foo[] seq;
-  private int idx = 0;
-
-  public boolean hasNext() {
-    return idx < seq.length;
-  }
-
-  public Foo next() {
-    return seq[idx++];
-  }
-
-  public Iterator<Foo> iterator() {
-    return this; // Noncompliant
-  }
-  // ...
-}
-```
-
-**Compliant solution**
-
-```java
-class FooSequence implements Iterable<Foo> {
-  private Foo[] seq;
-
-  public Iterator<Foo> iterator() {
-    return new Iterator<Foo>() { // Compliant
-      private int idx = 0;
-
-      public boolean hasNext() {
-        return idx < seq.length;
-      }
-
-      public Foo next() {
-        return seq[idx++];
-      }
-    };
-  }
-  // ...
-}
-```
+---
 
 ---
 
-### java:S1193 — Exception types should not be tested using "instanceof" in catch blocks
-
-**Severity**: Medium
-
-A 
-`try-catch`
- block is used to handle exceptions or errors that may occur during the execution of a block of code. It allows you to
-catch and handle exceptions gracefully, preventing your program from terminating abruptly.
-
-The code that may throw an exception is enclosed within the 
-`try`
- block, while each 
-`catch`
- block specifies the type of
-exception it can handle. The corresponding catch block is executed if the exception matches the type specified in any catch block. It is unnecessary
-to manually check the types using 
-`instanceof`
- because Java automatically matches the exception type to the appropriate catch block based
-on the declared exception type in the catch clauses.
-
-**Noncompliant code example**
-
-```java
-try {
-  /* ... */
-} catch (Exception e) {
-  if(e instanceof IOException) { /* ... */ }         // Noncompliant
-  if(e instanceof NullPointerException{ /* ... */ }  // Noncompliant
-}
-```
-
-**Compliant solution**
-
-```java
-try {
-  /* ... */
-} catch (IOException e) { /* ... */ }                // Compliant
-} catch (NullPointerException e) { /* ... */ }       // Compliant
-```
-
 ---
-
-### java:S3078 — "volatile" variables should not be used with compound operators
-
-**Severity**: Medium
-
-Using compound operators as well as increments and decrements (and toggling, in the case of 
-`boolean`
-s) on primitive fields are not
-atomic operations. That is, they don’t happen in a single step. For instance, when a 
-`volatile`
- primitive field is incremented or
-decremented you run the risk of data loss if threads interleave in the steps of the update. Instead, use a guaranteed-atomic class such as
-
----
-
-### java:S3064 — Assignment of lazy-initialized members should be the last step with double-checked locking
-
-**Severity**: Medium
-
-Double-checked locking can be used for lazy initialization of 
-`volatile`
- fields, but only if field assignment is the last step in the
-
----
-
-## 12. Spring Framework Rules — Medium (17 rules)
 
 ### java:S6829 — "@Autowired" should be used when multiple constructors are provided
 
@@ -6664,6 +4571,12 @@ public class ExampleClass {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2230 — Methods with Spring proxying annotations should be public
 
 **Severity**: Medium
@@ -6701,6 +4614,12 @@ public Future<String> asyncMethodWithReturnType() { // Compliant
     return "Hellow, world!";
 }
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -6811,6 +4730,12 @@ class ConfigurationExample {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S7180 — "@Cache*" annotations should only be applied on concrete classes
 
 **Severity**: Medium
@@ -6851,6 +4776,162 @@ public class RomeBioparc implements Zoo {
     }
 }
 ```
+
+---
+
+---
+
+---
+
+---
+
+### java:S1217 — "Thread.run()" should not be called directly
+
+**Severity**: Medium
+
+The likely intention of a user calling 
+`Thread.run()`
+ is to start the execution of code within a new thread. This, however, is not what
+happens when this method is called.
+
+The purpose of 
+`Thread.run()`
+ is to provide a method that users can overwrite to specify the code to be executed. The actual thread is
+then started by calling 
+`Thread.start()`
+. When 
+`Thread.run()`
+ is called directly, it will be executed as a regular method within
+the current thread.
+
+**Noncompliant code example**
+
+```java
+Thread myThread = new Thread(runnable);
+myThread.run(); // Noncompliant, does not start a thread
+```
+
+**Compliant solution**
+
+```java
+Thread myThread = new Thread(runnable);
+myThread.start(); // Compliant
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2885 — Non-thread-safe fields should not be static
+
+**Severity**: Medium
+
+When an object is marked as 
+`static`
+, it means that it belongs to the class rather than any class instance. This means there is only one
+copy of the static object in memory, regardless of how many class instances are created. Static objects are shared among all instances of the class
+and can be accessed using the class name rather than an instance of the class.
+
+**Noncompliant code example**
+
+```java
+public class MyClass {
+  private static Calendar calendar = Calendar.getInstance();  // Noncompliant
+  private static SimpleDateFormat format = new SimpleDateFormat("HH-mm-ss");  // Noncompliant
+}
+```
+
+**Compliant solution**
+
+```java
+public class MyClass {
+  private Calendar calendar = Calendar.getInstance();
+  private SimpleDateFormat format = new SimpleDateFormat("HH-mm-ss");
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2886 — Getters and setters should be synchronized in pairs
+
+**Severity**: Medium
+
+A synchronized method is a method marked with the 
+`synchronized`
+ keyword, meaning it can only be accessed by one thread at a time. If
+multiple threads try to access the synchronized method simultaneously, they will be blocked until the method is available.
+
+**Noncompliant code example**
+
+```java
+public class Person {
+  String name;
+  int age;
+
+  public synchronized void setName(String name) {
+    this.name = name;
+  }
+
+  public String getName() {  // Noncompliant
+    return this.name;
+  }
+
+  public void setAge(int age) {  // Noncompliant
+    this.age = age;
+  }
+
+  public int getAge() {
+    synchronized (this) {
+      return this.age;
+    }
+  }
+}
+```
+
+**Compliant solution**
+
+```java
+public class Person {
+  String name;
+  int age;
+
+  public synchronized void setName(String name) {
+    this.name = name;
+  }
+
+  public synchronized String getName() {
+    return this.name;
+  }
+
+  public void setAge(int age) {
+    synchronized (this) {
+      this.age = age;
+   }
+  }
+
+  public int getAge() {
+    synchronized (this) {
+      return this.age;
+    }
+  }
+}
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -6903,6 +4984,12 @@ public ResponseEntity<String> getAssetById(@PathVariable Long id) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S7177 — Use appropriate @DirtiesContext modes
 
 **Severity**: Medium
@@ -6947,6 +5034,12 @@ public class TestClass {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S7179 — @Cacheable and @CachePut should not be combined
 
 **Severity**: Medium
@@ -6981,6 +5074,12 @@ void getBook(String isbn){
     ...
 }
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -7043,6 +5142,12 @@ public class MyController {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6830 — Bean names should adhere to the naming conventions
 
 **Severity**: Medium
@@ -7065,6 +5170,12 @@ public MyBean myBean() {
 public MyBean myBean() {
     ...
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -7110,6 +5221,12 @@ public class MyController {
   }
 }
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -7187,905 +5304,9 @@ public class UserController {
 
 ---
 
-### java:S6833 — "@Controller" should be replaced with "@RestController"
-
-**Severity**: Medium
-
-Classes annotated as 
-`@Controller`
- in Spring are responsible for handling incoming web requests. When annotating methods or the entire
-controller with 
-`@ResponseBody`
-, the return value of said methods will be serialized and set as the response body. In other words, it tells
-the Spring framework that this method does not produce a view. This mechanism is commonly used to create API endpoints.
-
-**Noncompliant code example**
-
-```java
-@Controller
-@ResponseBody
-public class MyController {
-    @GetMapping("/hello")
-    public String hello() {
-        return "Hello World!";
-    }
-}
-```
-
-**Compliant solution**
-
-```java
-@RestController
-public class MyController {
-    @GetMapping("/hello")
-    public String hello() {
-        return "Hello World!";
-    }
-}
-```
-
 ---
 
-### java:S6831 — "@Qualifier" should not be used on "@Bean" methods
-
-**Severity**: Medium
-
-In Spring Framework, the 
-`@Qualifier`
- annotation is typically used to disambiguate between multiple beans of the same type when
-auto-wiring dependencies. It is not necessary to use 
-`@Qualifier`
- when defining a bean using the 
-`@Bean`
- annotation because the
-bean’s name can be explicitly specified using the 
-`name`
- attribute or derived from the method name. Using 
-`@Qualifier`
- on
-
 ---
-
-### java:S6806 — Model attributes should follow the Java identifier naming convention
-
-**Severity**: Medium
-
-Spring Expression Language (SpEL) is an expression language used in the Spring Framework for evaluating and manipulating objects, properties, and
-conditions within Spring-based applications.
-
-**Noncompliant code example**
-
-```java
-model.addAttribute(" a", 100); // Noncompliant (starts with a space)
-model.addAttribute("a-b", 7);  // Noncompliant (contains a hyphen)
-model.addAttribute("1c", 42);  // Noncompliant (starts with a digit)
-```
-
-**Compliant solution**
-
-```java
-model.addAttribute("a", 100);
-model.addAttribute("b", 42);
-model.addAttribute("_c", 7);
-model.addAttribute("$d", 8);
-```
-
----
-
-### java:S6810 — Async methods should return void or Future
-
-**Severity**: Medium
-
-The Spring framework provides the annotation 
-`Async`
- to mark a method (or all methods of a type) as a candidate for asynchronous
-execution.
-
-Asynchronous methods do not necessarily, by their nature, return the result of their calculation immediately. Hence, it is unexpected and in clear
-breach of the 
-`Async`
- contract for such methods to have a return type that is neither 
-`void`
- nor a 
-`Future`
- type.
-
-**Noncompliant code example**
-
-```java
-@Async
-public String asyncMethod() {
-  ...
-}
-```
-
-**Compliant solution**
-
-```java
-@Async
-public Future<String> asyncMethod() {
-  ...
-}
-```
-
----
-
-### java:S6862 — Beans in "@Configuration" class should have different names
-
-**Severity**: Medium
-
-Naming conventions play a crucial role in maintaining code clarity and readability. The uniqueness of bean names in Spring configurations is vital
-to the clarity and readability of the code. When two beans share the same name within a configuration, it is not obvious to the reader which bean is
-being referred to. This leads to potential misunderstandings and errors.
-
-**Noncompliant code example**
-
-```java
-@Configuration
-class Config {
-  @Bean
-  public User user() {
-    return currentUser();
-  }
-  @Bean
-  public User user(AuthService auth) { // Noncompliant
-    return auth.user();
-  }
-}
-```
-
-**Compliant solution**
-
-```java
-@Configuration
-class Config {
-  @Bean
-  public User user() {
-    return currentUser();
-  }
-  @Bean
-  public User userFromAuth(AuthService auth) {
-    return auth.user();
-  }
-}
-```
-
----
-
-### java:S3751 — "@RequestMapping" methods should not be "private"
-
-**Severity**: Medium
-
-A method with a 
-`@RequestMapping`
- annotation part of a class annotated with 
-`@Controller`
- (directly or indirectly through a
-meta annotation - 
-`@RestController`
- from Spring Boot is a good example) will be called to handle matching web requests. That will happen
-even if the method is 
-`private`
-, because Spring invokes such methods via reflection, without checking visibility.
-
----
-
-## 13. Testing Quality Rules — Medium (21 rules)
-
-### java:S5976 — Similar tests should be grouped in a single Parameterized test
-
-**Severity**: Medium
-
-When multiple tests differ only by a few hardcoded values they should be refactored as a single "parameterized" test. This reduces the chances of
-adding a bug and makes them more readable. Parameterized tests exist in most test frameworks (JUnit, TestNG, etc…​).
-
----
-
-### java:S5973 — Tests should be stable
-
-**Severity**: Medium
-
-Unstable / flaky tests are tests which sometimes pass and sometimes fail, without any code change. Obviously, they slow down developments when
-developers have to rerun failed tests. However, the real problem is that you can’t completely trust these tests, they might fail for many different
-reasons and you don’t know if any of them will happen in production.
-
----
-
-### java:S5863 — Assertions should not compare an object to itself
-
-**Severity**: Medium
-
-Assertions comparing an object to itself are more likely to be bugs due to developer’s carelessness.
-
----
-
-### java:S2204 — ".equals()" should not be used to test the values of "Atomic" classes
-
-**Severity**: Medium
-
-The 
-`equals`
- method in 
-`AtomicInteger`
- and 
-`AtomicLong`
- returns 
-`true`
- only if two instances are
-identical, not if they represent the same number value.
-
-This is because 
-`equals`
- is not part of the API contract of these classes, and they do not override the method inherited from
-
-`java.lang.Object`
-. Although both classes implement the 
-`Number`
- interface, assertions about 
-`equals`
- comparing
-number values are not part of that interface either. Only the API contract of implementing classes like 
-`Integer`
-, 
-`Long`
-,
-
-`Float`
-, 
-`BigInteger`
-, etc., provides such assertions.
-
-**Noncompliant code example**
-
-```java
-Boolean isSameNumberValue(AtomicLong a, AtomicLong b) {
-  return a.equals(b); // Noncompliant, this is true only if a == b
-}
-
-Boolean isSameReference(AtomicLong a, AtomicLong b) {
-  return a.equals(b); // Noncompliant, because misleading
-}
-```
-
-**Compliant solution**
-
-```java
-Boolean isSameNumberValue(AtomicLong a, AtomicLong b) {
-  return a.get() == b.get(); // Compliant
-}
-
-Boolean isSameReference(AtomicLong a, AtomicLong b) {
-  return a == b; // Compliant
-}
-```
-
----
-
-### java:S5831 — AssertJ configuration should be applied
-
-**Severity**: Medium
-
-A 
-`org.assertj.core.configuration.Configuration`
- will be effective only once you call 
-`Configuration.apply()`
- or
-
-`Configuration.applyAndDisplay()`
-.
-
-This rule raises an issue when configurations are set without the appropriate call to apply them.
-
-Noncompliant code example
-
-```
-
-Configuration configuration = new Configuration(); // Noncompliant, this configuration will not be applied.
-configuration.setComparingPrivateFields(true);
-
-```
-
-Compliant solution
-
-```
-
-Configuration configuration = new Configuration();
-configuration.setComparingPrivateFields(true);
-configuration.applyAndDisplay();
-// Alternatively: configuration.apply();
-
-```
-
----
-
-### java:S5833 — AssertJ methods setting the assertion context should come before an assertion
-
-**Severity**: Medium
-
-Describing, setting error message or adding a comparator in 
-[AssertJ](https://assertj.github.io/doc/)
- must be done before calling the
-assertion, otherwise, settings will not be taken into account.
-
----
-
-### java:S3415 — Assertion arguments should be passed in the correct order
-
-**Severity**: Medium
-
-The standard assertions library methods such as 
-`org.junit.Assert.assertEquals`
-, and 
-`org.junit.Assert.assertSame`
- expect the
-first argument to be the expected value and the second argument to be the actual value. For AssertJ instead, the argument of
-
-`org.assertj.core.api.Assertions.assertThat`
- is the actual value, and the subsequent calls contain the expected values.
-
-What is the potential impact?
-
-Having the expected value and the actual value in the wrong order will not alter the outcome of tests, (succeed/fail when it should) but the error
-messages will contain misleading information.
-
-This rule raises an issue when the actual argument to an assertions library method is a hard-coded value and the expected argument is not.
-
-**Noncompliant code example**
-
-```java
-org.junit.Assert.assertEquals(runner.exitCode(), 0, "Unexpected exit code");  // Noncompliant; Yields error message like: Expected:<-1>. Actual:<0>.
-org.assertj.core.api.Assertions.assertThat(0).isEqualTo(runner.exitCode()); // Noncompliant
-```
-
-**Compliant solution**
-
-```java
-org.junit.Assert.assertEquals(0, runner.exitCode(), "Unexpected exit code");
-org.assertj.core.api.Assertions.assertThat(runner.exitCode()).isEqualTo(0);
-```
-
----
-
-### java:S5958 — AssertJ "assertThatThrownBy" should not be used alone
-
-**Severity**: Medium
-
-Unlike similar AssertJ methods testing exceptions (
-`assertThatCode()`
-, 
-`assertThatExceptionOfType()`
-, …​), the
-
----
-
-### java:S5960 — Assertions should not be used in production code
-
-**Severity**: Medium
-
-Assertions are intended to be used in 
-test
- code, but not in 
-production
- code. It is confusing, and might lead to
-
-`ClassNotFoundException`
- when the build tools only provide the required dependency in test scope.
-
-In addition, assertions will throw a sub-class of 
-`Error`
-: 
-`AssertionError`
-, which should be avoided in production code.
-
-This rule raises an issue when any assertion intended to be used in test is used in production code.
-
-Supported frameworks:
-
- JUnit 
-
- FestAssert 
-
- AssertJ 
-
-Note: this does not apply for 
-`assert`
- from Java itself or if the source code package name is related to tests (contains:
-
-`test`
- or 
-`assert`
- or 
-`junit`
-).
-
----
-
-### java:S5961 — Test methods should not contain too many assertions
-
-**Severity**: Medium
-
-A common good practice is to write test methods targeting only one logical concept, that can only fail for one reason.
-
-While it might make sense to have more than one assertion to test one concept, having too many is a sign that a test became too complex and should
-be refactored to multiples ones.
-
-This rule will report any test method containing more than a given number of assertion.
-
-Noncompliant code example
-
-With a parameter of 2.
-
-```
-
-@Test
-void test() { // Refactor this method.
-  assertEquals(1, f(1));
-  assertEquals(2, f(2));
-  assertEquals(3, g(1));
-}
-
-```
-
-Compliant solution
-
-```
-
-void test_f() {
-  assertEquals(1, f(1));
-  assertEquals(2, f(2));
-}
-void test_g() {
-  assertEquals(3, g(1));
-}
-
-```
-
----
-
-### java:S5967 — Tests method should not be annotated with competing annotations
-
-**Severity**: Medium
-
-Annotating unit tests with more than one test-related annotation is not only useless but could also result in unexpected behavior like failing
-tests or unwanted side-effects.
-
----
-
-### java:S5776 — Exception testing via JUnit ExpectedException rule should not be mixed with other assertions
-
-**Severity**: Medium
-
-When testing exception via 
-`org.junit.rules.ExpectedException`
- any code after the raised exception will not be executed, so adding
-subsequent assertions is wrong and misleading. This rule raises an issue when an assertion is done after the "expect(…​)" invocation, only the code
-throwing the expected exception should be after "expect(…​)".
-
----
-
-### java:S5778 — Only one method invocation is expected when testing runtime exceptions
-
-**Severity**: Medium
-
-When verifying that code raises a runtime exception, a good practice is to avoid having multiple method calls inside the tested code, to be
-explicit about which method call is expected to raise the exception.
-
----
-
-### java:S5785 — JUnit assertTrue/assertFalse should be simplified to the corresponding dedicated assertion
-
-**Severity**: Medium
-
-Testing equality or nullness with JUnit’s 
-`assertTrue()`
- or 
-`assertFalse()`
- should be simplified to the corresponding
-dedicated assertion.
-
-Noncompliant code example
-
-```
-
-Assert.assertTrue(a.equals(b));
-Assert.assertTrue(a == b);
-Assert.assertTrue(a == null);
-Assert.assertTrue(a != null);
-Assert.assertFalse(a.equals(b));
-
-```
-
-Compliant solution
-
-```
-
-Assert.assertEquals(a, b);
-Assert.assertSame(a, b);
-Assert.assertNull(a);
-Assert.assertNotNull(a);
-Assert.assertNotEquals(a, b);
-
-```
-
----
-
-### java:S3346 — Expressions used in "assert" should not produce side effects
-
-**Severity**: Medium
-
-Since 
-`assert`
- statements aren’t executed by default (they must be enabled with JVM flags) developers should never rely on their
-execution the evaluation of any logic required for correct program function.
-
-Noncompliant code example
-
-```
-
-assert myList.remove(myList.get(0));  // Noncompliant
-
-```
-
-Compliant solution
-
-```
-
-boolean removed = myList.remove(myList.get(0));
-assert removed;
-
-```
-
----
-
-### java:S3824 — "Map.get" and value test should be replaced with single method call
-
-**Severity**: Medium
-
-It’s a common pattern to test the result of a 
-`java.util.Map.get()`
- against 
-`null`
- or calling
-
----
-
-### java:S5810 — JUnit5 test classes and methods should not be silently ignored
-
-**Severity**: Medium
-
-JUnit5 is more tolerant regarding the visibilities of Test classes and methods than JUnit4, which required everything to be public. JUnit5 supports
-default package, public and protected visibility, even if it is recommended to use the default package visibility, which improves the readability of
-code.
-
----
-
-### java:S2925 — "Thread.sleep" should not be used in tests
-
-**Severity**: Medium
-
-In asynchronous testing, the test code is written in a way that allows it to wait for the asynchronous operation to complete before continuing with
-the test.
-
----
-
-### java:S1607 — JUnit4 @Ignored and JUnit5 @Disabled annotations should be used to disable tests and should provide a rationale
-
-**Severity**: Medium
-
-When a test fails due, for example, to infrastructure issues, you might want to ignore it temporarily. But without some kind of notation about why
-the test is being ignored, it may never be reactivated. Such tests are difficult to address without comprehensive knowledge of the project, and end up
-polluting their projects.
-
----
-
-### java:S6103 — AssertJ assertions with "Consumer" arguments should contain assertion inside consumers
-
-**Severity**: Medium
-
-AssertJ assertions taking 
-`Consumer`
- objects as arguments are expected to contain "requirements", which should themselves be expressed
-as assertions. This concerns the following methods: 
-[allSatisfy](http://joel-costigliola.github.io/assertj/core-8/api/org/assertj/core/api/AbstractIterableAssert.html#allSatisfy-java.util.function.Consumer-)
-,
-
----
-
-### java:S4274 — Asserts should not be used to check the parameters of a public method
-
-**Severity**: Medium
-
-An 
-`assert`
- is inappropriate for parameter validation because assertions can be disabled at runtime in the JVM, meaning that a bad
-operational setting would completely eliminate the intended checks. Further, 
-`assert`
-s that fail throw 
-`AssertionError`
-s, rather
-than throwing some type of 
-`Exception`
-. Throwing 
-`Error`
-s is completely outside of the normal realm of expected
-
----
-
-## 14. Code Quality & Maintainability Rules — Medium (160 rules)
-
-### java:S1144 — Unused "private" methods should be removed
-
-**Severity**: Medium
-
-A method that is never called is dead code, and should be removed. Cleaning out dead code decreases the size of the maintained codebase, making it
-easier to understand the program and preventing bugs from being introduced.
-
----
-
-### java:S110 — Inheritance tree of classes should not be too deep
-
-**Severity**: Medium
-
-Inheritance is one of the most valuable concepts in object-oriented programming. It’s a way to categorize and reuse code by creating collections of
-attributes and behaviors called classes, which can be based on previously created classes.
-
----
-
-### java:S2864 — "entrySet()" should be iterated when both the key and value are needed
-
-**Severity**: Medium
-
-`Map`
- is an object that maps keys to values. A map cannot contain duplicate keys, which means each key can map to at most one value.
-
----
-
-### java:S6377 — XML signatures should be validated securely
-
-**Severity**: Medium
-
-Before Java 17, XML Digital Signature API does not apply restrictions on XML signature validation unless the application runs with a security
-manager, which is rare.
-
-**Noncompliant code example**
-
-```java
-NodeList signatureElement = doc.getElementsByTagNameNS(XMLSignature.XMLNS, "Signature");
-
-XMLSignatureFactory fac = XMLSignatureFactory.getInstance("DOM");
-DOMValidateContext valContext = new DOMValidateContext(new KeyValueKeySelector(), signatureElement.item(0)); // Noncompliant
-XMLSignature signature = fac.unmarshalXMLSignature(valContext);
-
-boolean signatureValidity = signature.validate(valContext);
-```
-
-**Compliant solution**
-
-```java
-NodeList signatureElement = doc.getElementsByTagNameNS(XMLSignature.XMLNS, "Signature");
-
-XMLSignatureFactory fac = XMLSignatureFactory.getInstance("DOM");
-DOMValidateContext valContext = new DOMValidateContext(new KeyValueKeySelector(), signatureElement.item(0));
-valContext.setProperty("org.jcp.xml.dsig.secureValidation", Boolean.TRUE);
-XMLSignature signature = fac.unmarshalXMLSignature(valContext);
-
-boolean signatureValidity = signature.validate(valContext);
-```
-
----
-
-### java:S1854 — Unused assignments should be removed
-
-**Severity**: Medium
-
-Dead stores refer to assignments made to local variables that are subsequently never used or immediately overwritten. Such assignments are
-unnecessary and don’t contribute to the functionality or clarity of the code. They may even negatively impact performance. Removing them enhances code
-cleanliness and readability. Even if the unnecessary operations do not do any harm in terms of the program’s correctness, they are - at best - a waste
-of computing resources.
-
-Exceptions
-
-This rule ignores initializations to 
-`-1`
-, 
-`0`
-, 
-`1`
-, 
-`null`
-, 
-`true`
-, 
-`false`
- and
-
-`""`
-.
-
-**Noncompliant code example**
-
-```java
-int foo(int y) {
-  int x = 100; // Noncompliant: dead store
-  x = 150;     // Noncompliant: dead store
-  x = 200;
-  return x + y;
-}
-```
-
-**Compliant solution**
-
-```java
-int foo(int y) {
-  int x = 200; // Compliant: no unnecessary assignment
-  return x + y;
-}
-```
-
----
-
-### java:S3034 — Raw byte values should not be used in bitwise operations in combination with shifts
-
-**Severity**: Medium
-
-In Java, numeric promotions happen when two operands of an arithmetic expression have different sizes. More specifically, narrower operands get
-promoted to the type of wider operands. For instance, an operation between a 
-`byte`
- and an 
-`int`
-, will trigger a promotion of
-the 
-`byte`
- operand, converting it into an 
-`int`
-.
-
-**Noncompliant code example**
-
-```java
-public static void main(String[] args) {
-    byte[] bytes12 = BigInteger.valueOf(12).toByteArray(); // This byte array will be simply [12]
-    System.out.println(intFromBuffer(bytes12)); // In this case, the bytes promotion will not cause any issues, and "12" will be printed.
-
-    // Here the bytes will be [2, -128] since 640 in binary is represented as 0b0000_0010_1000_0000
-    // which is equivalent to the concatenation of 2 bytes: 0b0000_0010 = 2, and 0b1000_0000 = -128
-    byte[] bytes640 = BigInteger.valueOf(640).toByteArray();
-
-    // In this case, the shifting operation combined with the bitwise OR, will produce the wrong binary string and "-128" will be printed.
-    System.out.println(intFromBuffer(bytes640));
-  }
-
-  static int intFromBuffer(byte[] bytes) {
-    int originalInt = 0;
-    for (int i = 0; i < bytes.length; i++) {
-      // Here the right operand of the bitwise OR, which is a byte, will be promoted to an `int`
-      // and if its value was negative, the added ones in front of the binary string will alter the value of the `originalInt`
-      originalInt = (originalInt << 8) | bytes[i]; // Noncompliant
-    }
-    return originalInt;
-  }
-```
-
-**Compliant solution**
-
-```java
-public static void main(String[] args) {
-    byte[] bytes12 = BigInteger.valueOf(12).toByteArray(); // This byte array will be simply [12]
-    System.out.println(intFromBuffer(bytes12)); // In this case, the bytes promotion will not cause any issues, and "12" will be printed.
-
-    // Here the bytes will be [2, -128] since 640 in binary is represented as 0b0000_0010_1000_0000
-    // which is equivalent to the concatenation of 2 bytes: 0b0000_0010 = 2, and 0b1000_0000 = -128
-    byte[] bytes640 = BigInteger.valueOf(640).toByteArray();
-
-    // This will correctly print "640" now.
-    System.out.println(intFromBuffer(bytes640));
-  }
-
-  static int intFromBuffer(byte[] bytes) {
-    int originalInt = 0;
-    for (int i = 0; i < bytes.length; i++) {
-      originalInt = (originalInt << 8) | Byte.toUnsignedInt(bytes[i]); // Compliant, only the relevant 8 least significant bits will affect the bitwise OR
-    }
-    return originalInt;
-  }
-```
-
----
-
-### java:S1191 — Classes from "sun.*" packages should not be used
-
-**Severity**: Medium
-
-The classes in the 
-`sun.*`
- packages are not part of the official Java API and are not intended for public use. They are internal
-implementation details specific to the Oracle JDK (Java Development Kit). Therefore, their availability, behavior, or compatibility is not guaranteed
-across different Java implementations or versions.
-
----
-
-### java:S7482 — Don't provide an initializer for a stateless stream gatherer
-
-**Severity**: Medium
-
-Stateless stream gatherers, which process each element of the stream independently, don’t need an initializer function. That’s because the role of
-the initializer function is to set up the gatherer’s private state object.
-
----
-
-### java:S4030 — Collection contents should be used
-
-**Severity**: Medium
-
-If a collection is declared and populated but its values are never read anywhere in the code, it can be considered unused. This often arises from
-incomplete refactoring, copy-pasting errors, or typos. Unused collections can lead to wasted memory and degraded application performance.
-Additionally, their presence makes the code harder to read and understand.
-
-**Noncompliant code example**
-
-```java
-int getLength(String a, String b, String c) {
-  List<String> strings = new ArrayList<>();  // Noncompliant: List is declared and populated but never read.
-  strings.add(a);
-  strings.add(b);
-  strings.add(c);
-
-  return a.length() + b.length() + c.length();
-}
-```
-
-**Compliant solution**
-
-```java
-int getLength(String a, String b, String c) {
-  return a.length() + b.length() + c.length();
-}
-```
-
----
-
-### java:S3063 — "StringBuilder" data should be used
-
-**Severity**: Medium
-
-`StringBuffer`
- and 
-`StringBuilder`
- instances that are 
-`append`
-ed but never 
-`toString`
-ed needlessly
-clutter the code, and worse are a drag on performance. Either they should be removed, or the missing 
-`toString`
- call added.
-
----
-
-### java:S2226 — Servlets should not have mutable instance fields
-
-**Severity**: Medium
-
-The 
-`processHttpRequest`
- method and methods called from it can be executed by multiple threads within the same servlet instance, and
-state changes to the instance caused by these methods are, therefore, not threadsafe.
-
-**Noncompliant code example**
-
-```java
-public class MyServlet extends HttpServlet {
-  String apiVersion = "0.9.1"; // Noncompliant, field changes are not thread-safe
-}
-```
-
-**Compliant solution**
-
-```java
-public class MyServlet extends HttpServlet {
-  final String apiVersion = "0.9.1"; // Compliant, field cannot be changed
-}
-```
 
 ---
 
@@ -8129,6 +5350,12 @@ void print(Object obj) {
     }
 }
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -8194,6 +5421,12 @@ public class DatabaseExample {
     }
 }
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -8267,6 +5500,12 @@ public class OrderRepository {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6912 — Use batch Processing in JDBC
 
 **Severity**: Medium
@@ -8336,6 +5575,12 @@ public void execute(Connection connection) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6485 — Hash-based collections with known capacity should be initialized with the proper related static method.
 
 **Severity**: Medium
@@ -8378,6 +5623,12 @@ public static Set<String> buildABetterSet(float customLoadFactor) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6889 — Proper Sensor Resource Management
 
 **Severity**: Medium
@@ -8408,6 +5659,12 @@ public void method() {
   wakeLock.release();
 }
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -8469,6 +5726,12 @@ for (int i = 0; i < 10; i++) { // Noncompliant; loop only executes once
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S3981 — Collection sizes and array length comparisons should make sense
 
 **Severity**: Medium
@@ -8500,11 +5763,64 @@ Fix the code to properly check for emptiness if it was the intent, or remove the
 
 ---
 
+---
+
+---
+
+---
+
+### java:S6813 — Field dependency injection should be avoided
+
+**Severity**: Medium
+
+Dependency injection frameworks such as Spring, Quarkus, and others support dependency injection by using annotations such as 
+`@Inject`
+
+**Noncompliant code example**
+
+```java
+public class SomeService {
+    @Autowired
+    private SomeDependency someDependency; // Noncompliant
+
+    private String name = someDependency.getName(); // Will throw a NullPointerException
+}
+```
+
+**Compliant solution**
+
+```java
+public class SomeService {
+    private final SomeDependency someDependency;
+    private final String name;
+
+    @Autowired
+    public SomeService(SomeDependency someDependency) {
+        this.someDependency = someDependency;
+        name = someDependency.getName();
+    }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S2159 — Unnecessary equality checks should not be made
 
 **Severity**: Medium
 
 Comparisons of dissimilar types will always return false. The comparison and all its dependent code can simply be removed. This includes:
+
+---
+
+---
+
+---
 
 ---
 
@@ -8546,6 +5862,12 @@ Number n2 = condition ? i : (Number) f; // Compliant, cast to Number prevents un
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2133 — Objects should not be created only to invoke "getClass"
 
 **Severity**: Medium
@@ -8573,6 +5895,12 @@ Compliant solution
 Class c = MyObject.class;
 
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -8605,12 +5933,24 @@ public void setName(String name) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1871 — Two branches in a conditional structure should not have exactly the same implementation
 
 **Severity**: Medium
 
 When the same code is duplicated in two or more separate branches of a conditional, it can make the code harder to understand, maintain, and can
 potentially introduce bugs if one instance of the code is changed but others are not.
+
+---
+
+---
+
+---
 
 ---
 
@@ -8621,6 +5961,12 @@ potentially introduce bugs if one instance of the code is changed but others are
 There is no requirement that class names be unique, only that they be unique within a package. Therefore trying to determine an object’s type based
 on its class name is an exercise fraught with danger. One of those dangers is that a malicious user will send objects of the same name as the trusted
 class and thereby gain trusted access.
+
+---
+
+---
+
+---
 
 ---
 
@@ -8670,6 +6016,12 @@ else if (param == 3)
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2185 — Do not perform unnecessary mathematical operations
 
 **Severity**: Medium
@@ -8695,6 +6047,28 @@ public void doMath(int a) {
   double res3 = 0.0;  // Compliant
 }
 ```
+
+---
+
+---
+
+---
+
+---
+
+### javabugs:S6417 — Collections should not be modified while they are iterated
+
+**Severity**: Medium
+
+Iterating over a collection using a 
+`for-each`
+ loop in Java relies on iterators.
+
+---
+
+---
+
+---
 
 ---
 
@@ -8734,6 +6108,12 @@ public String toString () {
     // ...
 
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -8801,6 +6181,26 @@ public class MyClass {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S3436 — Value-based classes should not be used for locking
+
+**Severity**: Medium
+
+According to the documentation,
+
+---
+
+---
+
+---
+
+---
+
 ### java:S5854 — Regexes containing characters subject to normalization should use the CANON_EQ flag
 
 **Severity**: Medium
@@ -8836,6 +6236,12 @@ System.out.println(p.matcher(s).replaceAll("e")); // print 'e'
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1134 — Track uses of "FIXME" tags
 
 **Severity**: Medium
@@ -8854,6 +6260,12 @@ int divide(int numerator, int denominator) {
 }
 
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -8887,6 +6299,27 @@ Compliant solution
 
 ---
 
+---
+
+---
+
+---
+
+### java:S5976 — Similar tests should be grouped in a single Parameterized test
+
+**Severity**: Medium
+
+When multiple tests differ only by a few hardcoded values they should be refactored as a single "parameterized" test. This reduces the chances of
+adding a bug and makes them more readable. Parameterized tests exist in most test frameworks (JUnit, TestNG, etc…​).
+
+---
+
+---
+
+---
+
+---
+
 ### java:S5850 — Alternatives in regular expressions should be grouped when used with anchors
 
 **Severity**: Medium
@@ -8912,12 +6345,24 @@ the
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2109 — Reflection should not be used to check non-runtime annotations
 
 **Severity**: Medium
 
 Denoted by the "@" symbol, annotations are metadata that can be added to classes, methods, and variables for various purposes such as
 documentation, code analysis, and runtime processing.
+
+---
+
+---
+
+---
 
 ---
 
@@ -8986,6 +6431,12 @@ In these cases it is obvious the code is as intended.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S3551 — Overrides should match their parent class methods in synchronization
 
 **Severity**: Medium
@@ -9045,6 +6496,28 @@ public class Child extends Parent {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S5973 — Tests should be stable
+
+**Severity**: Medium
+
+Unstable / flaky tests are tests which sometimes pass and sometimes fail, without any code change. Obviously, they slow down developments when
+developers have to rerun failed tests. However, the real problem is that you can’t completely trust these tests, they might fail for many different
+reasons and you don’t know if any of them will happen in production.
+
+---
+
+---
+
+---
+
+---
+
 ### java:S2116 — "hashCode" and "toString" should not be called on array instances
 
 **Severity**: Medium
@@ -9087,6 +6560,12 @@ public static void main(String[] args) {
     int argHash = Arrays.hashCode(args);   // Compliant
 }
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -9142,6 +6621,113 @@ public class Bar extends Foo {  // Noncompliant; Foo is deprecated and will be r
 
 ---
 
+---
+
+---
+
+---
+
+### java:S6832 — Non-singleton Spring beans should not be injected into singleton beans
+
+**Severity**: Medium
+
+In Spring, singleton beans and their dependencies are initialized when the application context is created.
+
+**Noncompliant code example**
+
+```java
+@Component
+@Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class RequestBean {
+    //...
+}
+
+public class SingletonBean {
+    @Autowired
+    private final RequestBean requestBean; // Noncompliant, the same instance of RequestBean is used for each HTTP request.
+
+    public RequestBean getRequestBean() {
+        return requestBean;
+    }
+}
+```
+
+**Compliant solution**
+
+```java
+@Component
+@Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class RequestBean {
+    //...
+}
+
+public class SingletonBean {
+    private final ObjectFactory<RequestBean> requestBeanFactory;
+
+    @Autowired
+    public SingletonBean(ObjectFactory<RequestBean> requestBeanFactory) {
+        this.requestBeanFactory = requestBeanFactory;
+    }
+
+    public RequestBean getRequestBean() {
+        return requestBeanFactory.getObject();
+    }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S6833 — "@Controller" should be replaced with "@RestController"
+
+**Severity**: Medium
+
+Classes annotated as 
+`@Controller`
+ in Spring are responsible for handling incoming web requests. When annotating methods or the entire
+controller with 
+`@ResponseBody`
+, the return value of said methods will be serialized and set as the response body. In other words, it tells
+the Spring framework that this method does not produce a view. This mechanism is commonly used to create API endpoints.
+
+**Noncompliant code example**
+
+```java
+@Controller
+@ResponseBody
+public class MyController {
+    @GetMapping("/hello")
+    public String hello() {
+        return "Hello World!";
+    }
+}
+```
+
+**Compliant solution**
+
+```java
+@RestController
+public class MyController {
+    @GetMapping("/hello")
+    public String hello() {
+        return "Hello World!";
+    }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S2234 — Parameters should be passed in the correct order
 
 **Severity**: Medium
@@ -9149,6 +6735,12 @@ public class Bar extends Foo {  // Noncompliant; Foo is deprecated and will be r
 When the names of parameters in a method call match the names of the method arguments, it contributes to clearer, more readable code. However, when
 the names match, but are passed in a different order than the method arguments, it indicates a mistake in the parameter order which will likely lead
 to unexpected results.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9198,6 +6790,12 @@ BigDecimal bd2 = new BigDecimal("1.1"); // Compliant
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2112 — "URL.hashCode" and "URL.equals" should be avoided
 
 **Severity**: Medium
@@ -9240,6 +6838,12 @@ public void checkUrl(URL url) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2114 — Collections should not be passed as arguments to their own methods
 
 **Severity**: Medium
@@ -9264,6 +6868,12 @@ objs.removeAll(objs); // Noncompliant; confusing. Use clear() instead
 objs.retainAll(objs); // Noncompliant; NOOP
 
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -9323,11 +6933,23 @@ String formattedNames =  names.stream().collect(Collectors.joining(", "));
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S5860 — Names of regular expressions named groups should be used
 
 **Severity**: Medium
 
 Why use named groups only to never use any of them later on in the code?
+
+---
+
+---
+
+---
 
 ---
 
@@ -9341,6 +6963,52 @@ By default case insensitivity only affects letters in the ASCII range. This can 
 
 ---
 
+---
+
+---
+
+---
+
+### java:S1141 — Try-catch blocks should not be nested
+
+**Severity**: Medium
+
+Nesting 
+`try`
+/
+`catch`
+ blocks severely impacts the readability of source code because it makes it too difficult to understand
+which block will catch which exception.
+
+---
+
+---
+
+---
+
+---
+
+### java:S1149 — Synchronized classes "Vector", "Hashtable", "Stack" and "StringBuffer" should not be used
+
+**Severity**: Medium
+
+Early classes of the Java API, such as 
+`Vector`
+, 
+`Hashtable`
+ and 
+`StringBuffer`
+, were synchronized to make them
+thread-safe. However, synchronization has a significant negative impact on performance, even when using these collections from a single thread.
+
+---
+
+---
+
+---
+
+---
+
 ### java:S2110 — Invalid "Date" values should not be used
 
 **Severity**: Medium
@@ -9350,6 +7018,12 @@ Whether the valid value ranges for
  fields start with 0 or 1 varies by field. For instance, month starts at 0, and day of month
 starts at 1. Enter a date value that goes past the end of the valid range, and the date will roll without error or exception. For instance, enter 12
 for month, and you’ll get January of the following year.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9410,6 +7084,27 @@ public class Menu {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S2445 — Blocks should be synchronized on "private final" fields
+
+**Severity**: Medium
+
+Synchronizing on a class field synchronizes not on the field itself, but on the object assigned to it. So synchronizing on a non-
+`final`
+
+---
+
+---
+
+---
+
+---
+
 ### java:S3655 — Optional value should only be accessed after calling isPresent()
 
 **Severity**: Medium
@@ -9418,6 +7113,26 @@ public class Menu {
  value can hold either a value or not. The value held in the 
 `Optional`
  can be accessed using the
+
+---
+
+---
+
+---
+
+---
+
+### java:S5863 — Assertions should not compare an object to itself
+
+**Severity**: Medium
+
+Assertions comparing an object to itself are more likely to be bugs due to developer’s carelessness.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9435,6 +7150,12 @@ to unintended behavior.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S5869 — Character classes in regular expressions should not contain the same character twice
 
 **Severity**: Medium
@@ -9442,6 +7163,167 @@ to unintended behavior.
 Character classes in regular expressions are a convenient way to match one of several possible characters by listing the allowed characters or
 ranges of characters. If the same character is listed twice in the same character class or if the character class contains overlapping ranges, this
 has no effect.
+
+---
+
+---
+
+---
+
+---
+
+### java:S6831 — "@Qualifier" should not be used on "@Bean" methods
+
+**Severity**: Medium
+
+In Spring Framework, the 
+`@Qualifier`
+ annotation is typically used to disambiguate between multiple beans of the same type when
+auto-wiring dependencies. It is not necessary to use 
+`@Qualifier`
+ when defining a bean using the 
+`@Bean`
+ annotation because the
+bean’s name can be explicitly specified using the 
+`name`
+ attribute or derived from the method name. Using 
+`@Qualifier`
+ on
+
+---
+
+---
+
+---
+
+---
+
+### java:S2204 — ".equals()" should not be used to test the values of "Atomic" classes
+
+**Severity**: Medium
+
+The 
+`equals`
+ method in 
+`AtomicInteger`
+ and 
+`AtomicLong`
+ returns 
+`true`
+ only if two instances are
+identical, not if they represent the same number value.
+
+This is because 
+`equals`
+ is not part of the API contract of these classes, and they do not override the method inherited from
+
+`java.lang.Object`
+. Although both classes implement the 
+`Number`
+ interface, assertions about 
+`equals`
+ comparing
+number values are not part of that interface either. Only the API contract of implementing classes like 
+`Integer`
+, 
+`Long`
+,
+
+`Float`
+, 
+`BigInteger`
+, etc., provides such assertions.
+
+**Noncompliant code example**
+
+```java
+Boolean isSameNumberValue(AtomicLong a, AtomicLong b) {
+  return a.equals(b); // Noncompliant, this is true only if a == b
+}
+
+Boolean isSameReference(AtomicLong a, AtomicLong b) {
+  return a.equals(b); // Noncompliant, because misleading
+}
+```
+
+**Compliant solution**
+
+```java
+Boolean isSameNumberValue(AtomicLong a, AtomicLong b) {
+  return a.get() == b.get(); // Compliant
+}
+
+Boolean isSameReference(AtomicLong a, AtomicLong b) {
+  return a == b; // Compliant
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2446 — "notifyAll()" should be preferred over "notify()"
+
+**Severity**: Medium
+
+`notify`
+ and 
+`notifyAll`
+ both wake up sleeping threads waiting on the object’s monitor, but 
+`notify`
+ only wakes up
+one single thread, while 
+`notifyAll`
+ wakes them all up. Unless you do not care which specific thread is woken up, 
+`notifyAll`
+
+should be used instead.
+
+Noncompliant code example
+
+```
+
+class MyThread implements Runnable {
+  Object lock = new Object();
+
+  @Override
+  public void run() {
+    synchronized(lock) {
+      // ...
+      lock.notify();  // Noncompliant
+    }
+  }
+}
+
+```
+
+Compliant solution
+
+```
+
+class MyThread implements Runnable {
+  Object lock = new Object();
+
+  @Override
+  public void run() {
+    synchronized(lock) {
+      // ...
+      lock.notifyAll();
+    }
+  }
+}
+
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -9486,6 +7368,12 @@ if (a && (x + y > 0)) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1111 — The "Object.finalize()" method should not be called
 
 **Severity**: Medium
@@ -9493,6 +7381,12 @@ if (a && (x + y > 0)) {
 Before it reclaims storage from an object that is no longer referenced, the garbage collector calls 
 `finalize()`
  on the object.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9505,12 +7399,24 @@ the function call is useless and should be dropped or the source code doesn’t 
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2440 — Classes with only "static" methods should not be instantiated
 
 **Severity**: Medium
 
 `static`
  methods can be accessed without an instance of the enclosing class, so there’s no reason to instantiate a class that has only
+
+---
+
+---
+
+---
 
 ---
 
@@ -9554,6 +7460,143 @@ HttpSession session = request.getSession();
 session.setAttribute("address", new Address());
 
 ```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2442 — Synchronizing on a "Lock" object should be avoided
+
+**Severity**: Medium
+
+`java.util.concurrent.locks.Lock`
+ offers far more powerful and flexible locking operations than are available with
+
+`synchronized`
+ blocks. So synchronizing on a 
+`Lock`
+ instance throws away the power of the object, as it overrides its better
+locking mechanisms. Instead, such objects should be locked and unlocked using one of their 
+`lock`
+ and 
+`unlock`
+ method
+variants.
+
+Noncompliant code example
+
+```
+
+Lock lock = new MyLockImpl();
+synchronized(lock) {  // Noncompliant
+  // ...
+}
+
+```
+
+Compliant solution
+
+```
+
+Lock lock = new MyLockImpl();
+if (lock.tryLock()) {
+  try {
+    // ...
+  } finally {
+    lock.unlock();
+  }
+}
+
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2681 — Multiline blocks should be enclosed in curly braces
+
+**Severity**: Medium
+
+Having inconsistent indentation and omitting curly braces from a control structure, such as an 
+`if`
+ statement or 
+`for`
+ loop,
+is misleading and can induce bugs.
+
+---
+
+---
+
+---
+
+---
+
+### java:S5831 — AssertJ configuration should be applied
+
+**Severity**: Medium
+
+A 
+`org.assertj.core.configuration.Configuration`
+ will be effective only once you call 
+`Configuration.apply()`
+ or
+
+`Configuration.applyAndDisplay()`
+.
+
+This rule raises an issue when configurations are set without the appropriate call to apply them.
+
+Noncompliant code example
+
+```
+
+Configuration configuration = new Configuration(); // Noncompliant, this configuration will not be applied.
+configuration.setComparingPrivateFields(true);
+
+```
+
+Compliant solution
+
+```
+
+Configuration configuration = new Configuration();
+configuration.setComparingPrivateFields(true);
+configuration.applyAndDisplay();
+// Alternatively: configuration.apply();
+
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5833 — AssertJ methods setting the assertion context should come before an assertion
+
+**Severity**: Medium
+
+Describing, setting error message or adding a comparator in 
+[AssertJ](https://assertj.github.io/doc/)
+ must be done before calling the
+assertion, otherwise, settings will not be taken into account.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9601,12 +7644,24 @@ class StringUtils { // Compliant
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1119 — Labels should not be used
 
 **Severity**: Medium
 
 Labels are not commonly used in Java, and many developers do not understand how they work. Moreover, their usage makes the control flow harder to
 follow, which reduces the code’s readability.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9623,11 +7678,56 @@ because it implies to the readers of your code that there’s an instance of the
 
 ---
 
+---
+
+---
+
+---
+
+### java:S6804 — "@Value" annotation should inject property or SpEL expression
+
+**Severity**: Medium
+
+The purpose of the 
+`@Value`
+ annotation in 
+`org.springframework.beans.factory.annotation`
+ is to inject a value into a field or
+method based on the Spring context after it has been established.
+
+**Noncompliant code example**
+
+```java
+@Value("catalog.name") // Noncompliant, this will not inject the property
+String catalog;
+```
+
+**Compliant solution**
+
+```java
+@Value("${catalog.name}") // Compliant
+String catalog;
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S1117 — Local variables should not shadow class fields
 
 **Severity**: Medium
 
 Shadowing occurs when a local variable has the same name as a variable or a field in an outer scope.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9662,6 +7762,55 @@ int Add(int a, int b)
 
 ---
 
+---
+
+---
+
+---
+
+### java:S3415 — Assertion arguments should be passed in the correct order
+
+**Severity**: Medium
+
+The standard assertions library methods such as 
+`org.junit.Assert.assertEquals`
+, and 
+`org.junit.Assert.assertSame`
+ expect the
+first argument to be the expected value and the second argument to be the actual value. For AssertJ instead, the argument of
+
+`org.assertj.core.api.Assertions.assertThat`
+ is the actual value, and the subsequent calls contain the expected values.
+
+What is the potential impact?
+
+Having the expected value and the actual value in the wrong order will not alter the outcome of tests, (succeed/fail when it should) but the error
+messages will contain misleading information.
+
+This rule raises an issue when the actual argument to an assertions library method is a hard-coded value and the expected argument is not.
+
+**Noncompliant code example**
+
+```java
+org.junit.Assert.assertEquals(runner.exitCode(), 0, "Unexpected exit code");  // Noncompliant; Yields error message like: Expected:<-1>. Actual:<0>.
+org.assertj.core.api.Assertions.assertThat(0).isEqualTo(runner.exitCode()); // Noncompliant
+```
+
+**Compliant solution**
+
+```java
+org.junit.Assert.assertEquals(0, runner.exitCode(), "Unexpected exit code");
+org.assertj.core.api.Assertions.assertThat(runner.exitCode()).isEqualTo(0);
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S1479 — "switch" statements should not have too many "case" clauses
 
 **Severity**: Medium
@@ -9683,12 +7832,118 @@ s and empty, fall-through cases.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S5843 — Regular expressions should not be too complicated
 
 **Severity**: Medium
 
 Overly complicated regular expressions are hard to read and to maintain and can easily cause hard-to-find bugs. If a regex is too complicated, you
 should consider replacing it or parts of it with regular code or splitting it apart into multiple patterns at least.
+
+---
+
+---
+
+---
+
+---
+
+### java:S5958 — AssertJ "assertThatThrownBy" should not be used alone
+
+**Severity**: Medium
+
+Unlike similar AssertJ methods testing exceptions (
+`assertThatCode()`
+, 
+`assertThatExceptionOfType()`
+, …​), the
+
+---
+
+---
+
+---
+
+---
+
+### java:S6806 — Model attributes should follow the Java identifier naming convention
+
+**Severity**: Medium
+
+Spring Expression Language (SpEL) is an expression language used in the Spring Framework for evaluating and manipulating objects, properties, and
+conditions within Spring-based applications.
+
+**Noncompliant code example**
+
+```java
+model.addAttribute(" a", 100); // Noncompliant (starts with a space)
+model.addAttribute("a-b", 7);  // Noncompliant (contains a hyphen)
+model.addAttribute("1c", 42);  // Noncompliant (starts with a digit)
+```
+
+**Compliant solution**
+
+```java
+model.addAttribute("a", 100);
+model.addAttribute("b", 42);
+model.addAttribute("_c", 7);
+model.addAttribute("$d", 8);
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S6810 — Async methods should return void or Future
+
+**Severity**: Medium
+
+The Spring framework provides the annotation 
+`Async`
+ to mark a method (or all methods of a type) as a candidate for asynchronous
+execution.
+
+Asynchronous methods do not necessarily, by their nature, return the result of their calculation immediately. Hence, it is unexpected and in clear
+breach of the 
+`Async`
+ contract for such methods to have a return type that is neither 
+`void`
+ nor a 
+`Future`
+ type.
+
+**Noncompliant code example**
+
+```java
+@Async
+public String asyncMethod() {
+  ...
+}
+```
+
+**Compliant solution**
+
+```java
+@Async
+public Future<String> asyncMethod() {
+  ...
+}
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -9701,6 +7956,60 @@ Deprecation should be marked with both the
  annotation and @deprecated Javadoc tag. The annotation enables tools such as
 IDEs to warn about referencing deprecated elements, and the tag can be used to explain when it was deprecated, why, and how references should be
 refactored.
+
+---
+
+---
+
+---
+
+---
+
+### java:S5960 — Assertions should not be used in production code
+
+**Severity**: Medium
+
+Assertions are intended to be used in 
+test
+ code, but not in 
+production
+ code. It is confusing, and might lead to
+
+`ClassNotFoundException`
+ when the build tools only provide the required dependency in test scope.
+
+In addition, assertions will throw a sub-class of 
+`Error`
+: 
+`AssertionError`
+, which should be avoided in production code.
+
+This rule raises an issue when any assertion intended to be used in test is used in production code.
+
+Supported frameworks:
+
+ JUnit 
+
+ FestAssert 
+
+ AssertJ 
+
+Note: this does not apply for 
+`assert`
+ from Java itself or if the source code package name is related to tests (contains:
+
+`test`
+ or 
+`assert`
+ or 
+`junit`
+).
+
+---
+
+---
+
+---
 
 ---
 
@@ -9728,6 +8037,75 @@ if (!str.isEmpty()) {
   // do something with "str"
 }
 ```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5961 — Test methods should not contain too many assertions
+
+**Severity**: Medium
+
+A common good practice is to write test methods targeting only one logical concept, that can only fail for one reason.
+
+While it might make sense to have more than one assertion to test one concept, having too many is a sign that a test became too complex and should
+be refactored to multiples ones.
+
+This rule will report any test method containing more than a given number of assertion.
+
+Noncompliant code example
+
+With a parameter of 2.
+
+```
+
+@Test
+void test() { // Refactor this method.
+  assertEquals(1, f(1));
+  assertEquals(2, f(2));
+  assertEquals(3, g(1));
+}
+
+```
+
+Compliant solution
+
+```
+
+void test_f() {
+  assertEquals(1, f(1));
+  assertEquals(2, f(2));
+}
+void test_g() {
+  assertEquals(3, g(1));
+}
+
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5967 — Tests method should not be annotated with competing annotations
+
+**Severity**: Medium
+
+Annotating unit tests with more than one test-related annotation is not only useless but could also result in unexpected behavior like failing
+tests or unwanted side-effects.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9789,6 +8167,12 @@ public class Outer {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S3358 — Ternary operators should not be nested
 
 **Severity**: Medium
@@ -9818,6 +8202,12 @@ public String getReadableStatus(Job j) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S4517 — InputSteam.read() implementation should not return a signed byte
 
 **Severity**: Medium
@@ -9829,6 +8219,12 @@ the input stream. The value byte must be an
 `int`
  in the range 0 to 255. If no byte is available because the end of the stream has been
 reached, the value -1 is returned.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9865,6 +8261,93 @@ void removeFrom(List<String> list) {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S5776 — Exception testing via JUnit ExpectedException rule should not be mixed with other assertions
+
+**Severity**: Medium
+
+When testing exception via 
+`org.junit.rules.ExpectedException`
+ any code after the raised exception will not be executed, so adding
+subsequent assertions is wrong and misleading. This rule raises an issue when an assertion is done after the "expect(…​)" invocation, only the code
+throwing the expected exception should be after "expect(…​)".
+
+---
+
+---
+
+---
+
+---
+
+### java:S5778 — Only one method invocation is expected when testing runtime exceptions
+
+**Severity**: Medium
+
+When verifying that code raises a runtime exception, a good practice is to avoid having multiple method calls inside the tested code, to be
+explicit about which method call is expected to raise the exception.
+
+---
+
+---
+
+---
+
+---
+
+### java:S6862 — Beans in "@Configuration" class should have different names
+
+**Severity**: Medium
+
+Naming conventions play a crucial role in maintaining code clarity and readability. The uniqueness of bean names in Spring configurations is vital
+to the clarity and readability of the code. When two beans share the same name within a configuration, it is not obvious to the reader which bean is
+being referred to. This leads to potential misunderstandings and errors.
+
+**Noncompliant code example**
+
+```java
+@Configuration
+class Config {
+  @Bean
+  public User user() {
+    return currentUser();
+  }
+  @Bean
+  public User user(AuthService auth) { // Noncompliant
+    return auth.user();
+  }
+}
+```
+
+**Compliant solution**
+
+```java
+@Configuration
+class Config {
+  @Bean
+  public User user() {
+    return currentUser();
+  }
+  @Bean
+  public User userFromAuth(AuthService auth) {
+    return auth.user();
+  }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S1172 — Unused method parameters should be removed
 
 **Severity**: Medium
@@ -9892,6 +8375,31 @@ void doSomething(int a) {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S2142 — "InterruptedException" and "ThreadDeath" should not be ignored
+
+**Severity**: Medium
+
+If an 
+`InterruptedException`
+ or a 
+`ThreadDeath`
+ error is not handled properly, the information that the thread was
+interrupted will be lost. Handling this exception means either to re-throw it or manually re-interrupt the current thread by calling
+
+---
+
+---
+
+---
+
+---
+
 ### java:S4449 — Nullness of parameters should be guaranteed
 
 **Severity**: Medium
@@ -9905,6 +8413,12 @@ Non-
 . It is equivalent to annotating every parameter in every method with non-null annotations (such as 
 `@Nonnull`
 ).
+
+---
+
+---
+
+---
 
 ---
 
@@ -9946,6 +8460,12 @@ class MyClass {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S5669 — Vararg method arguments should not be confusing
 
 **Severity**: Medium
@@ -9956,6 +8476,12 @@ Passing single
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1068 — Unused "private" fields should be removed
 
 **Severity**: Medium
@@ -9963,6 +8489,12 @@ Passing single
 If a 
 `private`
  field is declared but not used locally, its limited visibility makes it dead code.
+
+---
+
+---
+
+---
 
 ---
 
@@ -9998,6 +8530,12 @@ void foo() {
 }
 
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -10058,6 +8596,93 @@ private static boolean isFileOrDirectory(File file) {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S5664 — Whitespace for text block indent should be consistent
+
+**Severity**: Medium
+
+Either use only spaces or only tabs for the indentation of a text block. Mixing white space will lead to a result with irregular indentation.
+
+Noncompliant code example
+
+```
+
+String textBlock = """
+        this is
+<tab>text block!
+        !!!!
+      """;
+
+```
+
+Compliant solution
+
+```
+
+String textBlock = """
+        this is
+        text block!
+        !!!!
+      """;
+
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S5785 — JUnit assertTrue/assertFalse should be simplified to the corresponding dedicated assertion
+
+**Severity**: Medium
+
+Testing equality or nullness with JUnit’s 
+`assertTrue()`
+ or 
+`assertFalse()`
+ should be simplified to the corresponding
+dedicated assertion.
+
+Noncompliant code example
+
+```
+
+Assert.assertTrue(a.equals(b));
+Assert.assertTrue(a == b);
+Assert.assertTrue(a == null);
+Assert.assertTrue(a != null);
+Assert.assertFalse(a.equals(b));
+
+```
+
+Compliant solution
+
+```
+
+Assert.assertEquals(a, b);
+Assert.assertSame(a, b);
+Assert.assertNull(a);
+Assert.assertNotNull(a);
+Assert.assertNotEquals(a, b);
+
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S1181 — Throwable and Error should not be caught
 
 **Severity**: Medium
@@ -10099,6 +8724,12 @@ try { /* ... */ } catch (MyException e) { /* ... */ }
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S3457 — Format strings should be used correctly
 
 **Severity**: Medium
@@ -10133,6 +8764,55 @@ void logging(org.slf4j.Logger slf4jLog, java.util.logging.Logger logger) {
     logger.log(level, "Can''t load library \"{0}\"!", "foo");
 }
 ```
+
+---
+
+---
+
+---
+
+---
+
+### java:S2123 — Values should not be uselessly incremented
+
+**Severity**: Medium
+
+A value that is incremented or decremented and then not stored is at best wasted code and at worst a bug.
+
+Noncompliant code example
+
+```
+
+public int pickNumber() {
+  int i = 0;
+  int j = 0;
+
+  i = i++; // Noncompliant; i is still zero
+
+  return j++; // Noncompliant; 0 returned
+}
+
+```
+
+Compliant solution
+
+```
+
+public int pickNumber() {
+  int i = 0;
+  int j = 0;
+
+  i++;
+  return ++j;
+}
+
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -10171,6 +8851,12 @@ Double.longBitsToDouble(i);   // Compliant - 1.0610049784E-314
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S4425 — "Integer.toHexString" should not be used to build hexadecimal strings
 
 **Severity**: Medium
@@ -10188,6 +8874,12 @@ into
  which once concatenated would give 
 `0x458`
 .
+
+---
+
+---
+
+---
 
 ---
 
@@ -10226,6 +8918,12 @@ public abstract class AbstractClass2 {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S5998 — Regular expressions should not overflow the stack
 
 **Severity**: Medium
@@ -10236,6 +8934,12 @@ multiple paths (i.e. the body of the repetition contains an alternation (
 ), an optional element or another repetition), trying to match
 the regular expression can cause a stack overflow on large inputs. This does not happen when using a possessive quantifier (such as 
 `*+`
+
+---
+
+---
+
+---
 
 ---
 
@@ -10278,6 +8982,12 @@ public class MyClass implements Iterator {     // Compliant
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1168 — Empty arrays and collections should be returned instead of null
 
 **Severity**: Medium
@@ -10286,6 +8996,12 @@ Returning
 `null`
  instead of an actual array, collection or map forces callers of the method to explicitly test for nullity, making them
 more complex and less readable.
+
+---
+
+---
+
+---
 
 ---
 
@@ -10337,6 +9053,12 @@ String s3 = speech.substring(5);
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2129 — Constructors should not be used to instantiate "String", "BigInteger", "BigDecimal" and primitive-wrapper classes
 
 **Severity**: Medium
@@ -10351,6 +9073,127 @@ Calling constructors for
 efficient and less clear than relying on autoboxing or 
 `valueOf`
 .
+
+---
+
+---
+
+---
+
+---
+
+### java:S2134 — Classes extending java.lang.Thread should provide a specific "run" behavior
+
+**Severity**: Medium
+
+The default implementation of 
+`java.lang.Thread`
+ 's 
+`run`
+ will only perform a task passed as a 
+`Runnable`
+. If no
+
+`Runnable`
+ has been provided at construction time, then the thread will not perform any action.
+
+When extending 
+`java.lang.Thread`
+, you should override the 
+`run`
+ method or pass a 
+`Runnable`
+ target to the
+constructor of 
+`java.lang.Thread`
+.
+
+Noncompliant code example
+
+```
+
+public class MyThread extends Thread { // Noncompliant
+  public void doSomething() {
+    System.out.println("Hello, World!");
+  }
+}
+
+```
+
+**Noncompliant code example**
+
+```java
+public class MyThread extends Thread {
+  @Override
+  public void run() {
+    System.out.println("Hello, World!");
+  }
+}
+```
+
+**Compliant solution**
+
+```java
+public class MyRunnable implements Runnable {
+  @Override
+  public void run() {
+    System.out.println("Hello, World!");
+  }
+}
+public class MyThread extends Thread {
+  public MyThread(Runnable runnable) {
+    super(runnable);
+  }
+}
+
+public class Main() {
+  public static void main(String [] args) {
+    Runnable runnable = new MyRunnable();
+    Thread customThread = new MyThread(runnable);
+    Thread regularThread = new Thread(runnable);
+  }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3346 — Expressions used in "assert" should not produce side effects
+
+**Severity**: Medium
+
+Since 
+`assert`
+ statements aren’t executed by default (they must be enabled with JVM flags) developers should never rely on their
+execution the evaluation of any logic required for correct program function.
+
+Noncompliant code example
+
+```
+
+assert myList.remove(myList.get(0));  // Noncompliant
+
+```
+
+Compliant solution
+
+```
+
+boolean removed = myList.remove(myList.get(0));
+assert removed;
+
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -10387,6 +9230,12 @@ This bug has the potential to cause unexpected outcomes as the loop might contai
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2139 — Exceptions should be either logged or rethrown but not both
 
 **Severity**: Medium
@@ -10399,6 +9248,12 @@ other threads will be interwoven with the repetitions of the logged-and-thrown
 `Exception`
 . Instead, exceptions should be either logged or
 rethrown, not both.
+
+---
+
+---
+
+---
 
 ---
 
@@ -10455,6 +9310,12 @@ This rule does not raise issues when overriding methods from
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2251 — A "for" loop update clause should move the counter in the right direction
 
 **Severity**: Medium
@@ -10501,12 +9362,24 @@ public void doSomething(String [] strings) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2629 — "Preconditions" and logging arguments should not require evaluation
 
 **Severity**: Medium
 
 Some method calls can effectively be "no-ops", meaning that the invoked method does nothing, based on the application’s configuration (eg: debug
 logs in production). However, even if the method effectively does nothing, its arguments may still need to evaluated before the method is called.
+
+---
+
+---
+
+---
 
 ---
 
@@ -10518,6 +9391,12 @@ There are two types of stream operations: intermediate operations, which return 
 other than a stream. Intermediate operations are lazy, meaning they aren’t actually executed until and unless a terminal stream operation is performed
 on their results. Consequently, if the result of an intermediate stream operation is not fed to a terminal operation, it serves no purpose, which is
 almost certainly an error.
+
+---
+
+---
+
+---
 
 ---
 
@@ -10540,11 +9419,23 @@ int sum2 = pipeline.mapToInt(b -> b.getWeight()).sum(); // Noncompliant
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2639 — Inappropriate regular expressions should not be used
 
 **Severity**: Medium
 
 Regular expressions are powerful but tricky, and even those long used to using them can make mistakes.
+
+---
+
+---
+
+---
 
 ---
 
@@ -10610,6 +9501,12 @@ target = -num;  // target = -3
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S4925 — "Class.forName()" should not load JDBC 4.0+ drivers
 
 **Severity**: Medium
@@ -10624,6 +9521,12 @@ automatically loaded.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1764 — Identical expressions should not be used on both sides of a binary operator
 
 **Severity**: Medium
@@ -10631,6 +9534,30 @@ automatically loaded.
 Using the same value on both sides of a binary operator is a code defect. In the case of logical operators, it is either a copy/paste error and,
 therefore, a bug, or it is simply duplicated code and should be simplified. In the case of bitwise operators and most binary mathematical operators,
 having the same value on both sides of an operator yields predictable results and should be simplified as well.
+
+---
+
+---
+
+---
+
+---
+
+### java:S3824 — "Map.get" and value test should be replaced with single method call
+
+**Severity**: Medium
+
+It’s a common pattern to test the result of a 
+`java.util.Map.get()`
+ against 
+`null`
+ or calling
+
+---
+
+---
+
+---
 
 ---
 
@@ -10646,6 +9573,71 @@ For arrays of objects,
 performance. However, for arrays of primitives, using 
 `Arrays.asList`
  will force the construction of a list of boxed types, and then use
+
+---
+
+---
+
+---
+
+---
+
+### java:S5810 — JUnit5 test classes and methods should not be silently ignored
+
+**Severity**: Medium
+
+JUnit5 is more tolerant regarding the visibilities of Test classes and methods than JUnit4, which required everything to be public. JUnit5 supports
+default package, public and protected visibility, even if it is recommended to use the default package visibility, which improves the readability of
+code.
+
+---
+
+---
+
+---
+
+---
+
+### java:S6901 — "setDaemon", "setPriority" and "getThreadGroup" should not be invoked on virtual threads
+
+**Severity**: Medium
+
+The 
+`Thread`
+ class has some methods that are used to monitor and manage its execution. With the introduction of virtual threads in Java
+21, there are three of these methods that behave differently between the standard platform threads and the virtual ones.
+
+---
+
+---
+
+---
+
+---
+
+### java:S3751 — "@RequestMapping" methods should not be "private"
+
+**Severity**: Medium
+
+A method with a 
+`@RequestMapping`
+ annotation part of a class annotated with 
+`@Controller`
+ (directly or indirectly through a
+meta annotation - 
+`@RestController`
+ from Spring Boot is a good example) will be called to handle matching web requests. That will happen
+even if the method is 
+`private`
+, because Spring invokes such methods via reflection, without checking visibility.
+
+---
+
+## 13. Testing Quality Rules — Medium (21 rules)
+
+---
+
+---
 
 ---
 
@@ -10712,6 +9704,12 @@ public Optional<String> getOptional() {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1221 — Methods should not be named "tostring", "hashcode" or "equal"
 
 **Severity**: Medium
@@ -10753,6 +9751,12 @@ public boolean equals(Object obj) { /* ... */ } // Compliant
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1223 — Non-constructor methods should not have the same name as the enclosing class
 
 **Severity**: Medium
@@ -10784,6 +9788,81 @@ public class Foo {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S2438 — "Thread" should not be used where a "Runnable" argument is expected
+
+**Severity**: Medium
+
+The semantics of 
+`Thread`
+ and 
+`Runnable`
+ are different, and while it is technically correct to use 
+`Thread`
+ where
+a 
+`Runnable`
+ is expected, it is a bad practice to do so.
+
+---
+
+---
+
+---
+
+---
+
+### java:S2675 — "readObject" should not be "synchronized"
+
+**Severity**: Medium
+
+The 
+`readObject`
+ method is implemented when a 
+`Serializable`
+ object requires special handling to be reconstructed from a
+file. The object created by 
+`readObject`
+ is accessed only by the thread that called the method, thus using the 
+`synchronized`
+
+keyword in this context is unnecessary and causes confusion.
+
+Noncompliant code example
+
+```
+
+private synchronized void readObject(java.io.ObjectInputStream in)
+     throws IOException, ClassNotFoundException { // Noncompliant
+  //...
+}
+
+```
+
+Compliant solution
+
+```
+
+private void readObject(java.io.ObjectInputStream in)
+     throws IOException, ClassNotFoundException { // Compliant
+  //...
+}
+
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S2677 — "read" and "readLine" return values should be used
 
 **Severity**: Medium
@@ -10797,6 +9876,12 @@ these methods is the data read from the data source, or
 `null`
  when the end of the data source is reached. If the return value is ignored,
 the data read from the source is thrown away and may indicate a bug.
+
+---
+
+---
+
+---
 
 ---
 
@@ -10839,6 +9924,12 @@ if (firstName != null && firstName.equals(lastName)) { ... };
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S4738 — Java features should be preferred to Guava
 
 **Severity**: Medium
@@ -10846,6 +9937,12 @@ if (firstName != null && firstName.equals(lastName)) { ... };
 Some Guava features were really useful for Java 7 application because Guava was bringing APIs missing in the JDK. Java 8 fixed some of these
 limitations. When migrating an application to Java 8 or even when starting a new one, it’s recommended to prefer Java 8 APIs over Guava ones to ease
 its maintenance: developers don’t need to learn how to use two APIs and can stick to the standard one.
+
+---
+
+---
+
+---
 
 ---
 
@@ -10914,6 +10011,12 @@ Math.clamp(red, 0, 255); // Compliant
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6915 — "String.indexOf" should be used with correct ranges
 
 **Severity**: Medium
@@ -10956,6 +10059,12 @@ int index = hello.indexOf('o', 11, 7); // Noncompliant, 11..7 is not a valid ran
 String hello = "Hello, world!";
 int index = hello.indexOf('o', 7, 11); // Compliant
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -11005,6 +10114,12 @@ void testObject(Object response) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1317 — "StringBuilder" and "StringBuffer" should not be instantiated with a character
 
 **Severity**: Medium
@@ -11030,11 +10145,23 @@ StringBuffer foo = new StringBuffer("x"); // Compliant
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2761 — Unary prefix operators should not be repeated
 
 **Severity**: Medium
 
 The repetition of a unary operator is usually a typo. The second operator invalidates the first one in most cases:
+
+---
+
+---
+
+---
 
 ---
 
@@ -11048,6 +10175,12 @@ When creating a
 `WeekFields.weekBasedYear()`
  temporal field, the resulting year number may be
 off by 1 at the beginning of a new year (when the date to format is in a week that is shared by two consecutive years).
+
+---
+
+---
+
+---
 
 ---
 
@@ -11124,6 +10257,12 @@ class MyClass {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S3864 — "Stream.peek" should be used with caution
 
 **Severity**: Medium
@@ -11132,6 +10271,12 @@ According to its JavaDocs, the intermediate Stream operation
 `java.util.Stream.peek()`
  “exists mainly to support debugging”
 purposes.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11160,6 +10305,12 @@ if (x < 0)
   throw new IllegalArgumentException("x must be nonnegative");
 
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -11199,6 +10350,12 @@ public class TopLevel
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S3986 — Week Year ("YYYY") should not be used for date formatting
 
 **Severity**: Medium
@@ -11219,6 +10376,12 @@ testing at any time other than the first or last week of the year will yield the
 `Y`
 . But in the
 last week of December and the first week of January, you may get unexpected results.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11261,12 +10424,24 @@ Integer a = integers.get(0);
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S1700 — A field should not duplicate the name of its containing class
 
 **Severity**: Medium
 
 It’s confusing to have a class member with the same name (case differences aside) as its enclosing class. This is particularly so when you consider
 the common practice of naming a class instance for the class itself.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11313,6 +10488,12 @@ This rule does not report an issue if the non-capturing group is an alternation.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6396 — Superfluous curly brace quantifiers should be avoided
 
 **Severity**: Medium
@@ -11321,6 +10502,12 @@ Curly brace quantifiers in regular expressions can be used to have a more fine-g
 sub-expression preceeding them should occur. They can be used to match an expression exactly n times with 
 `{n}`
 , between n and m times with
+
+---
+
+---
+
+---
 
 ---
 
@@ -11350,6 +10537,55 @@ Pattern.compile("[abc]");
 Pattern.compile("[a-c]");
 
 ```
+
+---
+
+---
+
+---
+
+---
+
+### java:S6126 — String multiline concatenation should be replaced with Text Blocks
+
+**Severity**: Medium
+
+In Java 15 Text Blocks are now official and can be used. The most common pattern for multiline strings in Java < 15 was to write String
+concatenation. Now it’s possible to do it in a more natural way using Text Blocks.
+
+Noncompliant code example
+
+```
+
+String textBlock =
+               "<html>\n" +
+               "    <body>\n" +
+               "        <tag>\n" +
+               "        </tag>\n" +
+               "    </body>\n" +
+               "</html>";
+
+```
+
+Compliant solution
+
+```
+
+String textBlock = """
+        <html>
+            <body>
+                <tag>
+                </tag>
+            </body>
+        </html>""";
+
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -11391,6 +10627,12 @@ This rule does not raise when the character inside the class is a metacharacter.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6241 — Region should be set explicitly when creating a new "AwsClient"
 
 **Severity**: Medium
@@ -11399,6 +10641,29 @@ If the region is not specified when creating a new AwsClient with an
 [AwsClientBuilder](https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/awscore/client/builder/AwsClientBuilder.html)
 , the AWS SDK
 will execute some logic to identify the endpoint automatically.
+
+---
+
+---
+
+---
+
+---
+
+### java:S6242 — Credentials Provider should be set explicitly when creating a new "AwsClient"
+
+**Severity**: Medium
+
+If the credentials provider is not specified when creating a new AwsClient with an 
+[AwsClientBuilder](https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/awscore/client/builder/AwsClientBuilder.html)
+, the AWS SDK
+will execute some logic to identify it automatically.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11417,6 +10682,12 @@ the end of the regex, it will always match the empty string when used with metho
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6243 — Reusable resources should be initialized at construction time of Lambda functions
 
 **Severity**: Medium
@@ -11426,6 +10697,28 @@ constructor of the class, or in field initializers. This way, when the same cont
 instance can be reused, along with all resources stored in its fields. It is a good practice to reuse SDK clients and database connections by
 initializing them at class construction time, to avoid recreating them on every lambda invocation. Failing to do so can lead to performance
 degradation, and when not closed properly, even out of memory errors.
+
+---
+
+---
+
+---
+
+---
+
+### java:S5164 — "ThreadLocal" variables should be cleaned up when no longer used
+
+**Severity**: Medium
+
+`ThreadLocal`
+ variables are supposed to be garbage collected once the holding thread is no longer alive. Memory leaks can occur when
+holding threads are re-used which is the case on application servers using pool of threads.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11494,6 +10787,12 @@ public void doSomething() {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S2718 — "DateUtils.truncate" from Apache Commons Lang library should not be used
 
 **Severity**: Medium
@@ -11502,6 +10801,12 @@ The
 `ZonedDateTime`
  is an immutable representation of a date-time with a time-zone, introduced in Java 8. This class stores all date and
 time fields, to a precision of nanoseconds, and a time zone, with a zone offset used to handle ambiguous local date times.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11514,6 +10819,12 @@ Having all branches of a
  or 
 `if`
  chain with the same implementation indicates a problem.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11543,6 +10854,12 @@ character following
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S125 — Sections of code should not be commented out
 
 **Severity**: Medium
@@ -11551,6 +10868,12 @@ Commented-out code distracts the focus from the actual executed code. It creates
 executed, it quickly becomes out of date and invalid.
 
 Commented-out code should be deleted and can be retrieved from source control history if required.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11592,12 +10915,55 @@ for (int i = 0; i < end; i++) { // Compliant, "end" does not change during loop 
 
 ---
 
+---
+
+---
+
+---
+
+### java:S2925 — "Thread.sleep" should not be used in tests
+
+**Severity**: Medium
+
+In asynchronous testing, the test code is written in a way that allows it to wait for the asynchronous operation to complete before continuing with
+the test.
+
+---
+
+---
+
+---
+
+---
+
 ### java:S1604 — Anonymous inner classes containing only one method should become lambdas
 
 **Severity**: Medium
 
 Before Java 8, the only way to partially support closures in Java was by using anonymous inner classes. Java 8 introduced lambdas, which are
 significantly more readable and should be used instead.
+
+---
+
+---
+
+---
+
+---
+
+### java:S1607 — JUnit4 @Ignored and JUnit5 @Disabled annotations should be used to disable tests and should provide a rationale
+
+**Severity**: Medium
+
+When a test fails due, for example, to infrastructure issues, you might want to ignore it temporarily. But without some kind of notation about why
+the test is being ignored, it may never be reactivated. Such tests are difficult to address without comprehensive knowledge of the project, and end up
+polluting their projects.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11639,6 +11005,12 @@ char ch = speech.charAt(speech.length() - 1);                    // Compliant, s
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S112 — Generic exceptions should never be thrown
 
 **Severity**: Medium
@@ -11673,6 +11045,12 @@ void checkValue(int value) {
     }
 }
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -11721,6 +11099,12 @@ public class Watermelon implements Serializable {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S106 — Standard outputs should not be used directly to log anything
 
 **Severity**: Medium
@@ -11730,12 +11114,53 @@ essential to ensure that the logs are:
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S107 — Methods should not have too many parameters
 
 **Severity**: Medium
 
 Methods with a long parameter list are difficult to use because maintainers must figure out the role of each parameter and keep track of their
 position.
+
+---
+
+---
+
+---
+
+---
+
+### java:S108 — Nested blocks of code should not be left empty
+
+**Severity**: Medium
+
+An empty code block is confusing. It will require some effort from maintainers to determine if it is intentional or indicates the implementation is
+incomplete.
+
+```
+
+for (int i = 0; i < 42; i++){}  // Noncompliant: is the block empty on purpose, or is code missing?
+
+```
+
+Removing or filling the empty code blocks takes away ambiguity and generally results in a more straightforward and less surprising code.
+
+Exceptions
+
+The rule ignores code blocks that contain comments unless they are 
+`synchronized`
+ blocks because these can affect program flow.
+
+---
+
+---
+
+---
 
 ---
 
@@ -11803,6 +11228,84 @@ public class Tomato implements Externalizable {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S3042 — "writeObject" should not be the only "synchronized" code in a class
+
+**Severity**: Medium
+
+Synchronization is a mechanism used when multithreading in Java to ensure that only one thread executes a given block of code at a time. This is
+done to avoid bugs that can occur when multiple threads share a given state and try to manipulate simultaneously.
+
+Object serialization is not thread-safe by default. In a multithreaded environment, one option is to mark 
+`writeObject`
+ with
+
+`synchronized`
+ to improve thread safety. It is highly suspicious, however, if 
+`writeObject`
+ is the only
+
+`synchronized`
+ method in a class. It may indicate that serialization is not required, as multithreading is not used. Alternatively, it
+could also suggest that other methods in the same class have been forgotten to be made thread-safe.
+
+**Noncompliant code example**
+
+```java
+public class RubberBall implements Serializable {
+
+  private Color color;
+  private int diameter;
+
+  public RubberBall(Color color, int diameter) {
+    // ...
+  }
+
+  public void bounce(float angle, float velocity) {
+    // ...
+  }
+
+  private synchronized void writeObject(ObjectOutputStream stream) throws IOException { // Noncompliant, "writeObject" is the only synchronized method in this class
+    // ...
+  }
+}
+```
+
+**Compliant solution**
+
+```java
+public class RubberBall implements Serializable {
+
+  private Color color;
+  private int diameter;
+
+  public RubberBall(Color color, int diameter) {
+    // ...
+  }
+
+  public void bounce(float angle, float velocity) {
+    // ...
+  }
+
+  private void writeObject(ObjectOutputStream stream) throws IOException { // Compliant, no methods in this class are synchronized
+    // ...
+  }
+}
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S2166 — Classes named like "Exception" should extend "Exception" or a subclass
 
 **Severity**: Medium
@@ -11812,6 +11315,116 @@ Using "exception" in the name of a class that does not extend
 `Exception`
  or one of its subclasses is a clear violation of the expectation
 that a class' name will indicate what it is and/or does.
+
+---
+
+---
+
+---
+
+---
+
+### java:S4348 — "iterator" should not return "this"
+
+**Severity**: Medium
+
+An 
+`Iterable`
+ should not implement the 
+`Iterator`
+ interface or return 
+`this`
+ as an 
+`Iterator`
+. The
+reason is that 
+`Iterator`
+ represents the iteration process itself, while 
+`Iterable`
+ represents the object we want to iterate
+over.
+
+**Noncompliant code example**
+
+```java
+class FooIterator implements Iterator<Foo>, Iterable<Foo> {
+  private Foo[] seq;
+  private int idx = 0;
+
+  public boolean hasNext() {
+    return idx < seq.length;
+  }
+
+  public Foo next() {
+    return seq[idx++];
+  }
+
+  public Iterator<Foo> iterator() {
+    return this; // Noncompliant
+  }
+  // ...
+}
+```
+
+**Compliant solution**
+
+```java
+class FooSequence implements Iterable<Foo> {
+  private Foo[] seq;
+
+  public Iterator<Foo> iterator() {
+    return new Iterator<Foo>() { // Compliant
+      private int idx = 0;
+
+      public boolean hasNext() {
+        return idx < seq.length;
+      }
+
+      public Foo next() {
+        return seq[idx++];
+      }
+    };
+  }
+  // ...
+}
+```
+
+---
+
+---
+
+---
+
+---
+
+### java:S3011 — Reflection should not be used to increase accessibility of classes, methods, or fields
+
+**Severity**: Medium
+
+Altering or bypassing the accessibility of classes, methods, or fields through reflection violates the encapsulation principle. This can break the
+internal contracts of the accessed target and lead to maintainability issues and runtime errors.
+
+This rule raises an issue when reflection is used to change the visibility of a class, method or field, and when it is used to directly update a
+field value.
+
+```
+
+public void makeItPublic(String methodName) throws NoSuchMethodException {
+
+  this.getClass().getMethod(methodName).setAccessible(true); // Noncompliant
+}
+
+public void setItAnyway(String fieldName, int value) {
+  this.getClass().getDeclaredField(fieldName).setInt(this, value); // Noncompliant; bypasses controls in setter
+}
+
+```
+
+---
+
+---
+
+---
 
 ---
 
@@ -11839,6 +11452,12 @@ int clampedValue = value > max ? max : value < min ? min : value; // Noncomplian
 ```java
 int clampedValue = Math.max(min, Math.min(max, value)); // Noncompliant; Replace with "Math.clamp"
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -11885,6 +11504,12 @@ public class Person {
 }
 
 ```
+
+---
+
+---
+
+---
 
 ---
 
@@ -11950,12 +11575,72 @@ String name(Color c){
 
 ---
 
+---
+
+---
+
+---
+
+### java:S1193 — Exception types should not be tested using "instanceof" in catch blocks
+
+**Severity**: Medium
+
+A 
+`try-catch`
+ block is used to handle exceptions or errors that may occur during the execution of a block of code. It allows you to
+catch and handle exceptions gracefully, preventing your program from terminating abruptly.
+
+The code that may throw an exception is enclosed within the 
+`try`
+ block, while each 
+`catch`
+ block specifies the type of
+exception it can handle. The corresponding catch block is executed if the exception matches the type specified in any catch block. It is unnecessary
+to manually check the types using 
+`instanceof`
+ because Java automatically matches the exception type to the appropriate catch block based
+on the declared exception type in the catch clauses.
+
+**Noncompliant code example**
+
+```java
+try {
+  /* ... */
+} catch (Exception e) {
+  if(e instanceof IOException) { /* ... */ }         // Noncompliant
+  if(e instanceof NullPointerException{ /* ... */ }  // Noncompliant
+}
+```
+
+**Compliant solution**
+
+```java
+try {
+  /* ... */
+} catch (IOException e) { /* ... */ }                // Compliant
+} catch (NullPointerException e) { /* ... */ }       // Compliant
+```
+
+---
+
+---
+
+---
+
+---
+
 ### java:S2177 — Child class methods named for parent class methods should be overrides
 
 **Severity**: Medium
 
 When a method in a child class has the same signature as a method in a parent class, it is assumed to be an override. However, that’s not the case
 when:
+
+---
+
+---
+
+---
 
 ---
 
@@ -12005,6 +11690,12 @@ void listContains(List<String> list, Integer integer) {
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S5329 — Collection constructors should not be used as java.util.function.Function
 
 **Severity**: Medium
@@ -12023,6 +11714,12 @@ method argument type is
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S4351 — "compareTo" should not be overloaded
 
 **Severity**: Medium
@@ -12030,6 +11727,32 @@ method argument type is
 When implementing the 
 `Comparable<T>.compareTo`
  method, the parameter’s type has to match the type used in the
+
+---
+
+---
+
+---
+
+---
+
+### java:S3078 — "volatile" variables should not be used with compound operators
+
+**Severity**: Medium
+
+Using compound operators as well as increments and decrements (and toggling, in the case of 
+`boolean`
+s) on primitive fields are not
+atomic operations. That is, they don’t happen in a single step. For instance, when a 
+`volatile`
+ primitive field is incremented or
+decremented you run the risk of data loss if threads interleave in the steps of the update. Instead, use a guaranteed-atomic class such as
+
+---
+
+---
+
+---
 
 ---
 
@@ -12079,6 +11802,12 @@ public void cleanUp(Path path) throws NoSuchFileException, DirectoryNotEmptyExce
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S4165 — Assignments should not be redundant
 
 **Severity**: Medium
@@ -12116,6 +11845,31 @@ a = b;
 c = a;
 
 ```
+
+---
+
+---
+
+---
+
+---
+
+### java:S6103 — AssertJ assertions with "Consumer" arguments should contain assertion inside consumers
+
+**Severity**: Medium
+
+AssertJ assertions taking 
+`Consumer`
+ objects as arguments are expected to contain "requirements", which should themselves be expressed
+as assertions. This concerns the following methods: 
+[allSatisfy](http://joel-costigliola.github.io/assertj/core-8/api/org/assertj/core/api/AbstractIterableAssert.html#allSatisfy-java.util.function.Consumer-)
+,
+
+---
+
+---
+
+---
 
 ---
 
@@ -12164,12 +11918,24 @@ it.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S4144 — Methods should not have identical implementations
 
 **Severity**: Medium
 
 Two methods having the same implementation are suspicious. It might be that something else was intended. Or the duplication is intentional, which
 becomes a maintenance burden.
+
+---
+
+---
+
+---
 
 ---
 
@@ -12193,6 +11959,12 @@ be misleading.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6202 — Operator "instanceof" should be used instead of "A.class.isInstance()"
 
 **Severity**: Medium
@@ -12207,6 +11979,12 @@ error will occur in case of incompatible types. The method
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6206 — Records should be used instead of ordinary classes when representing immutable data structure
 
 **Severity**: Medium
@@ -12218,6 +11996,12 @@ In Java 16
  represent immutable read-only data
 structure and should be used instead of creating immutable classes. Immutability of records is guaranteed by the Java language itself, while
 implementing immutable classes on your own might lead to some bugs.
+
+---
+
+---
+
+---
 
 ---
 
@@ -12236,6 +12020,12 @@ parameters,
 `toString`
 . Although these methods can still be overridden
 inside records, there is no use to do so if no special logic is required.
+
+---
+
+---
+
+---
 
 ---
 
@@ -12276,6 +12066,12 @@ readability.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6204 — "Stream.toList()" method should be used instead of "collectors" when unmodifiable list needed
 
 **Severity**: Medium
@@ -12287,6 +12083,12 @@ save a result of such chains is to save them to some collection (usually
 `List`
 ). To do so there is a terminal method 
 `collect`
+
+---
+
+---
+
+---
 
 ---
 
@@ -12312,12 +12114,60 @@ do.
 
 ---
 
+---
+
+---
+
+---
+
 ### java:S6213 — Restricted Identifiers should not be used as Identifiers
 
 **Severity**: Medium
 
 Even if it is technically possible, 
 [Restricted Identifiers](https://docs.oracle.com/javase/specs/jls/se16/html/jls-3.html#jls-3.8)
+
+---
+
+---
+
+---
+
+---
+
+### java:S6216 — Reflection should not be used to increase accessibility of records' fields
+
+**Severity**: Medium
+
+In general, altering or bypassing the accessibility of classes, methods, or fields violates the encapsulation principle and could lead to runtime
+errors. For records the case is even trickier: you cannot change the visibility of records’s fields and trying to update the existing value will lead
+to 
+`IllegalAccessException`
+ at runtime.
+
+This rule raises an issue when reflection is used to change the visibility of a record’s field, and when it is used to directly update a record’s
+field value.
+
+Noncompliant code example
+
+```
+
+record Person(String name, int age) {}
+
+Person person = new Person("A", 26);
+Field field = Person.class.getDeclaredField("name");
+field.setAccessible(true); // secondary
+field.set(person, "B"); // Noncompliant
+
+```
+
+---
+
+## 11. Reliability & Bug Prevention Rules — Medium (30 rules)
+
+---
+
+---
 
 ---
 
@@ -12331,6 +12181,30 @@ In records, the default behavior of the
 or fields, whose type overrides 
 `equals()`
 , but this behavior doesn’t work as expected for array fields.
+
+---
+
+---
+
+---
+
+---
+
+### java:S3064 — Assignment of lazy-initialized members should be the last step with double-checked locking
+
+**Severity**: Medium
+
+Double-checked locking can be used for lazy initialization of 
+`volatile`
+ fields, but only if field assignment is the last step in the
+
+---
+
+## 12. Spring Framework Rules — Medium (17 rules)
+
+---
+
+---
 
 ---
 
@@ -12353,6 +12227,12 @@ upper
 used with the 
 lower
  end of the range. Get it backwards, and the result will always be the same end of the range.
+
+---
+
+---
+
+---
 
 ---
 
@@ -12401,6 +12281,40 @@ public class MyClass {
 
 ---
 
+---
+
+---
+
+---
+
+### java:S4274 — Asserts should not be used to check the parameters of a public method
+
+**Severity**: Medium
+
+An 
+`assert`
+ is inappropriate for parameter validation because assertions can be disabled at runtime in the JVM, meaning that a bad
+operational setting would completely eliminate the intended checks. Further, 
+`assert`
+s that fail throw 
+`AssertionError`
+s, rather
+than throwing some type of 
+`Exception`
+. Throwing 
+`Error`
+s is completely outside of the normal realm of expected
+
+---
+
+## 14. Code Quality & Maintainability Rules — Medium (160 rules)
+
+---
+
+---
+
+---
+
 ### java:S6331 — Regular expressions should not contain empty groups
 
 **Severity**: Medium
@@ -12433,5 +12347,11 @@ Compliant solution
 "foo\\(\\)"  // Matches 'foo()'
 
 ```
+
+---
+
+---
+
+---
 
 ---
