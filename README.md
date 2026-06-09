@@ -1,4 +1,4 @@
-# Ops Code Review Kit (v1.8)
+# Ops Code Review Kit (v1.8.1)
 
 ## What Is This
 
@@ -15,7 +15,7 @@ All review work is performed by the operations team in their own environment.
 - **Auto module discovery**: Automatically detects project modules from build system (Maven, Gradle, npm, etc.)
 - **2 reports per module**: Reliability & Maintainability + Security
 - **Global summary report**: Merges all module scan results with overall Pass/Fail determination
-- **Smart code scanning**: Architecture-Role Pattern Matching selects the most relevant files to analyze
+- **Full code scanning**: Every source file is read — no sampling, no skipping, 100% coverage
 - **Strict rule mapping**: Every issue must map to a specific Rule ID — no ad-hoc adjustments
 - **Quality gate**: Automatic Pass/Fail based on severity thresholds
 - **Fix priorities**: P0-P3 classification with defined remediation timelines
@@ -55,7 +55,7 @@ git clone <repository-url> /path/to/target-project
 ### Step 2: Inject the Review Toolkit
 
 ```bash
-cp -r ops-code-review-kit-1.8/.kiro /path/to/target-project/
+cp -r ops-code-review-kit-1.8.1/.kiro /path/to/target-project/
 ```
 
 ### Step 3: Run the Review in Kiro
@@ -163,32 +163,23 @@ When this file exists, all skills use it instead of auto-detection.
 
 ## Code Scanning Strategy
 
-### Architecture-Role Pattern Matching (v1.8)
+### Full-Scan (v1.8.1)
 
-For reverse engineering, the toolkit uses a smart file selection strategy
-instead of naive alphabetical sampling:
+v1.8.1 reads **ALL source files** regardless of codebase size. There is no
+sampling, no per-package budget, and no tiered selection.
 
 | Scale | File Count | Strategy |
 |-------|-----------|----------|
-| **Small** | < 50 files | Read ALL source files |
-| **Medium** | 50-500 files | Read all architecture-role files + alphabetical fill (5 per package) |
-| **Large** | > 500 files | Read architecture-role files only (3 per package cap, but no cap on Tier-1) |
+| **Any** | All sizes | Read ALL source files — full scan |
 
-**Architecture-role files** are identified by naming patterns:
+**Why full scan**: The Quality Gate inconsistency analysis (see
+`QUALITY_GATE_INCONSISTENCY_ANALYSIS.md`) showed that any form of sampling —
+alphabetical or pattern-based — introduces non-determinism when the LLM's file
+selection varies between runs. Full scan eliminates this risk entirely: same
+codebase = same files read = same findings = same Quality Gate result.
 
-| Category | Patterns |
-|----------|----------|
-| API Layer | `*Controller`, `*Resource`, `*Handler`, `*Router`, `*Endpoint` |
-| Business Logic | `*Service`, `*ServiceImpl`, `*UseCase`, `*Orchestrator` |
-| Data Access | `*Repository`, `*Mapper`, `*DAO`, `*Store` |
-| Configuration | `*Config`, `*Configuration`, `*Module`, `*Provider` |
-| Domain Model | `*Entity`, `*Model`, `*Aggregate`, `*DTO` |
-| Integration | `*Client`, `*Feign*`, `*Gateway`, `*Adapter`, `*Proxy` |
-| Security | `*Filter`, `*Interceptor`, `*Security*`, `*Auth*`, `*Guard` |
-| Design Patterns | `*Factory`, `*Builder`, `*Strategy`, `*Listener` |
-
-This ensures architecturally significant files are always read, regardless of
-their alphabetical position.
+Codebase scale (Small < 50, Medium 50-500, Large > 500) is still recorded in
+the output for informational purposes but does not affect scan behavior.
 
 ## Report Structure
 
@@ -386,17 +377,17 @@ A: `@rescan` focuses on fix verification, not a full re-scan. It checks each
 previous finding for fix completeness, assesses fix correctness, and detects
 regressions. It produces a delta report rather than a full report.
 
-**Q: What changed in v1.8's code scanning approach?**
-A: v1.8 replaces alphabetical sampling ("first N files per package") with
-Architecture-Role Pattern Matching. Files are selected by their naming pattern
-(Controller, Service, Repository, etc.) rather than alphabetical position. This
-ensures critical architecture files are always read, producing more accurate
-reverse-engineering output.
+**Q: What changed in v1.8.1's code scanning approach?**
+A: v1.8.1 eliminates all file sampling entirely. Every source file is read
+regardless of codebase size. This guarantees 100% code coverage and fully
+deterministic results — no file is ever skipped due to budget caps or
+selection heuristics.
 
 ## Version History
 
 | Version | Key Changes |
 |---------|-------------|
+| v1.8.1 | Full-scan mode — read ALL source files, no sampling regardless of codebase size |
 | v1.8 | Architecture-Role Pattern Matching; open module discovery; bug fixes |
 | v1.77 | Auth leaf-implementation tracing (password hashing, token issuance) |
 | v1.76 | Two-plane architecture topology fix; 4-diagram specification |

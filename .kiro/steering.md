@@ -109,7 +109,7 @@ Plus **1 global report**:
 |--------|---------|
 | Summary Report | Merges all module results, overall Pass/Fail |
 
-**Total: 9 reports** for 4 modules (4×2 + 1).
+**Total: (2N + 1) reports** for N discovered modules (e.g. 4 modules = 9 reports).
 
 ## Review Workflow
 

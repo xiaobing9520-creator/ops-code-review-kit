@@ -8,7 +8,7 @@ description: >
   skill + same model = same architecture output.
 ---
 
-# Codebase Reverse Engineering (v1.8 — Deterministic)
+# Codebase Reverse Engineering (v1.8.1 — Deterministic, Full-Scan)
 
 You are a senior software architect performing comprehensive reverse engineering
 of a codebase. Your goal is to deeply understand the system before any code
@@ -66,8 +66,7 @@ Files MUST be read in the following fixed priority order:
 5. Infrastructure files (Dockerfile, *.tf, docker-compose.yml, CI configs) —
    sorted alphabetically by path
 6. Source files by module — modules sorted alphabetically; within each module,
-   files selected by the **Architecture-Role Pattern Matching** strategy
-   (see Step 0.4), then sorted alphabetically by path within each tier
+   read ALL source files, sorted alphabetically by path
 
 Within each priority group, always process files in **alphabetical path order**.
 
@@ -177,12 +176,12 @@ find . -type f \
 
 | Scale | File Count | Scope |
 |-------|-----------|-------|
-| **Small** | < 50 source files | Read ALL source files |
-| **Medium** | 50–500 source files | Read all files in priority groups D2.1–D2.5; for source (D2.6), apply Architecture-Role Pattern Matching — read ALL Tier-1 files + fill to budget of 5 per package from Tier-2 |
-| **Large** | > 500 source files | Read all files in priority groups D2.1–D2.5; for source (D2.6), apply Architecture-Role Pattern Matching — read ALL Tier-1 files (capped at 3 per package) + NO Tier-2 fill |
+| **Any** | All codebases regardless of size | Read ALL source files — full scan, no sampling |
 
-The scale classification determines which files are read, NOT how they are
-reported. Output artifact structure is identical at all scales.
+**v1.8.1 policy: always full scan.** Every source file in the manifest is read.
+There is no sampling, no per-package cap, no tiered selection. The scale
+classification is recorded in the output for informational purposes only (Small
+< 50, Medium 50–500, Large > 500) but does NOT affect which files are read.
 
 #### 0.2 File Manifest (Required)
 
@@ -218,72 +217,21 @@ Detect modules using this fixed priority chain (stop at first match):
 The module list is FIXED after this step. All subsequent per-module processing
 uses this exact sorted list.
 
-#### 0.4 Architecture-Role Pattern Matching (Deterministic File Selection for D2.6)
+#### 0.4 Full-Scan File Reading (v1.8.1)
 
-This step defines HOW source files are selected for reading when the codebase
-is Medium or Large. It replaces the previous alphabetical sampling with a
-**pattern-based** strategy that selects files by their architectural role.
+**v1.8.1 eliminates all sampling.** Every source file discovered in Step 0.2
+is read, regardless of codebase size. There is no Tier-1/Tier-2 distinction,
+no per-package budget, and no cap.
 
-**Why pattern matching instead of alphabetical sampling**: Alphabetical sampling
-(`AaaHelper.java` before `UserService.java`) misses architecturally critical
-files. Pattern matching targets files that define the system's structure —
-controllers, services, repositories, configs — regardless of their alphabetical
-position. The patterns are discrete (match / no-match), so selection is
-deterministic: same filenames = same selection.
+**Reading order** — for each module (alphabetical), read all source files
+sorted alphabetically by path. This guarantees:
+- 100% code coverage for both reverse-engineering and downstream scan skills
+- Perfect determinism: same files → same read order → same output
+- No "missed file" risk regardless of naming conventions
 
-**Two-tier file selection** — for each package/directory within a module:
-
-**Tier 1: Architecture-Role Files (MUST read — these define the system)**
-
-A source file matches Tier 1 if its filename (without extension) ends with or
-contains any of the following patterns (case-insensitive match):
-
-| Category | Patterns |
-|----------|----------|
-| API Layer | `*Controller`, `*Resource`, `*Handler`, `*Router`, `*Endpoint`, `*Resolver` |
-| Business Logic | `*Service`, `*ServiceImpl`, `*UseCase`, `*Interactor`, `*Orchestrator`, `*Saga`, `*Workflow` |
-| Data Access | `*Repository`, `*Mapper`, `*DAO`, `*Store`, `*DataSource` |
-| Configuration | `*Config`, `*Configuration`, `*Properties`, `*Module`, `*Provider`, `*Registry` |
-| Domain Model | `*Entity`, `*Model`, `*Aggregate`, `*ValueObject`, `*DTO`, `*VO` |
-| Integration | `*Client`, `*Feign*`, `*Gateway`, `*Adapter`, `*Proxy`, `*Connector` |
-| Security / Cross-cutting | `*Filter`, `*Interceptor`, `*Security*`, `*Auth*`, `*Guard`, `*Middleware` |
-| Design Patterns | `*Factory`, `*Builder`, `*Strategy`, `*Listener`, `*Subscriber`, `*Observer`, `*Publisher` |
-
-Match rule (deterministic):
-```bash
-# Example: find Tier-1 files in a module
-find <module-path> -type f \( -name "*.java" -o -name "*.ts" -o -name "*.js" \
-  -o -name "*.py" -o -name "*.go" -o -name "*.kt" \) | \
-  grep -iE "(Controller|Resource|Handler|Router|Endpoint|Resolver|\
-Service|ServiceImpl|UseCase|Interactor|Orchestrator|Saga|Workflow|\
-Repository|Mapper|DAO|Store|DataSource|\
-Config|Configuration|Properties|Module|Provider|Registry|\
-Entity|Model|Aggregate|ValueObject|DTO|VO|\
-Client|Feign|Gateway|Adapter|Proxy|Connector|\
-Filter|Interceptor|Security|Auth|Guard|Middleware|\
-Factory|Builder|Strategy|Listener|Subscriber|Observer|Publisher)\." | \
-  sort
-```
-
-**Tier 2: Remaining Files (alphabetical fill — only on Medium codebases)**
-
-All source files NOT matching Tier-1 patterns, sorted alphabetically. Used only
-to fill the per-package budget when Tier-1 alone is insufficient.
-
-**Budget rules by scale:**
-
-| Scale | Tier-1 | Tier-2 Fill | Per-Package Cap |
-|-------|--------|-------------|-----------------|
-| Small | N/A — read ALL files | N/A | No cap |
-| Medium | Read ALL Tier-1 matches | Fill remaining budget from Tier-2 alphabetically | 5 files total |
-| Large | Read ALL Tier-1 matches | NO Tier-2 fill | 3 files total (if Tier-1 exceeds 3, read all Tier-1 anyway) |
-
-**Budget exception for Large**: If a package has MORE than 3 Tier-1 files, read
-them ALL — do not truncate architecture-role files. The cap only limits Tier-2.
-
-**Determinism guarantee**: Pattern matching is binary (match or no-match on
-filename). No scoring, no thresholds, no continuous values that could flip at
-boundaries. Same filenames → same selection → same output.
+**Determinism guarantee**: The read set equals the full file manifest from
+Step 0.2. No selection logic, no thresholds, no heuristics. Same codebase =
+same files read in the same order = same output.
 
 ---
 
@@ -411,7 +359,7 @@ Create `code-review-artifacts/reverse-engineering/business-overview.md`:
 ```markdown
 # Business Overview
 
-**Generated by**: @codebase-reverse-engineering v1.8
+**Generated by**: @codebase-reverse-engineering v1.8.1
 **Codebase Scale**: [Small / Medium / Large] ([N] source files)
 
 ## System Purpose
@@ -453,7 +401,7 @@ Create `code-review-artifacts/reverse-engineering/architecture.md`:
 ```markdown
 # System Architecture
 
-**Generated by**: @codebase-reverse-engineering v1.8
+**Generated by**: @codebase-reverse-engineering v1.8.1
 
 ## System Overview
 
@@ -1108,7 +1056,7 @@ Create `code-review-artifacts/reverse-engineering/api-documentation.md`:
 ```markdown
 # API & Interface Documentation
 
-**Generated by**: @codebase-reverse-engineering v1.8
+**Generated by**: @codebase-reverse-engineering v1.8.1
 
 ## REST APIs
 
@@ -1171,7 +1119,7 @@ Create `code-review-artifacts/reverse-engineering/technology-and-dependencies.md
 ```markdown
 # Technology & Dependencies
 
-**Generated by**: @codebase-reverse-engineering v1.8
+**Generated by**: @codebase-reverse-engineering v1.8.1
 
 ## Programming Languages
 
@@ -1232,7 +1180,7 @@ Create `code-review-artifacts/reverse-engineering/code-quality-baseline.md`:
 ```markdown
 # Code Quality Baseline
 
-**Generated by**: @codebase-reverse-engineering v1.8
+**Generated by**: @codebase-reverse-engineering v1.8.1
 
 ## File Metrics
 
@@ -1298,7 +1246,7 @@ Create `code-review-artifacts/reverse-engineering/analysis-summary.md`:
 ```markdown
 # Reverse Engineering Analysis Summary
 
-**Generated by**: @codebase-reverse-engineering v1.8
+**Generated by**: @codebase-reverse-engineering v1.8.1
 **Analysis Date**: [YYYY-MM-DD]
 **Workspace**: [project root path]
 **Codebase Scale**: [Small / Medium / Large] ([N] source files)
@@ -1475,7 +1423,7 @@ Before saving artifacts, verify ALL of the following:
 After generating all artifacts:
 
 ```
-Reverse engineering analysis complete (v1.8 — deterministic mode).
+Reverse engineering analysis complete (v1.8.1 — deterministic full-scan mode).
 
 Artifacts saved to: code-review-artifacts/reverse-engineering/
   - business-overview.md            (+ business-overview.docx)
