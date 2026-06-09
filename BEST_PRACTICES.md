@@ -1,6 +1,6 @@
 # AI Code Review 方案设计最佳实践
 
-**基于 ops-code-review-kit v1.6 → v1.8 六个版本迭代的经验总结**
+**基于 ops-code-review-kit v1.6 → v1.8.1 七个版本迭代的经验总结**
 
 本文档回顾了在构建 AI 驱动的代码审查系统过程中遇到的所有问题、踩过的坑、以及
 最终沉淀下来的设计原则。适用于任何想用 LLM 做自动化代码审查的团队。
@@ -20,6 +20,10 @@
 9. [自校验机制比事后修复更有效](#9-自校验机制比事后修复更有效)
 10. [方案必须与项目结构解耦](#10-方案必须与项目结构解耦)
 11. [版本演进的节奏与策略](#11-版本演进的节奏与策略)
+12. [采样是确定性的敌人——全量扫描是终极解](#12-采样是确定性的敌人全量扫描是终极解)
+13. [LLM 自校验不可信——必须有外部验证](#13-llm-自校验不可信必须有外部验证)
+14. [CVSS 评分需要锚定——不能完全交给 LLM 主观判断](#14-cvss-评分需要锚定不能完全交给-llm-主观判断)
+15. [模型能力是方案的硬性前提——不是所有模型都能用](#15-模型能力是方案的硬性前提不是所有模型都能用)
 
 ---
 
@@ -112,7 +116,8 @@ D7: 无上下文泄漏
 |------|---------|------|
 | v1.7 | 每 package 取字母序前 N 个文件 | `UserService` 被跳过，`AaaHelper` 被选中 |
 | 研究阶段 | 考虑 fan-in 加权评分 | 连续分值在阈值附近翻转，破坏确定性 |
-| v1.8 | Architecture-Role Pattern Matching | 按命名模式选文件，离散判断，确定性 |
+| v1.8 | Architecture-Role Pattern Matching | 按命名模式选文件，离散判断，理论确定性 |
+| v1.8.1 | 全量扫描 | LLM 在执行 budget 规则时仍有自由裁量 → 全量读取彻底消除 |
 
 ### 采样策略的三个评估维度
 
@@ -446,7 +451,7 @@ grep -r "lab-manage-backend/" .kiro/
 
 ## 11. 版本演进的节奏与策略
 
-**教训来源**: 6 个版本的迭代节奏回顾
+**教训来源**: 7 个版本的迭代节奏回顾
 
 ### 版本拓扑
 
@@ -462,6 +467,8 @@ v1.6 (初始)
       v1.77 (修 auth 深度: password hash + token issuance)
       │
       v1.8  (结构性改进: pattern matching + open discovery + bug fixes)
+      │
+      v1.8.1 (全量扫描: 消除所有采样，彻底解决 gate 不一致)
 ```
 
 ### 版本类型
@@ -471,6 +478,7 @@ v1.6 (初始)
 | **补丁版** | 修一个具体 bug，不改结构 | v1.76, v1.77 |
 | **合并版** | 将并行开发的分支合回 | v1.75 |
 | **结构版** | 改变核心机制，影响多个文件 | v1.7 (确定性), v1.8 (pattern matching) |
+| **简化版** | 删除复杂逻辑，用更简单的方案替代 | v1.8.1 (删除采样逻辑→全量) |
 
 ### 演进策略建议
 
@@ -492,21 +500,234 @@ v1.6 (初始)
 
 ---
 
+## 12. 采样是确定性的敌人——全量扫描是终极解
+
+**教训来源**: v1.8 → v1.8.1 — 同一模型同一代码同一 skill 产出不同 Quality Gate
+
+### 问题
+
+v1.8 的 Pattern Matching 在理论上是确定性的（同文件名→同选择），但在**执行层面**
+存在不确定性：
+
+```
+同一个 Opus 4.8, 同一份代码, 同一个 v1.77 skill（MD5 完全一致）:
+
+  Run 14: 读到了 ph-fss-admin 的 Excel export 方法 → 报 java:S2095 Critical → FAIL
+  Run 15: 没读到这些文件 → 0 Critical → PASS
+  Run 0606: 读到了 → 报 java:S2095 Critical → FAIL
+```
+
+**根因**: 即使规则写了"每 package 最多读 3 个 Tier-1 文件"，LLM 在**执行这个规则**
+时的行为并不完全一致。它可能对"package 边界在哪里"、"这个文件算不算 Tier-1"
+有不同的瞬时判断。
+
+### 核心洞察
+
+> **凡是需要 LLM 做"选择"的地方，就是不确定性的入口。**
+>
+> 唯一能消除选择的方式是：**不给它选择的机会——全部读取。**
+
+### 设计原则
+
+```
+✗ "读取前 5 个文件"（LLM 可能数错）
+✗ "读取匹配模式的文件"（LLM 可能漏匹配）
+✗ "读取最重要的文件"（主观判断）
+✓ "读取所有源文件"（零自由裁量）
+```
+
+### 代价与取舍
+
+| 方案 | 确定性 | Token 消耗 | 适用场景 |
+|------|--------|-----------|---------|
+| 字母序采样 | ❌ 低 | 低 | 不推荐 |
+| Pattern Matching + budget | ⚠️ 理论高/实践中等 | 中等 | 不推荐（v1.8 已证明不够） |
+| 全量扫描 | ✅ 完美 | 高 | **v1.8.1 推荐** |
+
+**结论**: 对于代码审查这种需要可复现结果的场景，token 消耗不是问题——Quality Gate
+的可信度才是问题。宁可多花 token，不可让同一代码出两种结论。
+
+---
+
+## 13. LLM 自校验不可信——必须有外部验证
+
+**教训来源**: v1.8.1 Quality Gate 分析 — Haiku 声称自校验通过但实际规则 ID 不存在
+
+### 问题
+
+Haiku 4.5 在报告末尾写道：
+
+```
+- V-01 Rule ID Verification: All 12 issues map to verified SonarQube rule IDs. ✓
+- V-02 Severity Alignment: All severities match SonarQube standards file exactly. ✓
+```
+
+但实际验证发现：
+- `java:S2755` — 标准文件中不存在（编造）
+- `java:S116` — 标准文件中不存在（编造）
+- `java:S2077` — 标准文件中不存在（编造）
+- `java:S1119` — 存在但含义完全不同（张冠李戴）
+
+**LLM 的"自校验"本质上是让同一个大脑检查自己的输出。** 如果生成时就犯了错（从
+训练数据中回忆出不存在的规则），校验时它会用同样的错误记忆来"确认"。
+
+### 设计原则
+
+```
+┌─────────────────────────────────────────────┐
+│  LLM 自校验（必要但不充分）                    │
+│  - 在生成流程中内嵌，减少明显错误              │
+│  - 对强模型(Opus/Sonnet)有效率约 90%+         │
+│  - 对弱模型(Haiku)基本无效                    │
+└─────────────────────────────────────────────┘
+                    +
+┌─────────────────────────────────────────────┐
+│  外部验证（必须有）                            │
+│  - 脚本化: grep 标准文件验证每个 Rule ID       │
+│  - 不用 LLM: 用确定性程序执行                  │
+│  - 失败时: 自动将不合规 finding 移到 Appendix  │
+└─────────────────────────────────────────────┘
+```
+
+### 实现建议
+
+```bash
+# 外部验证脚本示例 (post-generation)
+for rule_id in $(grep -oP 'java:S\d+|javascript:S\d+|javabugs:S\d+' report.md); do
+  if ! grep -q "### $rule_id" standards.md; then
+    echo "INVALID: $rule_id not found in standards"
+  fi
+done
+```
+
+这类验证**必须是独立于 LLM 的程序**，而不是让 LLM 在 prompt 中"请验证"。
+
+---
+
+## 14. CVSS 评分需要锚定——不能完全交给 LLM 主观判断
+
+**教训来源**: v1.8.1 分析 — 同一安全问题被评为 CRITICAL/HIGH/MEDIUM 三种 severity
+
+### 问题
+
+BSL Security 报告要求为每个发现计算 CVSS v3.1 分数。CVSS 有 8 个度量值
+（AV/AC/PR/UI/S/C/I/A），每个都需要判断。LLM 对同一问题的判断不一致：
+
+**案例: "认证 token 存储在微信小程序 localStorage"**
+
+| 模型 | AV | AC | PR | UI | 评分 | Severity |
+|------|----|----|----|----|------|----------|
+| Sonnet | Network | Low | None | None | 9.1 | CRITICAL |
+| Opus | Network | Low | Low | None | 7.5 | HIGH |
+| Haiku | Local | High | Low | Required | 4.2 | MEDIUM |
+
+分歧来源：
+- **Attack Vector**: 是 Network（远程可利用）还是 Local（需要物理接触设备）？
+- **Privileges Required**: 是 None（任何人）还是 Low（需要先获取某种权限）？
+
+### 设计原则
+
+**为高频安全模式建立 CVSS 参照表**，减少 LLM 的自由判断空间：
+
+```markdown
+### CVSS Anchor Table (Security Report 使用)
+
+| 安全模式 | 标准 Vector | 分数 | Severity |
+|----------|------------|------|----------|
+| 硬编码密钥/密码在源码中 | AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H | 9.8 | CRITICAL |
+| SQL 注入 (无 WAF) | AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N | 9.1 | CRITICAL |
+| SQL 注入 (有 WAF/参数化部分) | AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N | 8.1 | HIGH |
+| Token 明文存储在客户端 | AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:L/A:N | 7.1 | HIGH |
+| CORS 允许所有 origin | AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:L/A:N | 7.1 | HIGH |
+| 日志中包含敏感信息 | AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N | 5.5 | MEDIUM |
+| 使用弱随机数 | AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N | 5.9 | MEDIUM |
+| 过期依赖（有已知 CVE） | 参照该 CVE 的官方 CVSS | — | — |
+```
+
+**规则**：
+- 如果发现匹配参照表中的模式 → 使用表中预定义的 vector 和分数
+- 如果不匹配 → LLM 自行评估，但必须逐字段给出理由
+- 参照表优先级高于 LLM 判断
+
+### 为什么这很重要
+
+CVSS 分数直接影响 severity → severity 直接影响 Quality Gate。如果同一问题的
+CVSS 在 6.9（Medium）和 7.0（High）之间浮动，gate 结论就会翻转。参照表消除了
+这个边界问题。
+
+---
+
+## 15. 模型能力是方案的硬性前提——不是所有模型都能用
+
+**教训来源**: v1.8.1 分析 — Haiku 4.5 产出的报告从规则 ID 到日期全部不可信
+
+### 问题
+
+Haiku 4.5 在代码审查场景中的表现：
+
+| 能力维度 | 表现 | 证据 |
+|----------|------|------|
+| 规则 ID 准确性 | ❌ 编造不存在的 ID | java:S2755, java:S116, java:S2077 |
+| 规则描述准确性 | ❌ 张冠李戴 | S1119="Labels"说成"Deprecated methods" |
+| 自校验有效性 | ❌ 通过了不该通过的 | 声称 V-01 ✓ 但 ID 不存在 |
+| Gate 规则遵守 | ❌ 发明新状态 | 创造了 "CONDITIONAL PASS" |
+| 日期准确性 | ❌ 幻觉 | 2026 年运行产出 2025-01-15 |
+| Severity 判断 | ❌ 严重偏差 | 同一问题评为 Medium（其他模型评 HIGH/CRITICAL）|
+
+### 设计原则
+
+**不是所有 LLM 都适合执行结构化代码审查。** 方案设计必须声明模型最低要求：
+
+```
+模型适用性矩阵:
+
+| 模型 | 逆向工程 | R&M 扫描 | Security 扫描 | 生产报告 |
+|------|---------|---------|--------------|---------|
+| Opus 4.8+ | ✅ | ✅ | ✅ | ✅ 推荐 |
+| Sonnet 4.6+ | ✅ | ✅ | ✅ | ✅ 可用 |
+| Haiku 4.5 | ⚠️ 仅供测试 | ❌ | ❌ | ❌ 禁止 |
+```
+
+### 如何判断一个模型是否适用
+
+在正式使用前，用一个**已知答案的小代码库**做验证：
+
+1. 准备一个包含 3-5 个已知问题的小项目（手动植入 S2095 资源泄漏、S3776 复杂度超标等）
+2. 运行扫描
+3. 检查：
+   - 所有已知问题是否被发现？
+   - 报告中的 Rule ID 是否全部存在于标准文件中？
+   - Severity 是否与标准文件一致？
+   - 有没有编造的发现？
+4. 通过率 < 90% → 该模型不适合生产使用
+
+### 不同模型的使用策略
+
+| 策略 | 说明 |
+|------|------|
+| **单模型生产** | 选定一个强模型（Opus），所有正式报告只用它 |
+| **多模型交叉验证** | 用 2 个模型分别扫描，取 findings 的交集作为高置信度结果 |
+| **强模型生成 + 弱模型辅助** | Opus 生成报告，Sonnet 做 adversarial review（尝试推翻每个 finding） |
+
+---
+
 ## 总结：核心设计原则清单
 
 | # | 原则 | 一句话 |
 |---|------|--------|
 | 1 | 确定性优先 | 同一代码 = 同一报告，用结构约束而非祈祷实现 |
 | 2 | 理解先于评判 | 先逆向工程理解系统，再做规则扫描 |
-| 3 | 选文件要按角色不按字母 | Pattern matching > alphabetical sampling |
+| 3 | 全量扫描优于任何采样 | 任何"选择"都是不确定性入口，全读是终极解 |
 | 4 | 规则映射严格，LLM 发现隔离 | Main body 只放规则匹配，Appendix 放 LLM 发现 |
 | 5 | Gate 全局一致 | 所有文档的 Quality Gate 必须是同一份定义的副本 |
 | 6 | 格式标准化 | 统一 Finding Header 让报告可合并可对比 |
 | 7 | 模块发现自动化 | 自动检测 + 可选手动覆盖，不硬编码 |
 | 8 | 追踪有界 | 任何"follow"指令都要有 hop limit |
-| 9 | 校验内嵌 | 在生成报告的流程中校验，不是生成后 |
+| 9 | 校验内嵌 + 外部验证 | LLM 自校验不可信，必须有独立程序做规则存在性检查 |
 | 10 | 与项目解耦 | 方案不应包含特定项目的名字、路径、数量 |
 | 11 | 版本聚焦 | 每个版本解决一个明确问题，说清 why |
+| 12 | CVSS 评分锚定 | 高频安全模式用参照表固定分数，消除边界翻转 |
+| 13 | 模型有门槛 | 声明最低模型要求，弱模型（Haiku）禁止用于生产报告 |
 
 ---
 
@@ -515,16 +736,22 @@ v1.6 (初始)
 | 失败模式 | 症状 | 根因 | 修复 |
 |----------|------|------|------|
 | 报告每次不同 | Summary 的 issue 数量波动 | 无排序规则或 per-instance 报告 | D1-D7 确定性规则 |
+| 同一代码 gate 翻转 | 跑3次，2次FAIL 1次PASS | 文件采样不确定性 | 全量扫描（v1.8.1） |
 | 架构描述错误 | Admin 被画成走 Gateway | 没读 frontend .env 和 proxy config | Step 1.7 mandatory read |
-| 关键文件被跳过 | 报告中缺少核心 Service 的描述 | 字母序采样 | Architecture-Role Pattern Matching |
-| 规则 ID 不存在 | Reviewer 查不到 `javascript:S106` | LLM 从训练数据回忆 | V-01 规则存在性校验 |
+| 关键文件被跳过 | 报告中缺少核心 Service 的描述 | 字母序采样 | 全量扫描（v1.8.1） |
+| 规则 ID 不存在 | Reviewer 查不到 `java:S2755` | LLM 从训练数据回忆 | 外部脚本 grep 验证 |
+| 自校验失效 | 报告声称 V-01 ✓ 但 ID 实际不存在 | LLM 用同一错误记忆做"验证" | 独立程序做校验，不信 LLM |
 | Severity 被篡改 | Medium 规则报成 High | LLM 觉得"严重"就升级 | V-02 strict severity mapping |
+| CVSS 边界翻转 | 同一问题评为 6.9(Med) 或 7.0(Hi) | LLM 对 CVSS 维度判断波动 | CVSS 参照表锚定 |
 | Gate 定义矛盾 | README 说 Fail 但报告说 Pass | 多处定义不同步 | Single source of truth |
+| Gate 状态被发明 | 出现 "CONDITIONAL PASS" | 弱模型不遵守二值约束 | 明确声明只有 PASS/FAIL |
 | 换项目就报错 | "Module lab-backend not found" | 硬编码 manifest | Auto-discovery + optional override |
 | Auth 信息缺失 | 不知道用的 BCrypt 还是 MD5 | 只读到 realm/filter 没追到实现 | 3-hop leaf tracing |
 | CVSS 分数缺失 | Security finding 没有评分 | Skill 没强制要求 | Self-check before each finding |
 | 报告无法合并 | Summary 生成失败 | 模块报告格式不一致 | Cross-module format consistency policy |
+| 弱模型产出垃圾 | 规则编造+日期错误+gate 状态发明 | 模型能力不足 | 设定模型最低要求，Haiku 禁用 |
+| 日期幻觉 | 报告日期 2025-01-15（不可能） | Haiku 无法正确使用系统日期 | 仅用 Opus/Sonnet |
 
 ---
 
-*本文档随版本演进持续更新。最后更新: v1.8 (2026-06-09)*
+*本文档随版本演进持续更新。最后更新: v1.8.1 (2026-06-09)*
