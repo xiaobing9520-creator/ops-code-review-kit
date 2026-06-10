@@ -1,12 +1,13 @@
 ---
 name: batch-scan
 description: >
-  One-click batch scan: triggers full code review for all modules in the
-  project. Generates 2 reports per module (Reliability & Maintainability +
-  Security) plus 1 global Summary Report. 9 reports total for 4 modules.
+  One-click batch scan (v1.9): triggers full code review for all modules.
+  Generates 2 reports per module (R&M + Security) plus 1 Summary Report.
+  Uses dimension-based scanning, adversarial verification, and external
+  script validation for deterministic Quality Gate results.
 ---
 
-# Batch Scan — One-Click Full Project Review
+# Batch Scan — One-Click Full Project Review (v1.9)
 
 You are the operations team's automated scanning orchestrator. When invoked,
 perform a complete code review of **all modules** in the project and generate
@@ -93,20 +94,31 @@ For each module, IN SEQUENCE:
 - Identify frameworks (Spring, Express, etc.)
 - Determine applicable rule sets
 
-#### 2.2 Generate Reliability & Maintainability Report
+#### 2.2 Generate Reliability & Maintainability Report (v1.9 Three-Layer)
 
-Apply the `@sonarqube-review` skill logic for this module:
-- Check against SonarQube rules from `.kiro/rules/sonarqube-*-standards.md`
-- Strict rule-to-ID mapping
-- Quality gate evaluation
-- Fix priority assignment (P0–P3)
-- LLM-discovered issues to appendix
+Apply the `@sonarqube-review` skill logic (v1.9) for this module. This involves:
 
-After generating, run the `@rm-report-validator` validation checks inline:
-- V-01: Confirm every rule ID exists in the standards file — move undefined rules to Appendix
-- V-02: Confirm every severity label matches the standards file exactly — correct any mismatch
-- V-03: Confirm every rule description matches the actual rule title — move wrong-rule findings to Appendix
-- Recalculate Quality Gate if any corrections were made
+**Layer 1 — LLM Dimension Scan + Adversarial Verification:**
+- Scan all 5 dimensions (Resource, Null, Exception, Concurrency, Spring)
+- Each dimension has mandatory rules to check explicitly
+- Every candidate finding undergoes adversarial verification (attempt to disprove)
+- Only confirmed findings survive to the report
+
+**Layer 2 — External Rule Validation Script:**
+After generating the report markdown, run:
+```bash
+python3 .kiro/scripts/validate-report.py code-review-artifacts/[ModuleName]_Reliability_Maintainability_Report_[DATE].md --rules sonarqube_rules.json
+```
+Apply corrections from script output:
+- V-01: Move undefined rule IDs to Appendix
+- V-02: Correct severity mismatches
+- V-03: Move wrong-rule findings to Appendix
+
+**Layer 3 — External Gate Calculation:**
+```bash
+python3 .kiro/scripts/compute-gate.py code-review-artifacts/[ModuleName]_Reliability_Maintainability_Report_[DATE].md
+```
+Use the script's PASS/FAIL as the **authoritative** gate status.
 
 Save as: `code-review-artifacts/[ModuleName]_Reliability_Maintainability_Report_[YYYY-MM-DD].md`
 
@@ -134,12 +146,20 @@ After each module, output progress:
   Security: [PASS/FAIL] — Critical=[n], High=[n], Medium=[n]
 ```
 
+#### 2.5 Run Overall Gate Calculation
+
+After all modules are processed, compute the overall quality gate using:
+```bash
+python3 .kiro/scripts/compute-gate.py --summary code-review-artifacts/*_Report_[DATE].md
+```
+This provides the authoritative overall PASS/FAIL determination.
+
 ### Step 3: Generate Summary Report
 
 After all modules are processed, apply the `@summary-report` skill logic:
 - Read all module-level reports
 - Aggregate into Summary_Report_[date].md
-- Compute overall quality gate
+- Use the overall gate from the script output (Step 2.5)
 
 ### Step 4: Convert to Word Format
 

@@ -8,7 +8,7 @@ description: >
   skill + same model = same architecture output.
 ---
 
-# Codebase Reverse Engineering (v1.8.1 — Deterministic, Full-Scan)
+# Codebase Reverse Engineering (v1.9 — Deterministic, Full-Scan)
 
 You are a senior software architect performing comprehensive reverse engineering
 of a codebase. Your goal is to deeply understand the system before any code

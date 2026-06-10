@@ -56,11 +56,20 @@ When this file exists, ALL skills MUST use it instead of auto-detection. When
 it does NOT exist, auto-detection applies. This makes the kit portable across
 projects without manual steering edits.
 
-## Determinism & Reproducibility Policy
+## Determinism & Reproducibility Policy (v1.9)
 
-Same codebase + same standards + same model MUST yield the same reports. To
-remove run-to-run drift (the cause of differing Summary Reports), ALL skills
-MUST obey:
+Same codebase + same standards + same model MUST yield the same reports. v1.9
+introduces a **three-layer architecture** to enforce determinism:
+
+- **Layer 1 (LLM)**: Dimension-based scanning + adversarial verification
+- **Layer 2 (Script)**: Deterministic rule ID validation (`validate-report.py`)
+- **Layer 3 (Script)**: Deterministic Quality Gate calculation (`compute-gate.py`)
+
+The scripts in `.kiro/scripts/` are the **authoritative** source for rule
+validity and Quality Gate results. If the LLM's judgment conflicts with script
+output, the script wins.
+
+ALL skills MUST obey:
 
 1. **Deterministic module set** — Use the auto-discovered module list (Step 0.3)
    or the `module-manifest.md` override if present. Once discovered, the list is
@@ -73,7 +82,7 @@ MUST obey:
    issue-count variance.
 3. **Table-driven severity** — R&M severity = exact severity in the SonarQube
    standards file; Security severity = CVSS band. Never infer or "judge"
-   severity.
+   severity. Enforced by `validate-report.py` (V-02).
 4. **Deterministic fix priority** — Apply the Fix Priority Decision Table below
    exactly. Priority is a pure function of severity + category.
 5. **Stable ordering & numbering** — Within each report, order findings by
@@ -82,6 +91,12 @@ MUST obey:
 6. **No discretionary prose** — Do not invent run-specific "key themes" or
    narrative. All summary prose must be derived only from the aggregated
    finding tables.
+7. **Rule ID must exist in standards** — No rule ID may appear in the main
+   findings unless it exists in `sonarqube-rule-index.txt`. Enforced by
+   `validate-report.py` (V-01). Violations are moved to Appendix.
+8. **External gate is authoritative** — The Quality Gate PASS/FAIL is computed
+   by `compute-gate.py`, not by the LLM. The LLM writes a preliminary gate
+   which is overwritten if the script disagrees.
 
 ### Fix Priority Decision Table (DETERMINISTIC)
 

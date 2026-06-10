@@ -1,4 +1,4 @@
-# Ops Code Review Kit (v1.8.1)
+# Ops Code Review Kit (v1.9)
 
 ## What Is This
 
@@ -16,8 +16,11 @@ All review work is performed by the operations team in their own environment.
 - **2 reports per module**: Reliability & Maintainability + Security
 - **Global summary report**: Merges all module scan results with overall Pass/Fail determination
 - **Full code scanning**: Every source file is read — no sampling, no skipping, 100% coverage
+- **Dimension-based scanning**: 5 mandatory dimensions ensure consistent coverage across runs
+- **Adversarial verification**: Every finding is challenged before inclusion — reduces false positives
+- **External validation scripts**: Deterministic Python scripts verify rule IDs and compute Quality Gate
 - **Strict rule mapping**: Every issue must map to a specific Rule ID — no ad-hoc adjustments
-- **Quality gate**: Automatic Pass/Fail based on severity thresholds
+- **Quality gate**: Automatic Pass/Fail computed by external script (not LLM judgment)
 - **Fix priorities**: P0-P3 classification with defined remediation timelines
 - **AI-suggested fix code**: Each finding includes AI-generated corrective code where applicable
 - **Word output**: Reports generated in both Markdown and Word (.docx) format
@@ -55,7 +58,7 @@ git clone <repository-url> /path/to/target-project
 ### Step 2: Inject the Review Toolkit
 
 ```bash
-cp -r ops-code-review-kit-1.8.1/.kiro /path/to/target-project/
+cp -r ops-code-review-kit-1.9/.kiro /path/to/target-project/
 ```
 
 ### Step 3: Run the Review in Kiro
@@ -163,23 +166,53 @@ When this file exists, all skills use it instead of auto-detection.
 
 ## Code Scanning Strategy
 
-### Full-Scan (v1.8.1)
+### Three-Layer Architecture (v1.9)
 
-v1.8.1 reads **ALL source files** regardless of codebase size. There is no
-sampling, no per-package budget, and no tiered selection.
+v1.9 separates deterministic operations from LLM judgment:
 
-| Scale | File Count | Strategy |
-|-------|-----------|----------|
-| **Any** | All sizes | Read ALL source files — full scan |
+```
+Layer 1 (LLM): Dimension scan → Adversarial verify → Generate report
+Layer 2 (Script): validate-report.py → Check rule IDs & severities
+Layer 3 (Script): compute-gate.py → Deterministic PASS/FAIL
+```
 
-**Why full scan**: The Quality Gate inconsistency analysis (see
-`QUALITY_GATE_INCONSISTENCY_ANALYSIS.md`) showed that any form of sampling —
-alphabetical or pattern-based — introduces non-determinism when the LLM's file
-selection varies between runs. Full scan eliminates this risk entirely: same
-codebase = same files read = same findings = same Quality Gate result.
+### Full-Scan (inherited from v1.8.1)
 
-Codebase scale (Small < 50, Medium 50-500, Large > 500) is still recorded in
-the output for informational purposes but does not affect scan behavior.
+Every source file is read regardless of codebase size. No sampling.
+
+### Dimension-Based Scanning (v1.9)
+
+Instead of free-form analysis, the LLM scans through 5 mandatory dimensions:
+
+| # | Dimension | Focus | Key Rules |
+|---|-----------|-------|-----------|
+| 1 | Resource Management | Streams, connections | S2095, S2189, S2142 |
+| 2 | Null Safety | NullPointerException | S2259, S2637, S3518 |
+| 3 | Exception Handling | Error correctness | S1181, S108, S1186 |
+| 4 | Concurrency | Thread safety | S2445, S2168, S2696 |
+| 5 | Spring/Config | Framework issues | S6818, S4601, S3776 |
+
+Each dimension has mandatory rules checked explicitly (Found / Not Found / N/A).
+
+### Adversarial Verification (v1.9)
+
+Every candidate finding is challenged: the LLM re-reads the full method and
+checks exclusion conditions. If ANY exclusion applies, the finding is removed.
+This dramatically reduces false positives.
+
+### External Validation (v1.9)
+
+Two Python scripts provide deterministic post-processing:
+
+| Script | Purpose | Authority |
+|--------|---------|-----------|
+| `validate-report.py` | Verify rule IDs exist, severity matches standards | Overrides LLM |
+| `compute-gate.py` | Compute PASS/FAIL from validated findings | Final gate result |
+
+**Why external validation**: The v1.8.1 inconsistency analysis (see
+`V181_QUALITY_GATE_INCONSISTENCY_ANALYSIS.md`) proved that LLM self-validation
+is unreliable (the same model that fabricates a rule ID also "validates" it as
+correct). External scripts eliminate this class of error entirely.
 
 ## Report Structure
 
@@ -377,16 +410,27 @@ A: `@rescan` focuses on fix verification, not a full re-scan. It checks each
 previous finding for fix completeness, assesses fix correctness, and detects
 regressions. It produces a delta report rather than a full report.
 
-**Q: What changed in v1.8.1's code scanning approach?**
-A: v1.8.1 eliminates all file sampling entirely. Every source file is read
-regardless of codebase size. This guarantees 100% code coverage and fully
-deterministic results — no file is ever skipped due to budget caps or
-selection heuristics.
+**Q: What changed in v1.9?**
+A: v1.9 introduces a three-layer architecture: (1) LLM scans code through 5
+mandatory dimensions with adversarial verification, (2) a Python script validates
+all rule IDs against the standards JSON, (3) a Python script computes the Quality
+Gate deterministically. This eliminates rule ID hallucination and gate logic errors.
+
+**Q: What are the external validation scripts?**
+A: `.kiro/scripts/validate-report.py` checks rule IDs and severities against
+`sonarqube_rules.json`. `.kiro/scripts/compute-gate.py` calculates the Quality
+Gate from validated findings. Both are deterministic — same input always gives
+same output.
+
+**Q: Do I need Python installed?**
+A: Python 3.6+ is required for the validation scripts. If Python is not available,
+the LLM will skip external validation and rely on inline checks (less reliable).
 
 ## Version History
 
 | Version | Key Changes |
 |---------|-------------|
+| v1.9 | Three-layer architecture: dimension scanning + adversarial verification + external script validation |
 | v1.8.1 | Full-scan mode — read ALL source files, no sampling regardless of codebase size |
 | v1.8 | Architecture-Role Pattern Matching; open module discovery; bug fixes |
 | v1.77 | Auth leaf-implementation tracing (password hashing, token issuance) |

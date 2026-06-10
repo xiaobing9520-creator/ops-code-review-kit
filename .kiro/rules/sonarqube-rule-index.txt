@@ -1,0 +1,226 @@
+# SonarQube Rule Index (machine-generated, do NOT edit)
+# Format: rule_key|severity|title
+# Total rules: 222
+#
+java:S1113|High|The "Object.finalize()" method should not be overridden
+java:S1143|High|Jump statements should not occur in "finally" blocks
+java:S115|High|Constant names should comply with a naming convention
+java:S1163|High|Exceptions should not be thrown in finally blocks
+java:S1174|High|"Object.finalize()" should remain protected (versus public) when overriding
+java:S1175|High|The signature of "finalize()" should match that of "Object.finalize()"
+java:S1186|High|Methods should not be empty
+java:S1190|Blocker|Future keywords should not be used as names
+java:S1192|High|String literals should not be duplicated
+java:S1214|High|Interfaces should not solely consist of constants
+java:S1215|High|Execution of the Garbage Collector should be triggered only by the JVM
+java:S1219|Blocker|"switch" statements should not contain non-case labels
+java:S128|Blocker|Switch cases should end with an unconditional "break" statement
+java:S131|High|"switch" statements should have "default" clauses
+java:S1452|High|Generic wildcard types should not be used in return types
+java:S1598|High|Package declaration should match source file directory
+java:S1845|Blocker|Methods and field names should not be the same or differ only by capitalization
+java:S1948|High|Fields in a "Serializable" class should either be transient or serializable
+java:S1994|High|"for" loop increment clauses should modify the loops' counters
+java:S2053|High|Password hashing functions should use an unpredictable salt
+java:S2062|High|"readResolve" methods should be inheritable
+java:S2093|High|Try-with-resources should be used
+java:S2095|Blocker|Resources should be closed
+java:S2115|Blocker|A secure password should be used when connecting to a database
+java:S2119|High|"Random" objects should be reused
+java:S2122|High|"ScheduledThreadPoolExecutor" should not have 0 core threads
+java:S2151|High|"runFinalizersOnExit" should not be called
+java:S2157|High|"Cloneables" should implement "clone"
+java:S2168|Blocker|Double-checked locking should not be used
+java:S2176|High|Class names should not shadow interfaces or superclasses
+java:S2178|Blocker|Short-circuit logic should be used in boolean contexts
+java:S2186|High|JUnit assertions should not be used in "run" methods
+java:S2187|Blocker|TestCases should contain tests
+java:S2188|Blocker|JUnit test cases should call super methods
+java:S2189|Blocker|Loops should not be infinite
+java:S2222|High|Locks should be released on all paths
+java:S2229|Blocker|Methods should not call same-class methods with incompatible "@Transactional" values
+java:S2235|High|"IllegalMonitorStateException" should not be caught
+java:S2236|Blocker|Methods "wait(...)", "notify()" and "notifyAll()" should not be called on Thread instances
+java:S2254|High|"HttpServletRequest.getRequestedSessionId()" should not be used
+java:S2274|High|"Object.wait(...)" and "Condition.await(...)" should be called inside a "while" loop
+java:S2275|Blocker|Printf-style format strings should not lead to unexpected behavior at runtime
+java:S2276|Blocker|"wait(...)" should be used instead of "Thread.sleep(...)" when a lock is held
+java:S2387|Blocker|Child class fields should not shadow parent class fields
+java:S2390|High|Classes should not access their own subclasses during class initialization
+java:S2437|Blocker|Unnecessary bit operations should not be performed
+java:S2447|High|"null" should not be returned from a "Boolean" method
+java:S2479|High|Whitespace and control characters in literals should be explicit
+java:S2638|High|Method overrides should not change contracts
+java:S2689|Blocker|Files opened in append mode should not be used with "ObjectOutputStream"
+java:S2692|High|"indexOf" checks should not be for positive numbers
+java:S2695|Blocker|"PreparedStatement" and "ResultSet" methods should be called with valid indices
+java:S2696|High|Instance methods should not write to "static" fields
+java:S2699|Blocker|Tests should include assertions
+java:S2755|Blocker|XML parsers should not be vulnerable to XXE attacks
+java:S2970|Blocker|Assertions should be complete
+java:S2975|Blocker|"clone" should not be overridden
+java:S3014|Blocker|"ThreadGroup" should not be used
+java:S3046|Blocker|"wait" should not be called when multiple locks are held
+java:S3252|High|"static" base class members should not be accessed via derived types
+java:S3305|High|Factory method injection should be used in "@Configuration" classes
+java:S3329|High|Cipher Block Chaining IVs should be unpredictable
+java:S3516|Blocker|Methods returns should not be invariant
+java:S3753|Blocker|"@Controller" classes that use "@SessionAttributes" must call "setComplete" on their "SessionStatus" objects
+java:S3776|High|Cognitive Complexity of methods should not be too high
+java:S3972|High|Conditionals should start on new lines
+java:S3973|High|A conditionally executed single line should be denoted by indentation
+java:S4275|High|Getters and setters should access the expected fields
+java:S4347|High|Secure random number generators should not output predictable values
+java:S4423|High|Weak SSL/TLS protocols should not be used
+java:S4426|High|Cryptographic keys should be robust
+java:S4433|High|LDAP connections should be authenticated
+java:S4454|High|"equals" method parameters should not be marked "@Nonnull"
+java:S4524|High|"default" clauses should be last
+java:S4601|High|"HttpSecurity" URL patterns should be correctly ordered
+java:S4602|Blocker|"@SpringBootApplication" and "@ComponentScan" should not be used in the default package
+java:S4635|High|String offset-based methods should be preferred for finding substrings from offsets
+java:S4684|High|Persistent entities should not be used as arguments of "@RequestMapping" methods
+java:S4830|High|Server certificates should be verified during SSL/TLS connections
+java:S4970|High|Derived exceptions should not hide their parents' catch blocks
+java:S5344|High|Passwords should not be stored in plaintext or with a fast hashing algorithm
+java:S5361|High|"String#replace" should be preferred to "String#replaceAll"
+java:S5445|High|Insecure temporary file creation methods should not be used
+java:S5527|High|Server hostnames should be verified during SSL/TLS connections
+java:S5542|High|Encryption algorithms should be used with secure mode and padding scheme
+java:S5547|High|Cipher algorithms should be robust
+java:S5659|High|JWT should be signed and verified with strong cipher algorithms
+java:S5779|High|Assertion methods should not be used within the try block of a try-catch catching an Error
+java:S5783|High|Only one method invocation is expected when testing checked exceptions
+java:S5790|High|JUnit5 inner test classes should be annotated with @Nested
+java:S5803|High|Class members annotated with "@VisibleForTesting" should not be accessed from production code
+java:S5826|High|Methods setUp() and tearDown() should be correctly annotated starting with JUnit4
+java:S5845|High|Assertions comparing incompatible types should not be made
+java:S5846|High|Empty lines should not be tested with regex MULTILINE flag
+java:S5856|High|Regular expressions should be syntactically valid
+java:S5876|High|A new session should be created during user authentication
+java:S5969|High|Mocking all non-private methods of a class should be avoided
+java:S5994|High|Regex patterns following a possessive quantifier should not always fail
+java:S5996|High|Regex boundaries should not be used in a way that can never be matched
+java:S6001|High|Back references in regular expressions should only refer to capturing groups that are matched before the reference
+java:S6002|High|Regex lookahead assertions should not be contradictory
+java:S6104|High|Map "computeIfAbsent()" and "computeIfPresent()" should not be used to add "null" values.
+java:S6209|High|Members ignored during record serialization should not be used
+java:S6373|Blocker|XML parsers should not allow inclusion of arbitrary files
+java:S6432|High|Counter Mode initialization vectors should not be reused
+java:S6437|Blocker|Credentials should not be hard-coded
+java:S6809|High|Methods with Spring proxy should not be called via "this"
+java:S6814|High|Optional REST parameters should have an object type
+java:S6816|High|Nullable injected fields and parameters should provide a default value
+java:S6817|High|Use of the "@Async" annotation on methods declared within a "@Configuration" class in Spring Boot
+java:S6818|High|"@Autowired" should only be used on a single constructor
+java:S6857|High|SpEL expression should have a valid syntax
+java:S6876|High|Reverse iteration should utilize reversed view
+java:S6877|High|Reverse view should be used instead of reverse copy in read-only cases
+java:S6881|High|Virtual threads should be used for tasks that include heavy blocking operations
+java:S7178|High|Injecting data into static fields is not supported by Spring
+java:S7184|High|"@Scheduled" annotation should only be applied to no-arg methods
+java:S7185|High|@EventListener methods should have one parameter at most
+java:S7186|High|Methods returning "Page" or "Slice" must take "Pageable" as an input parameter
+java:S7190|High|Methods annotated with "@BeforeTransaction" or "@AfterTransaction" must respect the contract
+javaarchitecture:S7788|High|Relationships should align with the intended architecture
+javaarchitecture:S7789|High|Classes should be located according to the intended architecture
+javaarchitecture:S8134|High|Forbidden relationships should be removed to solve tangles as directed by the project's architect
+javabugs:S2190|Blocker|Recursion should not be infinite
+javabugs:S3518|High|Zero should not be a possible denominator
+javabugs:S6320|High|Cast operations should not trigger a ClassCastException
+javabugs:S6322|High|Unsupported methods should not be called on some collection implementations
+javabugs:S6416|High|Calls to methods should not trigger an exception
+javabugs:S6466|High|Accessing an array element should not trigger an ArrayIndexOutOfBoundsException
+javascript:S1143|Blocker|Jump statements should not occur in "finally" blocks
+javascript:S1186|Blocker|Functions should not be empty
+javascript:S1219|Blocker|"switch" statements should not contain non-case labels
+javascript:S128|Blocker|Switch cases should end with an unconditional "break" statement
+javascript:S1314|Blocker|Octal values should not be used
+javascript:S1527|Blocker|Future reserved words should not be used as identifiers
+javascript:S1994|Blocker|"for" loop increment clauses should modify the loops' counters
+javascript:S2004|Blocker|Functions should not be nested too deeply
+javascript:S2187|Blocker|Test files should contain at least one test case
+javascript:S2189|Blocker|Loops should not be infinite
+javascript:S2430|Blocker|Constructor names should start with an upper case letter
+javascript:S2598|Blocker|File uploads should be restricted
+javascript:S2699|Blocker|Tests should include assertions
+javascript:S2703|Blocker|Variables should be declared explicitly
+javascript:S2755|Blocker|XML parsers should not be vulnerable to XXE attacks
+javascript:S2819|Blocker|Origins should be verified during cross-origin communications
+javascript:S2871|Blocker|"Array.prototype.sort()" and "Array.prototype.toSorted()" should use a compare function
+javascript:S2970|Blocker|Assertions should be complete
+javascript:S3504|Blocker|Variables should be declared with "let" or "const"
+javascript:S3516|Blocker|Function returns should not be invariant
+javascript:S3735|Blocker|"void" should not be used
+javascript:S3776|Blocker|Cognitive Complexity of functions should not be too high
+javascript:S3785|Blocker|"in" should not be used with primitive types
+javascript:S3796|Blocker|Callbacks of array methods should have return statements
+javascript:S3812|Blocker|Parentheses should be used when negating "in" and "instanceof" operations
+javascript:S3834|Blocker|"new" operator should not be used with Symbol and BigInt
+javascript:S3854|Blocker|"super()" should be invoked appropriately
+javascript:S3972|Blocker|Conditionals should start on new lines
+javascript:S4123|Blocker|"await" should only be used with promises
+javascript:S4125|Blocker|"typeof" expressions should only be compared to valid values
+javascript:S4275|Blocker|Getters and setters should access the expected fields
+javascript:S4423|Blocker|Weak SSL/TLS protocols should not be used
+javascript:S4426|Blocker|Cryptographic keys should be robust
+javascript:S4524|Blocker|"default" clauses should be last
+javascript:S4830|Blocker|Server certificates should be verified during SSL/TLS connections
+javascript:S5260|Blocker|Table cells should reference their headers
+javascript:S5527|Blocker|Server hostnames should be verified during SSL/TLS connections
+javascript:S5542|Blocker|Encryption algorithms should be used with secure mode and padding scheme
+javascript:S5547|Blocker|Cipher algorithms should be robust
+javascript:S5659|Blocker|JWT should be signed and verified with strong cipher algorithms
+javascript:S5856|Blocker|Regular expressions should be syntactically valid
+javascript:S5876|Blocker|A new session should be created during user authentication
+javascript:S6079|Blocker|Tests should not execute any code after "done()" is called
+javascript:S6317|Blocker|AWS IAM policies should limit the scope of permissions given
+javascript:S6437|Blocker|Credentials should not be hard-coded
+javascript:S6859|Blocker|Imports should not use absolute paths
+javascript:S6861|Blocker|Mutable variables should not be exported
+javascript:S6958|Blocker|Literals should not be used as functions
+javascript:S7059|Blocker|Constructors should not contain asynchronous operations
+javascript:S7639|Blocker|Wallet phrases should not be hard-coded
+javascript:S7724|Blocker|ESLint disable comments should specify which rules to disable
+javascript:S7725|Blocker|Getters and setters should not recursively access the same property
+javascript:S7727|Blocker|Function references should not be passed directly to iterator methods
+javascript:S7739|Blocker|Objects should not have a "then" property
+javascript:S7740|Blocker|Variables should not be assigned the value of "this"
+javascript:S7746|Blocker|Promise.resolve() and Promise.reject() should not be used in async functions or promise callbacks
+javascript:S7761|Blocker|Data attributes should be accessed using ".dataset"
+javascript:S7767|Blocker|Bitwise operators should not be used to truncate numbers
+javascript:S7768|Blocker|Modern DOM manipulation methods should be used instead of legacy alternatives
+javascript:S7774|Blocker|Methods should be accessed from prototypes, not instances
+javascript:S7783|Blocker|"trimLeft()" and "trimRight()" should be replaced with "trimStart()" and "trimEnd()"
+javascript:S888|Blocker|Equality operators should not be used in "for" loop termination conditions
+javascript:S930|Blocker|Function calls should not pass extra arguments
+javasecurity:S2076|Blocker|OS commands should not be vulnerable to command injection attacks
+javasecurity:S2078|Blocker|LDAP queries should not be vulnerable to injection attacks
+javasecurity:S2083|Blocker|I/O function calls should not be vulnerable to path injection attacks
+javasecurity:S2091|Blocker|XPath expressions should not be vulnerable to injection attacks
+javasecurity:S2631|High|Regular expressions should not be vulnerable to Denial of Service attacks
+javasecurity:S3649|Blocker|Database queries should not be vulnerable to injection attacks
+javasecurity:S5131|Blocker|Endpoints should not be vulnerable to reflected cross-site scripting (XSS) attacks
+javasecurity:S5135|Blocker|Deserialization should not be vulnerable to injection attacks
+javasecurity:S5146|Blocker|HTTP request redirections should not be open to forging attacks
+javasecurity:S5147|Blocker|NoSQL operations should not be vulnerable to injection attacks
+javasecurity:S5334|Blocker|Dynamic code execution should not be vulnerable to injection attacks
+javasecurity:S5496|Blocker|Server-side templates should not be vulnerable to injection attacks
+javasecurity:S6096|Blocker|Extracting archives should not lead to zip slip vulnerabilities
+javasecurity:S6384|Blocker|Components should not be vulnerable to intent redirection
+javasecurity:S6390|High|Thread suspensions should not be vulnerable to Denial of Service attacks
+javasecurity:S7606|Blocker|WebViews should not be vulnerable to cross-app scripting attacks
+jsarchitecture:S7788|Blocker|Relationships should align with the intended architecture
+jsarchitecture:S7789|Blocker|Files should be located according to the intended architecture
+jsarchitecture:S8134|Blocker|Forbidden relationships should be removed to solve tangles as directed by the project's architect
+jssecurity:S2076|Blocker|OS commands should not be vulnerable to command injection attacks
+jssecurity:S2083|Blocker|I/O function calls should not be vulnerable to path injection attacks
+jssecurity:S2631|Blocker|Regular expressions should not be vulnerable to Denial of Service attacks
+jssecurity:S3649|Blocker|Database queries should not be vulnerable to injection attacks
+jssecurity:S5131|Blocker|Endpoints should not be vulnerable to reflected cross-site scripting (XSS) attacks
+jssecurity:S5146|Blocker|HTTP request redirections should not be open to forging attacks
+jssecurity:S5147|Blocker|NoSQL operations should not be vulnerable to injection attacks
+jssecurity:S5334|Blocker|Dynamic code execution should not be vulnerable to injection attacks
+jssecurity:S5696|Blocker|DOM updates should not lead to cross-site scripting (XSS) attacks
+jssecurity:S6096|Blocker|Extracting archives should not lead to zip slip vulnerabilities
+jssecurity:S6105|Blocker|DOM updates should not lead to open redirect vulnerabilities
