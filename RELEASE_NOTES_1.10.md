@@ -27,10 +27,32 @@ Phase 5: Report Assembly + Gate Calculation
 
 ## New Features
 
-### 1. file-manifest.json (Phase 1)
+### 1. generate-manifest.py (Phase 1) — CRITICAL
 
-Generated during reverse engineering. Contains per-file:
-- **description**: One-line functional summary
+New Python script that generates `file-manifest.json` with **100% source file
+coverage**, without requiring the LLM to read any files.
+
+```bash
+python3 .kiro/scripts/generate-manifest.py --root .
+```
+
+**Why this script exists**: The initial v1.10 design had a bootstrap paradox —
+file-manifest.json needed to cover ALL files, but the LLM generating it could
+only read ~20 files per session. First real-world test on lab-admin-web showed
+20/1349 file coverage (1.5%). This script eliminates LLM involvement entirely
+for the enumeration step.
+
+**What it does** (pure Python, no LLM, fully deterministic):
+- Scans filesystem for ALL source files (sorted alphabetically)
+- Computes token estimates (file_size / 4)
+- Extracts `import`/`require` statements via regex → builds dependency graph
+- Runs grep patterns for security_signals and quality_signals
+- Resolves `@/` path aliases to actual file paths
+- Excludes node_modules, vendor, dist, test fixtures, third-party bundles
+
+**Output per file**:
+- **path**: Relative file path
+- **module**: Auto-detected from package.json/workspaces
 - **tokens**: Approximate token count for batch planning
 - **imports / imported_by**: Dependency edges for graph construction
 - **security_signals**: grep-detected patterns (v-html, hardcoded-secret, md5-usage, localStorage, console-log, eval-usage, innerHTML, http-url)
@@ -39,14 +61,22 @@ Generated during reverse engineering. Contains per-file:
 Signals are deterministic (same file → same grep → same signals) and serve as
 the completeness checklist for Phase 4.
 
+**Tested**: lab-admin-web (1496 files, 3.2M tokens) → manifest generated in <5s.
+
 ### 2. scan-planner.py (Phase 2)
 
 New Python script that reads file-manifest.json and produces scan-plan.json:
 - Builds a dependency graph from import/imported_by relationships
 - Finds connected components (files that MUST be in the same context window)
 - Greedily assigns components to batches respecting a token budget (800K default)
+- **Splits oversized components**: When a connected component exceeds the budget
+  (common in large SPAs where most files are interconnected), it is split into
+  sub-batches via greedy bin-packing by file size
 - Alphabetical tie-breaking guarantees identical plans on every run
 - Falls back to single-batch mode if python3 is unavailable
+
+**Tested**: lab-admin-web had one component of 1315 files (2.35M tokens) —
+correctly split into 3 sub-batches of ~800K each. Final plan: 5 batches total.
 
 ### 3. Verification Agent — Agent B (Phase 4)
 
@@ -96,8 +126,10 @@ Deterministic mapping from grep signals to rules/controls:
 ## Changes to Existing Skills
 
 ### @codebase-reverse-engineering
-- Added **Step 0.5**: Generate file-manifest.json with per-file descriptions,
-  token counts, dependency edges, and grep signals
+- Added **Step 0.5**: Run `generate-manifest.py` to produce file-manifest.json
+  covering ALL source files (script-based, not LLM-based)
+- Fallback instructions for when python3 is unavailable (grep + wc -c)
+- Verification step: entry count must equal source file count or scan aborts
 - Version header updated to v1.10
 
 ### @batch-scan
@@ -128,7 +160,8 @@ Deterministic mapping from grep signals to rules/controls:
 
 | File | Purpose |
 |------|---------|
-| `.kiro/scripts/scan-planner.py` | Deterministic context window batch planner |
+| `.kiro/scripts/generate-manifest.py` | Deterministic file manifest generator (covers ALL source files without LLM) |
+| `.kiro/scripts/scan-planner.py` | Deterministic context window batch planner (with oversized component splitting) |
 | `.kiro/skills/verification-agent/skill.md` | Agent B adversarial verification skill |
 
 ## Breaking Changes
@@ -144,6 +177,38 @@ Deterministic mapping from grep signals to rules/controls:
 2. No changes needed to rule files (`.kiro/rules/` unchanged)
 3. Python 3.6+ recommended (for scan-planner.py); falls back gracefully if unavailable
 4. Existing `code-review-artifacts/` from v1.9 runs can remain; v1.10 will overwrite
+
+## Lessons Learned (v1.9 → v1.10)
+
+### The Problem
+
+v1.9 on the same codebase (lab-admin-web, 1349 files) produced:
+- Run 1: 18 issues (8 R&M + 10 Security)
+- Run 2: 11 issues (1 R&M + 10 Security)
+
+Root cause: the LLM non-deterministically selected which files to read, despite
+explicit "Read ALL source files" instructions in the skill definition.
+
+### Key Insights
+
+| # | Insight | Implication |
+|---|---------|-------------|
+| 1 | **Text instructions ≠ behavior guarantees** | "Read ALL" doesn't mean the LLM will. Instructions are suggestions, not contracts. |
+| 2 | **LLM unsuited for enumeration tasks** | Listing all files, counting tokens, building dependency graphs — these are O(N) operations that must be scripts. |
+| 3 | **Self-validation is unreliable** | The same LLM that fabricates a rule ID also "validates" it as correct. Verification must be external. |
+| 4 | **Don't relocate the problem** | Moving "read all files" from Phase 3 to Phase 1 doesn't help — the LLM has the same context limit in both phases. |
+| 5 | **Algorithms need degradation strategies** | In a Vue SPA, nearly all files form one connected component. The planner must split, not give up. |
+
+### Design Principle
+
+```
+Enumeration / Calculation / Sorting  →  Script (deterministic, 100% coverage)
+Understanding / Judgment / Suggestion →  LLM (semantic analysis)
+Verification / Validation            →  Independent agent or script (never self)
+```
+
+Data flows between these layers via JSON files (file-manifest.json, scan-plan.json,
+report.md). Each layer's output is a deterministic function of its inputs.
 
 ## Requirements
 
