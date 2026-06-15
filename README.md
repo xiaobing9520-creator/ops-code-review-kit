@@ -272,8 +272,17 @@ Generates structured artifacts:
 - `data-flow.md` — Trust boundaries, API surfaces, integrations
 - `architecture-preview.html` — Visual diagram for browser viewing
 
-**Step 1.5 — File Manifest Generation** (NEW in v1.10):
-For each source file, generates an entry in `file-manifest.json`:
+**Step 1.5 — File Manifest Generation** (NEW in v1.10, SCRIPT-BASED):
+
+**CRITICAL**: This step uses a Python script, NOT the LLM reading files one by one.
+The LLM cannot read 1000+ files in one session — the script guarantees 100% coverage.
+
+```bash
+python3 .kiro/scripts/generate-manifest.py --root .
+```
+
+The script scans the filesystem, extracts imports via regex, and runs grep
+patterns for signals. It generates an entry for EVERY source file:
 
 ```json
 [
@@ -626,6 +635,7 @@ in seconds using precomputed MD5 tables.
 │   ├── sonarqube_rules.json                 ← Machine-readable rule database
 │   └── secure-coding-baseline-standards.md  ← BSL 11.1.1.d (230 controls, 17 domains)
 ├── scripts/
+│   ├── generate-manifest.py                 ← Phase 1: Deterministic file manifest (ALL files)
 │   ├── scan-planner.py                      ← Phase 2: Deterministic batch assignment
 │   ├── validate-report.py                   ← Phase 3: Rule ID + severity validation
 │   └── compute-gate.py                      ← Phase 5: Quality Gate calculation

@@ -110,6 +110,47 @@ def aggregate_signals(file_paths, file_lookup):
     return dict(sorted(signal_counts.items()))
 
 
+def split_oversized_component(component, file_lookup, budget):
+    """Split an oversized connected component into sub-batches.
+
+    Strategy: greedy fill by file (alphabetically sorted within component).
+    Files in the same component share dependencies, but it's better to split
+    into multiple batches than to have one 2M+ token batch that exceeds the
+    model's effective working memory.
+
+    The dependency relationship is preserved in the manifest — Agent A can
+    reference file-manifest.json for cross-batch context when needed.
+    """
+    sub_batches = []
+    current = []
+    current_tokens = 0
+
+    for path in component:  # already sorted alphabetically
+        file_tokens = file_lookup.get(path, {}).get('tokens', 0)
+
+        # If single file exceeds budget (unlikely), give it own batch
+        if file_tokens > budget:
+            if current:
+                sub_batches.append(current[:])
+                current = []
+                current_tokens = 0
+            sub_batches.append([path])
+            continue
+
+        if current_tokens + file_tokens > budget and current:
+            sub_batches.append(current[:])
+            current = []
+            current_tokens = 0
+
+        current.append(path)
+        current_tokens += file_tokens
+
+    if current:
+        sub_batches.append(current[:])
+
+    return sub_batches
+
+
 def assign_batches(components, file_lookup, budget):
     """Greedily assign components to batches respecting token budget."""
     batches = []
@@ -119,18 +160,20 @@ def assign_batches(components, file_lookup, budget):
     for component in components:
         comp_tokens = compute_component_tokens(component, file_lookup)
 
-        # If single component exceeds budget, give it its own batch
+        # If single component exceeds budget, split it into sub-batches
         if comp_tokens > budget:
             # Flush current batch if non-empty
             if current_batch_files:
                 batches.append(current_batch_files[:])
                 current_batch_files = []
                 current_batch_tokens = 0
-            # Oversized component gets its own batch (with warning)
-            batches.append(component[:])
-            print(f"  WARNING: Component starting with {component[0]} "
-                  f"({comp_tokens} tokens) exceeds budget ({budget}). "
-                  f"Assigned to dedicated batch.", file=sys.stderr)
+            # Split oversized component
+            sub_batches = split_oversized_component(component, file_lookup, budget)
+            batches.extend(sub_batches)
+            print(f"  INFO: Component starting with {component[0]} "
+                  f"({comp_tokens:,} tokens, {len(component)} files) exceeds budget "
+                  f"({budget:,}). Split into {len(sub_batches)} sub-batches.",
+                  file=sys.stderr)
             continue
 
         # If adding this component would exceed budget, start new batch

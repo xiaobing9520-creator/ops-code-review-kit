@@ -233,10 +233,25 @@ sorted alphabetically by path. This guarantees:
 Step 0.2. No selection logic, no thresholds, no heuristics. Same codebase =
 same files read in the same order = same output.
 
-#### 0.5 Generate file-manifest.json (v1.10 — NEW)
+#### 0.5 Generate file-manifest.json (v1.10.1 — SCRIPT-BASED)
 
-After reading all source files, generate a structured manifest that captures
-per-file metadata for use by the context window planner and verification agent.
+Generate the file manifest using the deterministic Python script. This ensures
+ALL source files are covered regardless of how many the LLM can read in context.
+
+**CRITICAL**: Do NOT generate file-manifest.json manually by reading files one
+by one. The LLM cannot read 1000+ files in one session. Use the script instead.
+
+**Command**:
+```bash
+python3 .kiro/scripts/generate-manifest.py --root .
+```
+
+This script:
+1. Scans the filesystem for ALL source files (deterministic, sorted)
+2. Computes token estimates (file size / 4)
+3. Extracts import/require statements via regex → builds dependency graph
+4. Runs grep patterns for security_signals and quality_signals
+5. Writes `code-review-artifacts/reverse-engineering/file-manifest.json`
 
 **Output**: `code-review-artifacts/reverse-engineering/file-manifest.json`
 
@@ -246,12 +261,11 @@ per-file metadata for use by the context window planner and verification agent.
 {
   "path": "src/api/index.js",
   "module": "lab-admin-web",
-  "description": "Axios HTTP client instance with request/response interceptors for auth token injection and error handling",
   "tokens": 1200,
   "imports": ["src/utils/auth.js", "src/config/env.js"],
-  "imported_by": ["src/views/login.vue", "src/views/dashboard.vue"],
+  "imported_by": ["src/views/Login.vue", "src/views/Dashboard.vue"],
   "security_signals": ["hardcoded-secret", "localStorage", "console-log"],
-  "quality_signals": ["var-declaration", "empty-catch"]
+  "quality_signals": ["var-declaration"]
 }
 ```
 
@@ -259,53 +273,55 @@ per-file metadata for use by the context window planner and verification agent.
 
 | Field | Type | Source | Description |
 |-------|------|--------|-------------|
-| path | string | Step 0.2 manifest | Relative file path from project root |
-| module | string | Step 0.3 | Module this file belongs to |
-| description | string | LLM | One-line functional description (what it does, not quality judgment) |
-| tokens | integer | Estimated | Approximate token count (chars / 4) |
-| imports | string[] | Static analysis | Files this file imports (relative paths within project) |
-| imported_by | string[] | Static analysis | Files that import this file (reverse edges) |
-| security_signals | string[] | grep | Security-relevant patterns found (see signal table below) |
-| quality_signals | string[] | grep | Quality-relevant patterns found (see signal table below) |
+| path | string | Filesystem scan | Relative file path from project root |
+| module | string | package.json / directory | Module this file belongs to |
+| tokens | integer | file_size / 4 | Approximate token count |
+| imports | string[] | Regex extraction | Files this file imports (project-internal only) |
+| imported_by | string[] | Reverse of imports | Files that import this file |
+| security_signals | string[] | grep patterns | Security-relevant patterns found |
+| quality_signals | string[] | grep patterns | Quality-relevant patterns found |
 
-**Signal detection** — run deterministic grep patterns on each file:
+**Signal detection patterns** (implemented in generate-manifest.py):
 
 | Signal Type | Category | Grep Pattern(s) |
 |-------------|----------|-----------------|
 | v-html | security | `v-html` |
 | innerHTML | security | `innerHTML`, `dangerouslySetInnerHTML` |
-| eval-usage | security | `eval(`, `new Function(`, `setTimeout(.*,` (string arg) |
-| hardcoded-secret | security | `password\s*=\s*['"]`, `secret\s*=\s*['"]`, `apiKey\s*=\s*['"]`, `token\s*=\s*['"]` (excluding .env/.example files) |
+| eval-usage | security | `eval(`, `new Function(` |
+| hardcoded-secret | security | `password\s*=\s*['"]...`, `secret\s*=\s*['"]...`, `apiKey\s*=\s*['"]...` |
 | md5-usage | security | `md5(`, `MD5(`, `createHash.*md5` |
 | localStorage | security | `localStorage.setItem`, `localStorage.getItem` |
-| console-log | security | `console.log(` (in non-test files) |
+| console-log | security | `console.log(` (non-test files) |
 | http-url | security | `http://` (excluding localhost/127.0.0.1) |
-| empty-catch | quality | `catch.*{[\s]*}`, `catch.*{\s*//` (empty catch or comment-only catch) |
-| var-declaration | quality | `\bvar\s` (in .js/.ts files) |
+| empty-catch | quality | `catch(...) {}` (empty catch blocks) |
+| var-declaration | quality | `var ` (in .js/.ts files) |
 
-**Rules for signal detection**:
-- Signals are DETERMINISTIC: same file → same grep → same signals
-- Only emit signals that are actually found (no empty arrays → omit field or use `[]`)
-- Exclude test files, config files, and third-party/vendor code from signal detection
-- Sort signals alphabetically within each array
+**Fallback (python3 unavailable)**:
+If python3 is not available, the LLM MUST manually generate file-manifest.json
+for at minimum the files discovered via grep signals. Run these commands and
+build the manifest from their output:
 
-**Rules for description**:
-- One sentence maximum
-- State WHAT the file does, not HOW WELL it does it
-- No quality judgments (D5 applies)
-- Derived from the file content you read in Step 0.4
+```bash
+# Find all source files with security-relevant patterns
+grep -rl "v-html\|innerHTML\|eval(\|md5(\|localStorage\|console\.log(\|http://" src/ | sort
+grep -rln "password.*=.*['\"]\\|secret.*=.*['\"]\\|apiKey.*=.*['\"]" src/ | sort
+grep -rl "catch.*{" src/ --include="*.js" --include="*.vue" | sort
 
-**Rules for imports/imported_by**:
-- Only include files within the project (not node_modules/external packages)
-- Use the same relative path format as the `path` field
-- For JavaScript/TypeScript: resolve `@/` aliases to actual paths
-- For unresolvable imports: omit (do not guess)
+# Count total files for reference
+find src/ -type f \( -name "*.js" -o -name "*.vue" -o -name "*.ts" \) | wc -l
+```
 
-**Token estimation**:
-- Approximate: file character count ÷ 4
-- This enables scan-planner.py to assign batches without re-reading files
+In fallback mode, the manifest MUST still cover ALL source files (with path +
+tokens at minimum), even if descriptions and imports cannot be computed. Use:
+```bash
+find src/ -type f \( -name "*.js" -o -name "*.vue" -o -name "*.ts" \) -exec wc -c {} \; | sort -k2
+```
+to get file sizes for token estimation.
 
-**Ordering**: The JSON array MUST be sorted alphabetically by `path` field.
+**Verification after generation**:
+The number of entries in file-manifest.json MUST equal the number of source
+files found in Step 0.2. If they differ, the manifest is incomplete and the
+scan MUST NOT proceed. Log the discrepancy and re-run the script.
 
 ---
 
