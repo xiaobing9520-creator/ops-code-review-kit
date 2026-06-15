@@ -1,169 +1,236 @@
 ---
 name: batch-scan
 description: >
-  One-click batch scan (v1.9): triggers full code review for all modules.
-  Generates 2 reports per module (R&M + Security) plus 1 Summary Report.
-  Uses dimension-based scanning, adversarial verification, and external
-  script validation for deterministic Quality Gate results.
+  One-click batch scan (v1.10): 5-phase architecture — RE + File Manifest →
+  Context Window Planning → Agent A Scan → Agent B Verification → Report Assembly.
+  Structurally eliminates non-determinism by pre-loading files into context
+  rather than letting the LLM decide which files to read.
 ---
 
-# Batch Scan — One-Click Full Project Review (v1.9)
+# Batch Scan — One-Click Full Project Review (v1.10)
 
 You are the operations team's automated scanning orchestrator. When invoked,
-perform a complete code review of **all modules** in the project and generate
-all reports automatically.
+perform a complete code review of **all modules** in the project using the
+v1.10 five-phase architecture.
 
 ## What This Skill Does
 
-For a project with N modules, this skill:
-1. Identifies all modules in the project
-2. For each module, generates:
-   - **Reliability & Maintainability Report** (SonarQube rules)
-   - **Security Report** (Philips BSL 11.1.1.d)
-3. Generates a global **Summary Report** combining all modules
-4. Total output: (N × 2) + 1 reports
+For a project with N modules:
 
-For a typical 4-module project: **9 reports**, one command.
+```
+Phase 1: Reverse Engineering + File Manifest (deterministic file descriptions + grep signals)
+Phase 2: Context Window Planning (deterministic batch assignment via scan-planner.py)
+Phase 3: Primary Scan — Agent A (files pre-loaded in context, not self-selected)
+Phase 4: Verification — Agent B (adversarial review using manifest signals as completeness checklist)
+Phase 5: Report Assembly + Gate Calculation (scripts)
+```
+
+Total output: **(3N + 1) reports** — R&M + Security + Verification per module, plus Summary.
 
 ## Prerequisites
 
 - The project must be open in Kiro
 - `.kiro/` configuration must be present in the project root
-- Codebase reverse engineering should be done first. If
-  `code-review-artifacts/reverse-engineering/` does not exist, run
-  `@codebase-reverse-engineering` first before proceeding.
+- If `code-review-artifacts/reverse-engineering/` does not exist, Phase 1 will
+  create it. Otherwise, run `@codebase-reverse-engineering` first.
 
 ## Output Directory
 
-All reports go to `code-review-artifacts/` at the project root:
-
 ```
 code-review-artifacts/
-├── [Module1]_Reliability_Maintainability_Report_[date].md
-├── [Module1]_Security_Report_[date].md
-├── [Module2]_Reliability_Maintainability_Report_[date].md
-├── [Module2]_Security_Report_[date].md
-├── [Module3]_Reliability_Maintainability_Report_[date].md
-├── [Module3]_Security_Report_[date].md
-├── [Module4]_Reliability_Maintainability_Report_[date].md
-├── [Module4]_Security_Report_[date].md
-└── Summary_Report_[date].md
+├── reverse-engineering/
+│   ├── architecture-preview.html
+│   ├── *.md
+│   └── file-manifest.json            ← Phase 1: per-file descriptions + signals
+├── scan-plan.json                     ← Phase 2: deterministic batch assignment
+├── [Module1]_Reliability_Maintainability_Report_[date].md / .docx
+├── [Module1]_Security_Report_[date].md / .docx
+├── [Module1]_Verification_Report_[date].md / .docx
+├── [Module2]_Reliability_Maintainability_Report_[date].md / .docx
+├── [Module2]_Security_Report_[date].md / .docx
+├── [Module2]_Verification_Report_[date].md / .docx
+└── Summary_Report_[date].md / .docx
 ```
 
 ---
 
-## Execution Process
+## Phase 1: Reverse Engineering + File Manifest
 
-### Step 1: Identify Modules
+### Step 1.1: Run Codebase Reverse Engineering
+
+If `code-review-artifacts/reverse-engineering/` does not already exist, apply
+`@codebase-reverse-engineering` skill logic. This generates architecture docs
+AND the critical `file-manifest.json`.
+
+### Step 1.2: Verify file-manifest.json Exists
+
+After Phase 1, confirm that `code-review-artifacts/reverse-engineering/file-manifest.json`
+exists and contains entries for every source file. If missing, the scan CANNOT proceed.
+
+The file-manifest.json structure per file:
+```json
+{
+  "path": "src/api/index.js",
+  "module": "lab-admin-web",
+  "description": "Axios HTTP client instance with interceptors...",
+  "tokens": 1200,
+  "imports": ["src/utils/auth.js"],
+  "imported_by": ["src/views/login.vue"],
+  "security_signals": ["hardcoded-secret", "localStorage", "console-log"],
+  "quality_signals": ["var-declaration", "empty-catch"]
+}
+```
+
+---
+
+## Phase 2: Context Window Planning
+
+### Step 2.1: Run scan-planner.py
+
+```bash
+python3 .kiro/scripts/scan-planner.py \
+  --manifest code-review-artifacts/reverse-engineering/file-manifest.json \
+  --output code-review-artifacts/scan-plan.json
+```
+
+This produces `scan-plan.json` with deterministic batch assignments based on:
+- Dependency graph (connected components stay in same batch)
+- Token budget (800K per batch, leaving 200K for rules/prompt/output)
+- Alphabetical tie-breaking for determinism
+
+### Step 2.2: Fallback (if python3 unavailable)
+
+If `python3` is not available:
+- Use single-batch mode: read ALL source files directly
+- Log: "Scan planner skipped — single batch mode (python3 not available)."
+- All files go into one context window (v1.8.1 behavior)
+
+### Step 2.3: Review the Plan
+
+Read and output the scan plan summary:
+```
+Context Window Plan:
+  Total files: [n]
+  Total tokens: [n]
+  Batches: [n]
+  Strategy: [Single batch / Multi-batch]
+
+  Batch 1: [n] files, [n] tokens — Modules: [list]
+  Batch 2: [n] files, [n] tokens — Modules: [list]
+  ...
+```
+
+---
+
+## Phase 3: Primary Scan — Agent A
+
+### Step 3.1: Identify Modules
 
 Module discovery is **deterministic** and uses auto-detection with an optional
-manifest override. Do NOT split a module into its sub-projects.
+manifest override. Follow the priority chain in `.kiro/steering.md`.
 
-Procedure:
-1. Check if `module-manifest.md` exists in the project root.
-   - If YES: use that fixed list exactly as specified.
-   - If NO: auto-detect using the priority chain in `.kiro/steering.md`
-     (Maven → Gradle → npm workspaces → Nx/Turborepo → Go → directory heuristic).
-2. Sort discovered modules alphabetically. This is the FIXED module list for
-   the entire scan run.
-3. A top-level directory that contains nested sub-projects is still ONE module.
-   Aggregate all sub-project findings into that single module's two reports.
-4. Never treat `.kiro/` or `code-review-artifacts/` as a module.
-
-This guarantees a deterministic module set (N modules → (2N+1) reports) on
-every run for the same codebase structure.
-
-Output the modules being used:
+Output:
 ```
 Modules ([source: auto-detected / module-manifest.md]):
   1. [module-name]  — [path/]
   2. [module-name]  — [path/]
   ...
 
-Total: [N] modules → [2N+1] reports
+Total: [N] modules → [3N+1] reports
 Proceeding with scan...
 ```
 
-### Step 2: Process Each Module
+### Step 3.2: Process Each Batch
 
-For each module, IN SEQUENCE:
+For each batch in scan-plan.json, IN SEQUENCE:
 
-#### 2.1 Understand the Module
-- Read the module's source structure
-- Identify programming languages
-- Identify frameworks (Spring, Express, etc.)
-- Determine applicable rule sets
+1. **Load all files** in the batch into context (read them)
+2. **Load the file-manifest.json** entries for those files (descriptions + signals)
+3. **Load applicable rules** (sonarqube-rule-index.txt, secure-coding-baseline-standards)
 
-#### 2.2 Generate Reliability & Maintainability Report (v1.9 Three-Layer)
+Then for each module represented in this batch:
 
-Apply the `@sonarqube-review` skill logic (v1.9) for this module. This involves:
+#### 3.2.1 Generate Reliability & Maintainability Report
 
-**Layer 1 — LLM Dimension Scan + Adversarial Verification:**
-- Scan all 5 dimensions (Resource, Null, Exception, Concurrency, Spring)
-- Each dimension has mandatory rules to check explicitly
-- Every candidate finding undergoes adversarial verification (attempt to disprove)
-- Only confirmed findings survive to the report
+Apply `@sonarqube-review` skill logic (v1.10):
+- All files for this module are ALREADY in context (loaded in step 1)
+- Use the manifest's `quality_signals` as a CHECKLIST of patterns to verify
+- Perform dimension-based scanning + adversarial verification
+- External script validation (validate-report.py)
+- External gate calculation (compute-gate.py)
 
-**Layer 2 — External Rule Validation Script:**
-After generating the report markdown, run:
-```bash
-python3 .kiro/scripts/validate-report.py code-review-artifacts/[ModuleName]_Reliability_Maintainability_Report_[DATE].md --rules sonarqube_rules.json
-```
-Apply corrections from script output:
-- V-01: Move undefined rule IDs to Appendix
-- V-02: Correct severity mismatches
-- V-03: Move wrong-rule findings to Appendix
+Save: `code-review-artifacts/[Module]_Reliability_Maintainability_Report_[YYYY-MM-DD].md`
 
-**Layer 3 — External Gate Calculation:**
-```bash
-python3 .kiro/scripts/compute-gate.py code-review-artifacts/[ModuleName]_Reliability_Maintainability_Report_[DATE].md
-```
-Use the script's PASS/FAIL as the **authoritative** gate status.
+#### 3.2.2 Generate Security Report
 
-Save as: `code-review-artifacts/[ModuleName]_Reliability_Maintainability_Report_[YYYY-MM-DD].md`
-
-#### 2.3 Generate Security Report
-
-Apply the `@secure-coding-baseline-review` skill logic for this module:
-- Check against BSL 11.1.1.d controls from `.kiro/rules/secure-coding-baseline-standards.md`
-- Strict control-to-ID mapping
+Apply `@secure-coding-baseline-review` skill logic (v1.10):
+- All files for this module are ALREADY in context
+- Use the manifest's `security_signals` as a CHECKLIST of patterns to verify
+- Domain-by-domain BSL scanning
+- CVSS scoring
 - Quality gate evaluation
-- Fix priority assignment (P0–P3)
-- LLM-discovered issues to appendix
 
-MANDATORY CVSS CHECK: After generating each Security Report, verify that EVERY
-finding contains `**CVSS Score**:` as a standalone line (not a list item). If
-any finding is missing `**CVSS Score**`, add it before saving the report.
+Save: `code-review-artifacts/[Module]_Security_Report_[YYYY-MM-DD].md`
 
-Save as: `code-review-artifacts/[ModuleName]_Security_Report_[YYYY-MM-DD].md`
+#### 3.2.3 Progress Update
 
-#### 2.4 Progress Update
-
-After each module, output progress:
 ```
-[n/N] Module "[name]" complete.
+[n/N] Module "[name]" — Agent A complete.
   R&M: [PASS/FAIL] — Critical=[n], High=[n], Medium=[n]
   Security: [PASS/FAIL] — Critical=[n], High=[n], Medium=[n]
 ```
 
-#### 2.5 Run Overall Gate Calculation
+---
 
-After all modules are processed, compute the overall quality gate using:
+## Phase 4: Verification — Agent B
+
+After ALL Agent A reports are generated, invoke `@verification-agent` for each module.
+
+### Step 4.1: For Each Module
+
+Apply `@verification-agent` skill logic:
+- **Job 1**: Challenge every Agent A finding (false positive detection)
+- **Job 2**: Use file-manifest signals as completeness checklist to find missed findings
+- **Signal-to-rule mapping** ensures deterministic coverage verification:
+  - v-html → BSL 11.1.1_174
+  - empty-catch → javascript:S1186 / java:S108
+  - var-declaration → javascript:S3504
+  - md5-usage → BSL 11.1.1_8
+  - localStorage → BSL 11.1.1_51
+  - console-log → BSL 11.1.1_86, BSL 11.1.1_98
+  - hardcoded-secret → javascript:S6437, BSL 11.1.1_41
+  - eval-usage → BSL 11.1.1_113
+  - innerHTML → BSL 11.1.1_174
+  - http-url → BSL 11.1.1_32
+
+Save: `code-review-artifacts/[Module]_Verification_Report_[YYYY-MM-DD].md`
+
+### Step 4.2: Update Final Counts
+
+After verification, the authoritative finding counts come from Agent B's
+Verification Report (Section 5: Final Adjusted Counts). Update quality gate
+status if Agent B changed any findings.
+
+---
+
+## Phase 5: Report Assembly + Gate Calculation
+
+### Step 5.1: Run Overall Gate Calculation
+
 ```bash
 python3 .kiro/scripts/compute-gate.py --summary code-review-artifacts/*_Report_[DATE].md
 ```
-This provides the authoritative overall PASS/FAIL determination.
 
-### Step 3: Generate Summary Report
+Use the script's PASS/FAIL as the authoritative overall determination.
 
-After all modules are processed, apply the `@summary-report` skill logic:
-- Read all module-level reports
-- Aggregate into Summary_Report_[date].md
-- Use the overall gate from the script output (Step 2.5)
+### Step 5.2: Generate Summary Report
 
-### Step 4: Convert to Word Format
+Apply `@summary-report` skill logic:
+- Use verification-adjusted counts (from Agent B), NOT Agent A's raw counts
+- Aggregate all module results
+- Include the post-verification quality gate status
 
-After all Markdown reports are generated, convert each to Word (`.docx`) format:
+### Step 5.3: Convert to Word Format
 
 ```bash
 for f in code-review-artifacts/*.md; do
@@ -172,36 +239,41 @@ for f in code-review-artifacts/*.md; do
 done
 ```
 
-If `pandoc` is not available, report that Word conversion was skipped and
-instruct the user to install it.
+If `pandoc` is not available, note that Word conversion was skipped.
 
-### Step 5: Final Output
+### Step 5.4: Final Output
 
 ```
 ============================================
-  Batch Scan Complete
+  Batch Scan Complete (v1.10 — 5-Phase Architecture)
 ============================================
 
+Phases completed: 5/5
 Modules scanned: [n]
-Reports generated: [2n + 1] (Markdown + Word)
+Reports generated: [3n + 1] (Markdown + Word)
+
+Context Window Strategy: [Single batch / Multi-batch ([n] batches)]
+File Manifest: [n] files with signals
+Verification: [n] false positives removed, [n] missed findings added
 
 Overall Quality Gate: [PASS / FAIL]
 
 Module Results:
-  [Module1]: R&M=[Pass/Fail], Security=[Pass/Fail]
-  [Module2]: R&M=[Pass/Fail], Security=[Pass/Fail]
-  ... (one line per module)
+  [Module1]: R&M=[Pass/Fail], Security=[Pass/Fail], Verification=[n FP removed, n added]
+  [Module2]: R&M=[Pass/Fail], Security=[Pass/Fail], Verification=[n FP removed, n added]
+  ...
 
-Total Issues: [n]
+Total Issues (post-verification):
   Critical: [n]
   High:     [n]
   Medium:   [n]
   P0 (release blockers): [n]
 
-Reports (Markdown + Word):
+Reports:
   code-review-artifacts/[Module1]_Reliability_Maintainability_Report_[date].md (.docx)
   code-review-artifacts/[Module1]_Security_Report_[date].md (.docx)
-  ... (2 reports per module)
+  code-review-artifacts/[Module1]_Verification_Report_[date].md (.docx)
+  ...
   code-review-artifacts/Summary_Report_[date].md (.docx)
 
 Word conversion: [Completed / Skipped — pandoc not available]
@@ -212,37 +284,24 @@ Word conversion: [Completed / Skipped — pandoc not available]
 
 ## Cross-Module Format Consistency
 
-All module reports MUST follow identical formatting to ensure side-by-side
-comparability. Before generating reports, enforce:
+All module reports MUST follow identical formatting. Before generating reports:
 
-1. **Unified Finding Header**: Every finding across ALL modules and report types
-   MUST begin with the same 4-line header block (Risk Level / CVSS Score / File / Associated CVE).
-   See Constraint 0 in each sub-skill for the exact template.
-
-2. **Identical Section Structure**: Every R&M report has the same sections in the
-   same order, and every Security report has the same sections in the same order,
-   regardless of the module or its technology stack.
-
-3. **Consistent Severity Labels**: Use only `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`.
-   Never use alternative labels (Blocker, Major, Minor, etc.) in any report.
-
-4. **Consistent Numbering**: Issue IDs within each report type use the same prefix
-   pattern — `BUG-nn` for R&M, `SEC-nn` for Security.
-
-5. **Self-Validation Step**: After generating all module reports and before
-   generating the Summary Report, spot-check 2 modules to confirm their report
-   structures are identical in section order and finding header format. Specifically
-   verify that every finding contains all 4 mandatory header lines in this order:
-   `**Risk Level**` → `**CVSS Score**` → `**File**` → `**Associated CVE**`.
-   If `**CVSS Score**` is missing from any finding, add it before proceeding.
+1. **Unified Finding Header**: Every finding MUST begin with the 4-line header
+   (Risk Level / CVSS Score / File / Associated CVE).
+2. **Identical Section Structure**: Same sections in same order across modules.
+3. **Consistent Severity Labels**: CRITICAL, HIGH, MEDIUM, LOW only.
+4. **Consistent Numbering**: BUG-nn for R&M, SEC-nn for Security.
+5. **Self-Validation Step**: After all module reports, spot-check that all 4
+   mandatory header lines are present in correct order.
 
 ---
 
-## Important Notes
+## Key Differences from v1.9
 
-- Each module is processed independently — issues in one module do not
-  affect another module's quality gate
-- The Summary Report's overall quality gate is the AND of all individual gates
-- If context window is a concern for very large modules, focus scanning on
-  core source code, entry points, and security-sensitive paths
-- Report dates use the scan date, not the current date at report generation
+| Aspect | v1.9 | v1.10 |
+|--------|------|-------|
+| File selection | LLM decides which files to read | scan-planner.py assigns files to batches |
+| Completeness check | Text instruction "Read ALL" | grep signals as deterministic checklist |
+| Verification | Same-agent adversarial step | Separate Agent B with exclusion checklist |
+| Reports per module | 2 (R&M + Security) | 3 (R&M + Security + Verification) |
+| Non-determinism source | LLM file-reading decisions | Structurally eliminated |

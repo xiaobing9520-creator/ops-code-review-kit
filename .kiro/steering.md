@@ -56,47 +56,57 @@ When this file exists, ALL skills MUST use it instead of auto-detection. When
 it does NOT exist, auto-detection applies. This makes the kit portable across
 projects without manual steering edits.
 
-## Determinism & Reproducibility Policy (v1.9)
+## Determinism & Reproducibility Policy (v1.10)
 
-Same codebase + same standards + same model MUST yield the same reports. v1.9
-introduces a **three-layer architecture** to enforce determinism:
+Same codebase + same standards + same model MUST yield the same reports.
 
-- **Layer 1 (LLM)**: Dimension-based scanning + adversarial verification
-- **Layer 2 (Script)**: Deterministic rule ID validation (`validate-report.py`)
-- **Layer 3 (Script)**: Deterministic Quality Gate calculation (`compute-gate.py`)
+v1.10 introduces a **five-phase architecture** that structurally eliminates the
+primary source of non-determinism (LLM file-reading decisions):
 
-The scripts in `.kiro/scripts/` are the **authoritative** source for rule
-validity and Quality Gate results. If the LLM's judgment conflicts with script
-output, the script wins.
+```
+Phase 1: Reverse Engineering + File Manifest (deterministic file descriptions + grep signals)
+Phase 2: Context Window Planning (deterministic batch assignment via scan-planner.py)
+Phase 3: Primary Scan — Agent A (files pre-loaded in context, not self-selected)
+Phase 4: Verification — Agent B (adversarial review using manifest signals as completeness checklist)
+Phase 5: Report Assembly + Gate Calculation (scripts)
+```
 
-ALL skills MUST obey:
+**Key principle**: The LLM never decides which files to read. Phase 2 assigns
+files to batches algorithmically. Phase 3 receives files as input. Phase 4
+uses grep-generated signals to detect omissions. This eliminates the "selective
+reading" problem that caused v1.9 run-to-run variance.
+
+### Determinism Rules (ALL skills MUST obey)
 
 1. **Deterministic module set** — Use the auto-discovered module list (Step 0.3)
    or the `module-manifest.md` override if present. Once discovered, the list is
-   FIXED for the entire scan run. Never re-derive mid-scan or split a module
-   into sub-projects.
-2. **One finding per rule/control per module** — Aggregate every instance of
+   FIXED for the entire scan run. Never re-derive mid-scan.
+2. **Deterministic file coverage** — The scan-plan.json produced by
+   `scan-planner.py` defines EXACTLY which files go into which batch. No file
+   may be skipped. No file may be added outside the manifest.
+3. **One finding per rule/control per module** — Aggregate every instance of
    the same Rule/Control violation into a SINGLE finding, citing one
-   representative `file:line` plus a count (e.g. "+29 similar sites"). Never
-   emit one finding per file — per-instance reporting is the main source of
-   issue-count variance.
-3. **Table-driven severity** — R&M severity = exact severity in the SonarQube
+   representative `file:line` plus a count (e.g. "+29 similar sites").
+4. **Table-driven severity** — R&M severity = exact severity in the SonarQube
    standards file; Security severity = CVSS band. Never infer or "judge"
    severity. Enforced by `validate-report.py` (V-02).
-4. **Deterministic fix priority** — Apply the Fix Priority Decision Table below
+5. **Deterministic fix priority** — Apply the Fix Priority Decision Table below
    exactly. Priority is a pure function of severity + category.
-5. **Stable ordering & numbering** — Within each report, order findings by
+6. **Stable ordering & numbering** — Within each report, order findings by
    severity (Critical→High→Medium→Low), then Rule/Control ID ascending, then
    file path. Assign `BUG-01..` / `SEC-01..` in that fixed order.
-6. **No discretionary prose** — Do not invent run-specific "key themes" or
+7. **No discretionary prose** — Do not invent run-specific "key themes" or
    narrative. All summary prose must be derived only from the aggregated
    finding tables.
-7. **Rule ID must exist in standards** — No rule ID may appear in the main
+8. **Rule ID must exist in standards** — No rule ID may appear in the main
    findings unless it exists in `sonarqube-rule-index.txt`. Enforced by
    `validate-report.py` (V-01). Violations are moved to Appendix.
-8. **External gate is authoritative** — The Quality Gate PASS/FAIL is computed
+9. **External gate is authoritative** — The Quality Gate PASS/FAIL is computed
    by `compute-gate.py`, not by the LLM. The LLM writes a preliminary gate
    which is overwritten if the script disagrees.
+10. **Signal coverage completeness** — Agent B MUST verify every signal in
+    file-manifest.json is covered by Agent A's findings. Uncovered signals
+    with genuine violations are added to the report.
 
 ### Fix Priority Decision Table (DETERMINISTIC)
 
@@ -109,6 +119,38 @@ ALL skills MUST obey:
 | Severity = Medium (any other) | P2 |
 | Severity = Low | P3 |
 
+### Context Window Strategy (v1.10)
+
+Target model: Claude Opus 4.6 / Sonnet 4.6 (1M context window).
+
+| Project Size | Total Tokens | Strategy |
+|-------------|-------------|----------|
+| Small (< 300K tokens) | Fits in single batch | All files + rules in one context window |
+| Medium (300K–800K) | 2–3 batches | Group by dependency graph; full manifest in each batch |
+| Large (> 800K) | 4+ batches | Module-level batches; cross-module interfaces duplicated |
+
+The `scan-planner.py` script implements this strategy deterministically.
+The token budget per batch defaults to 800K (leaving ~200K for rules, prompt,
+and output generation).
+
+### Fallback Rules (When Scripts Are Unavailable)
+
+When `python3` is not available in the execution environment:
+
+1. **scan-planner.py unavailable**: Use single-batch mode. Read ALL source
+   files directly (v1.8.1 behavior). Log: "Scan planner skipped — single batch mode."
+2. **validate-report.py unavailable**: Severity MUST be determined solely from
+   `sonarqube-rule-index.txt`. The index file is the ONLY authority. LLM MUST
+   NOT use its own judgment to override index severity. Log: "Script validation
+   skipped — severity from rule index only."
+3. **compute-gate.py unavailable**: Apply gate formula manually:
+   FAIL if Critical > 0 OR (High AND P0). Log: "Gate computed by LLM per formula."
+
+**PROHIBITION**: When scripts are unavailable, the LLM MUST NOT:
+- Downgrade a Blocker rule to High because "complexity seems acceptable"
+- Skip a rule because "the file was not read" (all files MUST be read)
+- Use subjective judgment to override the rule index severity mapping
+
 ## Report Types
 
 Each module produces **2 reports**:
@@ -118,30 +160,31 @@ Each module produces **2 reports**:
 | Reliability & Maintainability | SonarQube Java/JavaScript rules (Bug category only, excludes Security & Code Smell) | Blocker / High / Medium |
 | Security | Philips Secure Coding Baseline (BSL 11.1.1.d, 230 controls) | 17 security domains |
 
-Plus **1 global report**:
+Plus **1 global report** and **1 verification report per module**:
 
 | Report | Purpose |
 |--------|---------|
 | Summary Report | Merges all module results, overall Pass/Fail |
+| Verification Report | Agent B's adversarial review results |
 
-**Total: (2N + 1) reports** for N discovered modules (e.g. 4 modules = 9 reports).
+**Total: (3N + 1) reports** for N discovered modules.
 
 ## Review Workflow
 
 ### Option A: One-Click Batch Scan (Recommended)
 
 ```
-@codebase-reverse-engineering     ← Run first to understand the codebase
-@batch-scan                       ← One command generates all 9 reports
+@codebase-reverse-engineering     ← Phase 1: understand + generate file-manifest
+@batch-scan                       ← Phases 2–5: plan, scan, verify, report
 ```
 
 ### Option B: Step-by-Step
 
-1. `@codebase-reverse-engineering` — Understand the codebase (REQUIRED first)
+1. `@codebase-reverse-engineering` — Phase 1 (REQUIRED first)
 2. For each module:
-   - `@sonarqube-review` — Reliability & Maintainability report
-   - `@rm-report-validator` — Validate R&M report rule IDs and severities (run after each R&M report)
-   - `@secure-coding-baseline-review` — Security report
+   - `@sonarqube-review` — R&M report (Agent A)
+   - `@secure-coding-baseline-review` — Security report (Agent A)
+   - `@verification-agent` — Adversarial verification (Agent B)
 3. `@summary-report` — Generate the global summary
 
 ### Option C: Post-Fix Rescan
@@ -152,17 +195,6 @@ After the development team fixes issues from a previous scan:
 @rescan                           ← Verify fixes, generate delta report
 ```
 
-The rescan workflow does NOT require re-running `@codebase-reverse-engineering`.
-Copy previous reverse-engineering artifacts and scan reports into the new code
-version directory, then run `@rescan`. See the rescan skill for detailed setup.
-
-### Optional (Additional Depth)
-
-These skills provide supplementary analysis beyond the two core report types:
-- `@rm-report-validator` — Validate R&M reports for rule existence and severity correctness
-- `@security-review` — OWASP/CWE security analysis (CVSS v3.1 + CVE association)
-- `@acceptance-report` — Combined acceptance decision (all dimensions)
-
 ## Review Standards
 
 ### Primary Standards (Used in Reports)
@@ -171,12 +203,8 @@ These skills provide supplementary analysis beyond the two core report types:
 |----------|------|---------|
 | SonarQube Java rules | `.kiro/rules/sonarqube-java-standards.md` | R&M Report |
 | SonarQube JavaScript rules | `.kiro/rules/sonarqube-javascript-standards.md` | R&M Report |
+| SonarQube Rule Index | `.kiro/rules/sonarqube-rule-index.txt` | Severity validation |
 | Philips BSL 11.1.1.d | `.kiro/rules/secure-coding-baseline-standards.md` | Security Report |
-
-### Supplementary Standards (Consolidated)
-
-Security review standards (CVSS v3.1, CVE association, OWASP/CWE checks) are
-consolidated into the BSL file as Appendix A–G. No separate standards files needed.
 
 ## Report Output Format
 
@@ -189,15 +217,13 @@ After generating all Markdown reports, convert each report to Word format using
 `pandoc`. The Word files are saved alongside their Markdown counterparts.
 
 ```bash
-# Convert all reports to Word format
 for f in code-review-artifacts/*.md; do
   pandoc "$f" -o "${f%.md}.docx" --reference-doc=.kiro/reference.docx 2>/dev/null || \
   pandoc "$f" -o "${f%.md}.docx"
 done
 ```
 
-If `pandoc` is not available in the environment, instruct the user to install it
-(`sudo apt install pandoc` / `brew install pandoc`) or note that Word conversion
+If `pandoc` is not available in the environment, note that Word conversion
 was skipped and the Markdown files are the deliverable.
 
 ## Report Naming Convention
@@ -205,6 +231,7 @@ was skipped and the Markdown files are the deliverable.
 ```
 [ModuleName]_Reliability_Maintainability_Report_[YYYY-MM-DD].md / .docx
 [ModuleName]_Security_Report_[YYYY-MM-DD].md / .docx
+[ModuleName]_Verification_Report_[YYYY-MM-DD].md / .docx
 Summary_Report_[YYYY-MM-DD].md / .docx
 ```
 
@@ -264,9 +291,6 @@ ENFORCEMENT RULES:
   CVSS v3.1 Base Score for every security finding. R&M findings use `N/A — non-security rule`.
 - The order is fixed: Risk Level → CVSS Score → File → Associated CVE.
 - SELF-CHECK: Before writing any finding body, confirm all 4 lines are present.
-  If `**CVSS Score**` is missing from a security finding, stop and add it.
-
-See Constraint 0 in each sub-skill for field-specific computation rules.
 
 ## Cross-Module Format Consistency Policy
 
@@ -287,9 +311,6 @@ labels. The batch-scan orchestrator verifies this before generating the Summary.
 
 ### Known Rule Pitfalls (R&M Reports)
 
-The following rules have been historically misused. Always verify against the
-standards file before including in a report:
-
 | Rule ID | Actual Definition | Severity | Common Misuse |
 |---------|------------------|----------|---------------|
 | `javascript:S106` | Does NOT exist in JS standards | — | Used for console.log findings |
@@ -305,20 +326,15 @@ standards file before including in a report:
 ```
 code-review-artifacts/
 ├── reverse-engineering/          ← @codebase-reverse-engineering output
-│   ├── architecture-preview.html ← Open in browser for diagrams → copy to Word
-│   └── *.md                      ← Markdown artifacts
-├── previous-scan/                ← previous reports (for @rescan only)
+│   ├── architecture-preview.html
+│   ├── *.md
+│   └── file-manifest.json       ← NEW in v1.10: per-file descriptions + signals
+├── scan-plan.json                ← NEW in v1.10: deterministic batch assignment
 ├── [Module1]_Reliability_Maintainability_Report_[date].md / .docx
 ├── [Module1]_Security_Report_[date].md / .docx
-├── [Module2]_Reliability_Maintainability_Report_[date].md / .docx
-├── [Module2]_Security_Report_[date].md / .docx
-├── [Module3]_Reliability_Maintainability_Report_[date].md / .docx
-├── [Module3]_Security_Report_[date].md / .docx
-├── [Module4]_Reliability_Maintainability_Report_[date].md / .docx
-├── [Module4]_Security_Report_[date].md / .docx
+├── [Module1]_Verification_Report_[date].md / .docx    ← NEW in v1.10
 ├── Summary_Report_[date].md / .docx
-├── [Module]_Rescan_Report_[date].md / .docx          ← @rescan output
-└── Rescan_Summary_Report_[date].md / .docx           ← @rescan output
+└── previous-scan/                ← for @rescan only
 ```
 
 ## Language
@@ -335,5 +351,7 @@ Generate all reports in **English**.
   remediation — not generic advice.
 - **LLM findings isolated**: Findings outside the specified rule sets go to
   the Appendix only and do not affect quality gate.
+- **Signal-driven completeness**: File manifest signals guarantee that known
+  vulnerability patterns are never silently missed.
 - **Honest about limitations**: If static analysis cannot determine something,
   say so. Do not guess.

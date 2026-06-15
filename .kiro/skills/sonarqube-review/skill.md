@@ -2,24 +2,32 @@
 name: sonarqube-review
 description: >
   Generates a Reliability & Maintainability report for a single module based on
-  SonarQube Java/JavaScript rules (Blocker/High/Medium). v1.9: Dimension-based
-  scanning with adversarial verification and external script validation.
+  SonarQube Java/JavaScript rules (Blocker/High/Medium). v1.10: Context-aware
+  dimension scanning with file-manifest signals as completeness checklist,
+  adversarial verification, and external script validation.
 ---
 
-# Reliability & Maintainability Review (v1.9 — Dimension Scan + Adversarial Verify)
+# Reliability & Maintainability Review (v1.10 — Context-Aware Dimension Scan)
 
 You are a senior code quality engineer. Generate a **Reliability &
 Maintainability** report for the specified module by checking it against the
 organization's SonarQube rule set.
 
-**v1.9 Architecture**: This skill uses a three-layer approach:
-1. **Layer 1 (LLM)**: Dimension-based scanning + adversarial verification
+**v1.10 Architecture**: This skill uses a three-layer approach:
+1. **Layer 1 (LLM)**: Context-aware dimension scanning + adversarial verification
+   - Files are PRE-LOADED into context by the batch-scan orchestrator
+   - `quality_signals` from file-manifest.json serve as a completeness checklist
 2. **Layer 2 (Script)**: Deterministic rule ID validation
 3. **Layer 3 (Script)**: Deterministic Quality Gate calculation
 
 **Scope**: This report covers reliability (Bug) rules only. Security rules and
 Code Smell rules are excluded — security is handled by the separate Security
 report (`@secure-coding-baseline-review`).
+
+**Key v1.10 change**: You do NOT decide which files to read. The batch-scan
+orchestrator has already loaded all relevant files into your context window
+based on `scan-plan.json`. Your job is to SCAN what's in context and use
+`quality_signals` to verify you haven't missed any known patterns.
 
 ## Prerequisites
 
@@ -106,7 +114,14 @@ the finding MUST go to Appendix regardless of how confident you are.**
 1. Read reverse engineering artifacts for the module
 2. Read the compact rule index: `.kiro/rules/sonarqube-rule-index.txt`
 3. Read the applicable SonarQube standards file(s) from `.kiro/rules/`
-4. Read ALL source files in the module (v1.8.1 full-scan policy)
+4. **v1.10**: All source files are ALREADY in context (loaded by batch-scan
+   orchestrator per scan-plan.json). If invoked standalone (outside batch-scan),
+   read ALL source files in the module.
+5. Read `file-manifest.json` entries for this module — extract `quality_signals`
+   to use as a completeness checklist after scanning:
+   - `empty-catch` → must check java:S108 / javascript:S1186
+   - `var-declaration` → must check javascript:S3504
+   - Any file with quality signals MUST be examined for those patterns
 
 ### Step 2: Dimension-Based Scanning (Multi-Perspective)
 

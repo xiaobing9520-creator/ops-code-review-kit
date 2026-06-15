@@ -1,4 +1,4 @@
-# Ops Code Review Kit (v1.9)
+# Ops Code Review Kit (v1.10)
 
 ## What Is This
 
@@ -11,41 +11,84 @@ All review work is performed by the operations team in their own environment.
 
 ## Key Capabilities
 
-- **One-click batch scan**: A single `@batch-scan` command triggers a full scan of all modules
+- **One-click batch scan**: A single `@batch-scan` command triggers a full 5-phase scan
+- **5-Phase Architecture**: RE + File Manifest → Context Planning → Agent A Scan → Agent B Verify → Report Assembly
+- **Structural determinism**: Files are assigned to context windows algorithmically — the LLM never decides which files to read
+- **File Manifest with grep signals**: Per-file descriptions + security/quality signals enable completeness verification
+- **Agent A/B pattern**: Primary scanner + independent adversarial verifier eliminates false positives and catches omissions
 - **Auto module discovery**: Automatically detects project modules from build system (Maven, Gradle, npm, etc.)
-- **2 reports per module**: Reliability & Maintainability + Security
-- **Global summary report**: Merges all module scan results with overall Pass/Fail determination
-- **Full code scanning**: Every source file is read — no sampling, no skipping, 100% coverage
-- **Dimension-based scanning**: 5 mandatory dimensions ensure consistent coverage across runs
-- **Adversarial verification**: Every finding is challenged before inclusion — reduces false positives
-- **External validation scripts**: Deterministic Python scripts verify rule IDs and compute Quality Gate
+- **3 reports per module**: Reliability & Maintainability + Security + Verification
+- **Global summary report**: Merges all module results with overall Pass/Fail
+- **Context window planning**: Deterministic batch assignment respecting dependency graphs and token budgets
+- **Signal-driven completeness**: grep-generated signals guarantee known vulnerability patterns are never missed
+- **External validation scripts**: Python scripts verify rule IDs and compute Quality Gate deterministically
 - **Strict rule mapping**: Every issue must map to a specific Rule ID — no ad-hoc adjustments
 - **Quality gate**: Automatic Pass/Fail computed by external script (not LLM judgment)
 - **Fix priorities**: P0-P3 classification with defined remediation timelines
-- **AI-suggested fix code**: Each finding includes AI-generated corrective code where applicable
+- **AI-suggested fix code**: Each finding includes AI-generated corrective code
 - **Word output**: Reports generated in both Markdown and Word (.docx) format
+
+## Architecture (v1.10)
+
+```
+Phase 1: Reverse Engineering + File Manifest
+           ├── Architecture docs (business-overview, tech-stack, data-flow, etc.)
+           └── file-manifest.json (per-file descriptions + grep signals)
+
+Phase 2: Context Window Planning (scan-planner.py)
+           └── scan-plan.json (deterministic batch assignment)
+
+Phase 3: Primary Scan — Agent A
+           ├── Files PRE-LOADED per scan-plan.json (LLM doesn't choose)
+           ├── Manifest signals as completeness checklist
+           ├── R&M Report (SonarQube dimension scan)
+           └── Security Report (BSL domain scan)
+
+Phase 4: Verification — Agent B (independent adversarial reviewer)
+           ├── Job 1: Challenge findings (false positive detection)
+           ├── Job 2: Detect omissions (signal coverage matrix)
+           └── Verification Report
+
+Phase 5: Report Assembly + Gate Calculation
+           ├── compute-gate.py (authoritative PASS/FAIL)
+           ├── Summary Report (post-verification adjusted counts)
+           └── Word (.docx) conversion
+```
+
+### Why 5 Phases?
+
+v1.9 used text instructions ("Read ALL files") to ensure complete scanning.
+Testing showed this was unreliable — the same codebase scanned twice produced
+different results (18 vs 11 issues) because the LLM non-deterministically
+selected which files to read.
+
+v1.10 solves this structurally:
+- **Phase 2** assigns files to batches algorithmically (no LLM choice)
+- **Phase 3** receives files as input (not self-selected)
+- **Phase 4** uses grep signals to detect any patterns Agent A missed
 
 ## Report Types
 
 | Report | Review Standards | Coverage |
 |--------|-----------------|----------|
-| Reliability & Maintainability | SonarQube Java/JavaScript rules (Bug category only; excludes Security & Code Smell) | Blocker / High / Medium |
+| Reliability & Maintainability | SonarQube Java/JavaScript rules (Bug category only) | Blocker / High / Medium |
 | Security | Philips Secure Coding Baseline (BSL 11.1.1.d, 230 controls) | 17 security domains |
+| Verification | Agent B adversarial review | False positives + missed findings |
 | Summary | Aggregates all modules | Global Pass/Fail |
 
-An N-module project produces **(2N + 1) reports** in one scan (e.g. 4 modules = 9 reports).
-Modules are auto-detected from the project's build system or can be fixed via
-an optional `module-manifest.md` file.
+An N-module project produces **(3N + 1) reports** in one scan.
 
 ## Prerequisites
 
 ### Required
 
 1. **Kiro IDE** — Download: https://kiro.dev
+2. **Claude Opus 4.6 / Sonnet 4.6** — 1M context window model (configured in Kiro)
 
 ### Optional
 
-2. **pandoc** — for Word (.docx) output generation
+3. **Python 3.6+** — for scan-planner.py, validate-report.py, compute-gate.py
+4. **pandoc** — for Word (.docx) output generation
 
 ## Usage
 
@@ -58,7 +101,7 @@ git clone <repository-url> /path/to/target-project
 ### Step 2: Inject the Review Toolkit
 
 ```bash
-cp -r ops-code-review-kit-1.9/.kiro /path/to/target-project/
+cp -r ops-code-review-kit/.kiro /path/to/target-project/
 ```
 
 ### Step 3: Run the Review in Kiro
@@ -70,74 +113,56 @@ cp -r ops-code-review-kit-1.9/.kiro /path/to/target-project/
 @codebase-reverse-engineering
 ```
 
-Once complete, run the one-click batch scan:
+This generates architecture docs AND `file-manifest.json` (Phase 1).
+
+Once complete, run the batch scan (Phases 2-5):
 
 ```
 @batch-scan
 ```
 
 **This single command will automatically:**
-- Auto-detect all modules from the project structure
-- Generate a Reliability & Maintainability report for each module
-- Generate a Security report for each module
-- Generate a global Summary report
+- Run scan-planner.py to assign files to context window batches
+- Generate R&M + Security reports for each module (Agent A)
+- Run adversarial verification for each module (Agent B)
+- Compute the quality gate and generate the Summary Report
 
 ### Step 4: Review the Results
 
-After scanning, all reports are available in the `code-review-artifacts/` directory:
-
 ```
 code-review-artifacts/
-├── reverse-engineering/                              <- Codebase analysis docs
+├── reverse-engineering/
+│   ├── architecture-preview.html
+│   ├── *.md
+│   └── file-manifest.json                 ← Per-file descriptions + signals
+├── scan-plan.json                          ← Batch assignment plan
 ├── [Module1]_Reliability_Maintainability_Report_[date].md
 ├── [Module1]_Security_Report_[date].md
-├── [Module2]_Reliability_Maintainability_Report_[date].md
-├── [Module2]_Security_Report_[date].md
-├── ...                                               <- 2 reports per module
-└── Summary_Report_[date].md                          <- Summary report
+├── [Module1]_Verification_Report_[date].md ← Agent B results
+├── ...
+└── Summary_Report_[date].md
 ```
 
 ### Step 5: Post-Fix Rescan
 
-After the development team fixes issues from the initial scan, use `@rescan`
-for verification:
-
-**1. Preparation (in the new code version directory):**
+After the development team fixes issues:
 
 ```bash
-# Copy previous reverse-engineering artifacts (no need to re-run)
-cp -r /path/to/previous-version/code-review-artifacts/reverse-engineering/ \
+# Copy previous artifacts as baseline
+cp -r /path/to/previous/code-review-artifacts/reverse-engineering/ \
       /path/to/new-version/code-review-artifacts/reverse-engineering/
-
-# Copy previous scan reports as comparison baseline
-cp /path/to/previous-version/code-review-artifacts/*_Report_*.md \
+cp /path/to/previous/code-review-artifacts/*_Report_*.md \
    /path/to/new-version/code-review-artifacts/previous-scan/
 ```
 
-**2. Run the rescan:**
-
+Then run:
 ```
 @rescan
 ```
 
-**The rescan will automatically:**
-- Verify each previously reported issue for fix completeness
-- Assess fix correctness (root cause addressed, not just symptoms)
-- Check for regressions introduced by the fixes
-- Generate a delta report (FIXED / PARTIALLY FIXED / NOT FIXED / REGRESSED)
-- Re-evaluate quality gate status
-
-**Note**: Rescan does NOT require re-running `@codebase-reverse-engineering`,
-as architecture and technology stack information typically does not change
-during a fix cycle. Re-run it only if the new version includes significant
-architectural changes beyond bug fixes.
-
 ## Module Discovery
 
 ### Auto-Detection (Default)
-
-When no `module-manifest.md` exists, modules are discovered automatically using
-the project's build system metadata:
 
 | Priority | Build System | Detection Method |
 |----------|-------------|------------------|
@@ -148,136 +173,64 @@ the project's build system metadata:
 | 5 | Go | `go.work` |
 | 6 | Directory heuristic | Subdirectories with their own build file |
 
-Discovered modules are sorted alphabetically for determinism.
+### Manual Override
 
-### Manual Override (Optional)
-
-To fix the module list (e.g. to exclude directories or handle special cases),
-create `module-manifest.md` in the project root:
+Create `module-manifest.md` in the project root:
 
 ```markdown
 | # | Module | Path | Language | Notes |
 |---|--------|------|----------|-------|
-| 1 | my-backend | my-backend/ | Java | Maven multi-module — scan as ONE |
+| 1 | my-backend | my-backend/ | Java | Maven multi-module |
 | 2 | my-frontend | my-frontend/ | JS/Vue | SPA frontend |
 ```
 
-When this file exists, all skills use it instead of auto-detection.
+## Context Window Strategy
 
-## Code Scanning Strategy
+Target model: Claude Opus 4.6 / Sonnet 4.6 (1M context window).
 
-### Three-Layer Architecture (v1.9)
+| Project Size | Total Tokens | Strategy |
+|-------------|-------------|----------|
+| Small (< 300K tokens) | Fits in single batch | All files + rules in one context window |
+| Medium (300K–800K) | 2–3 batches | Group by dependency graph |
+| Large (> 800K) | 4+ batches | Module-level batches |
 
-v1.9 separates deterministic operations from LLM judgment:
+The `scan-planner.py` script implements this deterministically:
+- Connected components (files that import each other) stay in the same batch
+- Token budget: 800K per batch (leaves ~200K for rules, prompt, output)
+- Alphabetical tie-breaking ensures identical plans on every run
 
-```
-Layer 1 (LLM): Dimension scan → Adversarial verify → Generate report
-Layer 2 (Script): validate-report.py → Check rule IDs & severities
-Layer 3 (Script): compute-gate.py → Deterministic PASS/FAIL
-```
+## Signal-Driven Completeness (v1.10)
 
-### Full-Scan (inherited from v1.8.1)
+file-manifest.json includes grep-detected signals per file:
 
-Every source file is read regardless of codebase size. No sampling.
+| Signal | Category | Maps To |
+|--------|----------|---------|
+| v-html | security | BSL 11.1.1_174 |
+| innerHTML | security | BSL 11.1.1_174 |
+| hardcoded-secret | security | BSL 11.1.1_41, javascript:S6437 |
+| md5-usage | security | BSL 11.1.1_8 |
+| localStorage | security | BSL 11.1.1_51 |
+| console-log | security | BSL 11.1.1_86, BSL 11.1.1_98 |
+| eval-usage | security | BSL 11.1.1_113 |
+| http-url | security | BSL 11.1.1_32 |
+| empty-catch | quality | javascript:S1186, java:S108 |
+| var-declaration | quality | javascript:S3504 |
 
-### Dimension-Based Scanning (v1.9)
-
-Instead of free-form analysis, the LLM scans through 5 mandatory dimensions:
-
-| # | Dimension | Focus | Key Rules |
-|---|-----------|-------|-----------|
-| 1 | Resource Management | Streams, connections | S2095, S2189, S2142 |
-| 2 | Null Safety | NullPointerException | S2259, S2637, S3518 |
-| 3 | Exception Handling | Error correctness | S1181, S108, S1186 |
-| 4 | Concurrency | Thread safety | S2445, S2168, S2696 |
-| 5 | Spring/Config | Framework issues | S6818, S4601, S3776 |
-
-Each dimension has mandatory rules checked explicitly (Found / Not Found / N/A).
-
-### Adversarial Verification (v1.9)
-
-Every candidate finding is challenged: the LLM re-reads the full method and
-checks exclusion conditions. If ANY exclusion applies, the finding is removed.
-This dramatically reduces false positives.
-
-### External Validation (v1.9)
-
-Two Python scripts provide deterministic post-processing:
-
-| Script | Purpose | Authority |
-|--------|---------|-----------|
-| `validate-report.py` | Verify rule IDs exist, severity matches standards | Overrides LLM |
-| `compute-gate.py` | Compute PASS/FAIL from validated findings | Final gate result |
-
-**Why external validation**: The v1.8.1 inconsistency analysis (see
-`V181_QUALITY_GATE_INCONSISTENCY_ANALYSIS.md`) proved that LLM self-validation
-is unreliable (the same model that fabricates a rule ID also "validates" it as
-correct). External scripts eliminate this class of error entirely.
-
-## Report Structure
-
-### Unified Finding Header
-
-Every finding across all report types (R&M / Security / Security Review / Rescan)
-begins with the same 4-line header block, ensuring consistent formatting for
-cross-report comparison:
-
-```
-**Risk Level**: CRITICAL / HIGH / MEDIUM
-**CVSS Score**: 9.8 (Critical) / N/A — non-security rule
-**File**: `src/main/java/com/example/Config.java:42`
-**Associated CVE**: CVE-2016-4437 pattern / N/A — code logic defect (CWE-xxx)
-```
-
-### Category Reports (R&M / Security)
-
-Each category report contains:
-
-1. **Report header** — Repository/module name, scan date, review standards, rule ID format
-2. **Review summary** — Statistics by category + severity distribution + quality gate status
-3. **Issue details** — Each issue includes:
-   - Unified header (Risk Level / CVSS Score / File / Associated CVE)
-   - Issue ID (e.g., BUG-01, SEC-01)
-   - Rule ID + rule description (strictly mapped to SonarQube / BSL rules)
-   - File path + code snippet
-   - Root cause & business impact
-   - Detailed fix recommendation (code-specific)
-   - AI-suggested fix code (corrected code snippet, where applicable)
-   - Fix priority (P0/P1/P2/P3)
-   - Impact of not fixing
-4. **Fix priority summary**
-5. **Appendix** — LLM-discovered issues that cannot map to the rule set (excluded from quality gate)
-
-### Rescan Reports
-
-Each rescan report contains:
-
-1. **Fix verification results** — Statistics by FIXED / PARTIALLY FIXED / NOT FIXED / REGRESSED
-2. **Fix rate** — Total issues, fixed count, fix percentage
-3. **Per-issue verification details** — Fix status and assessment for each previous finding
-4. **Regressions** — New issues introduced during the fix process
-5. **Remaining open issues list**
-
-### Summary Report
-
-- Per-module x per-report-type Pass/Fail summary
-- All module issues merged into a single detail table
-- Global fix priority distribution
+Agent B uses these signals as a completeness checklist. If a signal exists but
+Agent A didn't report a corresponding finding, Agent B investigates and either
+adds the missed finding or documents why it's acceptable.
 
 ## Quality Gate
 
-### Shared Quality Gate (applies to both R&M and Security Reports)
 ```
 FAIL if ANY of the following is true:
   - severity = Critical  (any priority)
   - severity = High  AND  priority = P0
 
 PASS if none of the above conditions are met.
-
-Note: Medium issues are tracked but never block the gate.
-High issues with P1/P2/P3 do NOT block the gate.
 ```
 
+Quality gate uses **post-verification** counts (after Agent B adjustments).
 The Summary Report's overall gate is PASS only if ALL individual reports PASS.
 
 ## Fix Priority Definitions
@@ -289,147 +242,55 @@ The Summary Report's overall gate is PASS only if ALL individual reports PASS.
 | **P2** | Medium-term fix (1 month) | Code quality issues with some risk |
 | **P3** | Long-term optimization | Low risk, technical debt |
 
-Medium-severity issues must have an explicit P0-P3 label. Medium issues do
-NOT affect the quality gate regardless of priority.
-
-## Rule Sources
-
-### SonarQube Rules (Reliability & Maintainability Report)
-
-- Standards files: `.kiro/rules/sonarqube-java-standards.md` (341 rules) / `.kiro/rules/sonarqube-javascript-standards.md`
-- **Scope**: Bug category only — Security rules and Code Smell rules are excluded
-- Covers Blocker, High, and Medium severity levels
-- Every issue's rule ID, name, and severity strictly follows the rule definition
-- Issues that cannot map to a specific Rule ID are excluded from the main report
-
-### Philips Secure Coding Baseline (Security Report)
-
-- BSL 11.1.1.d Version 3 (October 2025)
-- 230 security controls across 17 security domains
-- Every issue maps to a specific BSL Control ID (e.g., `11.1.1_41`)
-
-### LLM-Discovered Issue Isolation
-
-Issues found outside the SonarQube / BSL rule sets are not mixed into the main
-report. They are collected in the Appendix section at the end of each report
-and do not affect the quality gate.
-
 ## Step-by-Step Execution
 
-If you prefer not to use the one-click batch scan, you can run each step manually:
+If you prefer not to use the one-click batch scan:
 
 ```
-@codebase-reverse-engineering     <- 1. Analyze the codebase (must run first)
-@sonarqube-review                 <- 2. Generate R&M report for a specific module
-@secure-coding-baseline-review    <- 3. Generate Security report for a specific module
-@summary-report                   <- 4. Generate summary report
-@rescan                           <- 5. Post-fix verification scan (optional, after fixes)
+@codebase-reverse-engineering     ← Phase 1: Analyze + generate file-manifest.json
+@sonarqube-review                 ← Phase 3: R&M report for a specific module
+@secure-coding-baseline-review    ← Phase 3: Security report for a specific module
+@verification-agent               ← Phase 4: Adversarial verification
+@summary-report                   ← Phase 5: Generate summary
+@rescan                           ← Post-fix verification (optional)
 ```
-
-### Optional: Supplementary Review (Deep Analysis)
-
-These skills provide analysis beyond the two core report types, using BSL
-Appendix A-G as review standards:
-
-```
-@security-review          <- OWASP/CWE security analysis (CVSS v3.1 scoring + CVE association)
-@acceptance-report        <- Combined acceptance decision (all dimensions)
-```
-
-## Output Format
-
-Reports are generated in **both Markdown and Word (.docx)** format:
-
-- Markdown: Primary working format, viewable in Kiro / GitHub / any editor
-- Word (.docx): Final deliverable for stakeholders, generated via `pandoc`
-
-**Prerequisite for Word output**: Install [pandoc](https://pandoc.org/installing.html):
-```bash
-# macOS
-brew install pandoc
-
-# Ubuntu / Debian
-sudo apt install pandoc
-
-# Amazon Linux
-sudo yum install pandoc
-```
-
-If `pandoc` is not available, the scan completes normally but Word conversion is skipped.
 
 ## FAQ
 
 **Q: What if the development team doesn't use Kiro?**
-A: The development team does not need to use Kiro. The `.kiro/` directory is the
-operations team's review toolkit and is not committed to the development team's repository.
+A: The development team does not need Kiro. The `.kiro/` directory is the
+operations team's review toolkit and is not committed to their repository.
 
-**Q: Can I use this on any project?**
-A: Yes. v1.8 auto-detects modules from the build system. Just copy the `.kiro/`
-directory into any project and run. No configuration required for standard
-Maven/Gradle/npm/Go projects.
-
-**Q: Can I scan only specific modules?**
-A: Yes. Use `@batch-scan module1 module2` to specify module names. You can also
-use `@sonarqube-review` and `@secure-coding-baseline-review` to scan modules individually.
-
-**Q: How do I fix the module list for a project?**
-A: Create a `module-manifest.md` file in the project root with a table of
-modules. When present, this overrides auto-detection. See the "Module Discovery"
-section above.
-
-**Q: How do I update the SonarQube rule set?**
-A: Export the latest rule configuration (JSON format) from your organization's
-SonarQube system, then update `.kiro/rules/sonarqube-java-standards.md`,
-`.kiro/rules/sonarqube-javascript-standards.md`, and the corresponding JSON files.
-
-**Q: How are severity levels defined in the reports?**
-A: SonarQube: Blocker -> Critical, High -> High, Medium -> Medium.
-BSL Security reports use CVSS v3.1 scoring: 8 metrics (AV/AC/PR/UI/S/C/I/A)
-produce a vector score — 9.0-10.0 -> Critical, 7.0-8.9 -> High, 4.0-6.9 -> Medium,
-0.1-3.9 -> Low. Every security issue includes the full CVSS vector string and
-associated CVE identifier.
-
-**Q: Should I fix issues in the Appendix?**
-A: Appendix issues come from LLM general best practice analysis and are outside
-the specified rule set. They do not affect the quality gate. Treat them as
-advisory and address at your discretion.
-
-**Q: What if the quality gate fails?**
-A: Check the P0 issues list in the Summary Report — these must be fixed. After
-fixes are applied, use `@rescan` for verification (no need to re-run
-`@codebase-reverse-engineering`).
-
-**Q: Does the post-fix rescan require re-running reverse engineering?**
-A: No. Copy the previous `code-review-artifacts/reverse-engineering/` directory
-into the new code version directory. `@rescan` will use these artifacts
-automatically. Only re-run reverse engineering if the new version includes
-significant architectural changes.
-
-**Q: How does a rescan differ from an initial scan?**
-A: `@rescan` focuses on fix verification, not a full re-scan. It checks each
-previous finding for fix completeness, assesses fix correctness, and detects
-regressions. It produces a delta report rather than a full report.
-
-**Q: What changed in v1.9?**
-A: v1.9 introduces a three-layer architecture: (1) LLM scans code through 5
-mandatory dimensions with adversarial verification, (2) a Python script validates
-all rule IDs against the standards JSON, (3) a Python script computes the Quality
-Gate deterministically. This eliminates rule ID hallucination and gate logic errors.
-
-**Q: What are the external validation scripts?**
-A: `.kiro/scripts/validate-report.py` checks rule IDs and severities against
-`sonarqube_rules.json`. `.kiro/scripts/compute-gate.py` calculates the Quality
-Gate from validated findings. Both are deterministic — same input always gives
-same output.
+**Q: What changed from v1.9 to v1.10?**
+A: v1.10 structurally eliminates non-determinism. v1.9 told the LLM "read all
+files" (unreliable). v1.10 assigns files to context windows algorithmically and
+uses grep signals + an independent verification agent to guarantee completeness.
 
 **Q: Do I need Python installed?**
-A: Python 3.6+ is required for the validation scripts. If Python is not available,
-the LLM will skip external validation and rely on inline checks (less reliable).
+A: Python 3.6+ is recommended for scan-planner.py and validation scripts. If
+unavailable, the system falls back to single-batch mode and inline validation.
+
+**Q: What if my project exceeds the 1M token context window?**
+A: scan-planner.py automatically splits into multiple batches (800K per batch).
+Connected components in the dependency graph stay together. Very large projects
+may need 4+ batches, processed sequentially.
+
+**Q: How does Agent B verification work?**
+A: Agent B is an independent adversarial reviewer that: (1) challenges every
+Agent A finding using an exclusion checklist to detect false positives, and
+(2) uses file-manifest signals to find patterns Agent A missed. The final
+report counts come from Agent B's verification.
+
+**Q: Can I skip verification (Agent B)?**
+A: You can run `@sonarqube-review` and `@secure-coding-baseline-review` without
+`@verification-agent`, but this reverts to v1.9 behavior without completeness
+guarantees. Not recommended.
 
 ## Version History
 
 | Version | Key Changes |
 |---------|-------------|
+| v1.10 | 5-phase architecture; file-manifest.json with grep signals; scan-planner.py for deterministic batch assignment; Agent B verification; structural non-determinism elimination |
 | v1.9 | Three-layer architecture: dimension scanning + adversarial verification + external script validation |
 | v1.8.1 | Full-scan mode — read ALL source files, no sampling regardless of codebase size |
 | v1.8 | Architecture-Role Pattern Matching; open module discovery; bug fixes |

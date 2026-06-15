@@ -8,7 +8,7 @@ description: >
   skill + same model = same architecture output.
 ---
 
-# Codebase Reverse Engineering (v1.9 — Deterministic, Full-Scan)
+# Codebase Reverse Engineering (v1.10 — Deterministic, Full-Scan + File Manifest)
 
 You are a senior software architect performing comprehensive reverse engineering
 of a codebase. Your goal is to deeply understand the system before any code
@@ -232,6 +232,80 @@ sorted alphabetically by path. This guarantees:
 **Determinism guarantee**: The read set equals the full file manifest from
 Step 0.2. No selection logic, no thresholds, no heuristics. Same codebase =
 same files read in the same order = same output.
+
+#### 0.5 Generate file-manifest.json (v1.10 — NEW)
+
+After reading all source files, generate a structured manifest that captures
+per-file metadata for use by the context window planner and verification agent.
+
+**Output**: `code-review-artifacts/reverse-engineering/file-manifest.json`
+
+**Structure** — a JSON array where each entry has:
+
+```json
+{
+  "path": "src/api/index.js",
+  "module": "lab-admin-web",
+  "description": "Axios HTTP client instance with request/response interceptors for auth token injection and error handling",
+  "tokens": 1200,
+  "imports": ["src/utils/auth.js", "src/config/env.js"],
+  "imported_by": ["src/views/login.vue", "src/views/dashboard.vue"],
+  "security_signals": ["hardcoded-secret", "localStorage", "console-log"],
+  "quality_signals": ["var-declaration", "empty-catch"]
+}
+```
+
+**Field definitions**:
+
+| Field | Type | Source | Description |
+|-------|------|--------|-------------|
+| path | string | Step 0.2 manifest | Relative file path from project root |
+| module | string | Step 0.3 | Module this file belongs to |
+| description | string | LLM | One-line functional description (what it does, not quality judgment) |
+| tokens | integer | Estimated | Approximate token count (chars / 4) |
+| imports | string[] | Static analysis | Files this file imports (relative paths within project) |
+| imported_by | string[] | Static analysis | Files that import this file (reverse edges) |
+| security_signals | string[] | grep | Security-relevant patterns found (see signal table below) |
+| quality_signals | string[] | grep | Quality-relevant patterns found (see signal table below) |
+
+**Signal detection** — run deterministic grep patterns on each file:
+
+| Signal Type | Category | Grep Pattern(s) |
+|-------------|----------|-----------------|
+| v-html | security | `v-html` |
+| innerHTML | security | `innerHTML`, `dangerouslySetInnerHTML` |
+| eval-usage | security | `eval(`, `new Function(`, `setTimeout(.*,` (string arg) |
+| hardcoded-secret | security | `password\s*=\s*['"]`, `secret\s*=\s*['"]`, `apiKey\s*=\s*['"]`, `token\s*=\s*['"]` (excluding .env/.example files) |
+| md5-usage | security | `md5(`, `MD5(`, `createHash.*md5` |
+| localStorage | security | `localStorage.setItem`, `localStorage.getItem` |
+| console-log | security | `console.log(` (in non-test files) |
+| http-url | security | `http://` (excluding localhost/127.0.0.1) |
+| empty-catch | quality | `catch.*{[\s]*}`, `catch.*{\s*//` (empty catch or comment-only catch) |
+| var-declaration | quality | `\bvar\s` (in .js/.ts files) |
+
+**Rules for signal detection**:
+- Signals are DETERMINISTIC: same file → same grep → same signals
+- Only emit signals that are actually found (no empty arrays → omit field or use `[]`)
+- Exclude test files, config files, and third-party/vendor code from signal detection
+- Sort signals alphabetically within each array
+
+**Rules for description**:
+- One sentence maximum
+- State WHAT the file does, not HOW WELL it does it
+- No quality judgments (D5 applies)
+- Derived from the file content you read in Step 0.4
+
+**Rules for imports/imported_by**:
+- Only include files within the project (not node_modules/external packages)
+- Use the same relative path format as the `path` field
+- For JavaScript/TypeScript: resolve `@/` aliases to actual paths
+- For unresolvable imports: omit (do not guess)
+
+**Token estimation**:
+- Approximate: file character count ÷ 4
+- This enables scan-planner.py to assign batches without re-reading files
+
+**Ordering**: The JSON array MUST be sorted alphabetically by `path` field.
 
 ---
 
