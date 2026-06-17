@@ -34,6 +34,63 @@ Total output: **(3N + 1) reports** — R&M + Security + Verification per module,
 - If `code-review-artifacts/reverse-engineering/` does not exist, Phase 1 will
   create it. Otherwise, run `@codebase-reverse-engineering` first.
 
+## Resume Protocol (Cross-Session Continuity)
+
+Large projects require multiple sessions (one context window ≈ one batch).
+This skill supports **automatic resume** — each new session simply invokes
+`@batch-scan` and the skill detects where to continue.
+
+### How It Works
+
+On invocation, BEFORE starting any phase, execute this detection sequence:
+
+1. **Check `scan-plan.json`**: If `code-review-artifacts/scan-plan.json` exists,
+   Phase 1 and Phase 2 are already complete → skip to Phase 3.
+
+2. **Check existing reports**: Scan `code-review-artifacts/` for files matching
+   `*_Reliability_Maintainability_Report_*.md` and `*_Security_Report_*.md`.
+   Extract the module name from each filename (the prefix before the first `_`
+   that matches a module in scan-plan.json).
+
+3. **Determine completed batches**: A batch is COMPLETE if ALL modules in that
+   batch have both R&M and Security reports. A batch is PARTIAL if some but not
+   all modules have reports.
+
+4. **Resume decision**:
+   - All batches complete + Summary exists → report "Scan already complete" and exit
+   - All batches complete + no Summary → skip to Phase 5 (Report Assembly)
+   - Some batches complete → resume from first incomplete batch (Phase 3)
+   - No batches complete → start from Phase 3 Batch 1 (or Phase 1 if no scan-plan)
+
+5. **Output resume status**:
+   ```
+   ============================================
+     RESUME DETECTED
+   ============================================
+   scan-plan.json: EXISTS ([n] batches, [n] files)
+   file-manifest.json: EXISTS ([n] entries)
+
+   Batch progress:
+     Batch 1: ✅ COMPLETE ([n] modules, [n] reports)
+     Batch 2: ⏳ IN PROGRESS (3/7 modules done)
+     Batch 3: ⬜ NOT STARTED
+
+   Resuming from: Batch 2, module [name]
+   ============================================
+   ```
+
+### Rules
+
+- NEVER re-scan a module that already has both R&M and Security reports
+- NEVER re-generate scan-plan.json or file-manifest.json if they already exist
+  (unless the user explicitly requests regeneration)
+- If a module has an R&M report but no Security report (partial failure),
+  resume from the Security report for that module
+- Verification reports (Phase 4) are generated after ALL Agent A reports exist
+  — if some batches are incomplete, skip Phase 4 until all are done
+
+---
+
 ## Output Directory
 
 ```
@@ -152,6 +209,10 @@ Proceeding with scan...
 ```
 
 ### Step 3.2: Process Each Batch
+
+**Resume-aware**: If the Resume Protocol (above) determined that some batches
+are already complete, skip those batches entirely. Start from the first
+incomplete batch and the first module within it that lacks reports.
 
 For each batch in scan-plan.json, IN SEQUENCE:
 
