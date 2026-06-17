@@ -1,16 +1,37 @@
-# Release Notes — v1.10
+# Release Notes — v1.10.1
 
-**Release Date**: 2026-06-15
+**Release Date**: 2026-06-17
 
-## Summary
+## What's New in v1.10.1 (vs v1.10)
 
-v1.10 structurally eliminates the primary source of non-determinism in code
+### Multi-Module Project Detection
+
+`generate-manifest.py` now correctly detects and assigns files to modules in
+multi-module projects. Previously only npm workspaces were supported — Maven,
+Gradle, and Go projects were treated as single-module, causing incomplete scans.
+
+**Supported build systems** (in priority order):
+1. **Maven** — parses `<module>` entries in root `pom.xml`
+2. **Gradle** — parses `include` in `settings.gradle(.kts)`
+3. **npm/pnpm/yarn** — resolves `workspaces` in `package.json`
+4. **Go** — parses `use()` blocks in `go.work`
+5. **Heuristic fallback** — subdirs containing their own build file
+
+**Bug fixed**: lab-backend (21 Maven modules, 3605 files) was previously tagged
+as a single module "lab-backend", causing Kiro to only scan 3/21 modules. Now
+all 21 modules are correctly identified and independently scanned.
+
+---
+
+## Summary (inherited from v1.10)
+
+v1.10.1 structurally eliminates the primary source of non-determinism in code
 review scans: LLM file-reading decisions. Testing v1.9 on the same codebase
 (lab-admin-web) produced inconsistent results across runs (18 vs 11 issues)
 because the LLM non-deterministically selected which files to read, despite
 explicit "Read ALL" instructions.
 
-v1.10 solves this by removing LLM file-selection entirely. Files are assigned
+v1.10.1 solves this by removing LLM file-selection entirely. Files are assigned
 to context windows algorithmically, grep-generated signals provide a
 deterministic completeness checklist, and an independent verification agent
 catches any remaining omissions.
@@ -36,7 +57,7 @@ coverage**, without requiring the LLM to read any files.
 python3 .kiro/scripts/generate-manifest.py --root .
 ```
 
-**Why this script exists**: The initial v1.10 design had a bootstrap paradox —
+**Why this script exists**: The initial v1.10.1 design had a bootstrap paradox —
 file-manifest.json needed to cover ALL files, but the LLM generating it could
 only read ~20 files per session. First real-world test on lab-admin-web showed
 20/1349 file coverage (1.5%). This script eliminates LLM involvement entirely
@@ -130,7 +151,7 @@ Deterministic mapping from grep signals to rules/controls:
   covering ALL source files (script-based, not LLM-based)
 - Fallback instructions for when python3 is unavailable (grep + wc -c)
 - Verification step: entry count must equal source file count or scan aborts
-- Version header updated to v1.10
+- Version header updated to v1.10.1
 
 ### @batch-scan
 - Complete rewrite for 5-phase architecture
@@ -141,7 +162,7 @@ Deterministic mapping from grep signals to rules/controls:
 ### @sonarqube-review
 - Now receives files pre-loaded in context (doesn't self-select)
 - Uses quality_signals from file-manifest.json as completeness checklist
-- Version header updated to v1.10
+- Version header updated to v1.10.1
 
 ### @secure-coding-baseline-review
 - Now receives files pre-loaded in context (doesn't self-select)
@@ -173,12 +194,12 @@ Deterministic mapping from grep signals to rules/controls:
 
 ## Migration from v1.9
 
-1. Replace the `.kiro/` directory with the v1.10 version
+1. Replace the `.kiro/` directory with the v1.10.1 version
 2. No changes needed to rule files (`.kiro/rules/` unchanged)
 3. Python 3.6+ recommended (for scan-planner.py); falls back gracefully if unavailable
-4. Existing `code-review-artifacts/` from v1.9 runs can remain; v1.10 will overwrite
+4. Existing `code-review-artifacts/` from v1.9 runs can remain; v1.10.1 will overwrite
 
-## Lessons Learned (v1.9 → v1.10)
+## Lessons Learned (v1.9 → v1.10.1)
 
 ### The Problem
 

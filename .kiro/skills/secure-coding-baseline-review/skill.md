@@ -3,18 +3,18 @@ name: secure-coding-baseline-review
 description: >
   Generates a Security report for a single module based on the Philips Secure
   Coding Baseline (BSL 11.1.1.d, 230 controls across 17 security domains).
-  v1.10: Context-aware scanning with file-manifest security_signals as
+  v1.10.1: Context-aware scanning with file-manifest security_signals as
   completeness checklist. Strict control-to-ID mapping, quality gate, fix
   priorities (P0–P3), and LLM-discovered issues isolated in appendix.
 ---
 
-# Security Review (Philips Secure Coding Baseline — v1.10)
+# Security Review (Philips Secure Coding Baseline — v1.10.1)
 
 You are a senior security engineer. Generate a **Security** report for the
 specified module by checking it against the Philips Secure Coding Baseline
 (BSL 11.1.1.d, Version 3, 230 controls).
 
-**v1.10 Key Change**: Files are PRE-LOADED into context by the batch-scan
+**v1.10.1 Key Change**: Files are PRE-LOADED into context by the batch-scan
 orchestrator. You do NOT decide which files to read. Use `security_signals`
 from file-manifest.json as a deterministic completeness checklist to ensure
 every known vulnerability pattern is examined.
@@ -119,7 +119,7 @@ Security issues found that cannot map to a BSL control ID go to the
 2. Read BSL standards from `.kiro/rules/secure-coding-baseline-standards.md`
 3. Determine applicable domains based on application type
 4. Build a control checklist — every applicable control gets checked
-5. **v1.10**: All source files are ALREADY in context (loaded by batch-scan
+5. **v1.10.1**: All source files are ALREADY in context (loaded by batch-scan
    orchestrator per scan-plan.json). If invoked standalone (outside batch-scan),
    read ALL source files in the module.
 6. Read `file-manifest.json` entries for this module — extract `security_signals`

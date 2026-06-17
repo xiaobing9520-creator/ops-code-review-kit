@@ -1,17 +1,17 @@
 ---
 name: batch-scan
 description: >
-  One-click batch scan (v1.10): 5-phase architecture — RE + File Manifest →
+  One-click batch scan (v1.10.1): 5-phase architecture — RE + File Manifest →
   Context Window Planning → Agent A Scan → Agent B Verification → Report Assembly.
   Structurally eliminates non-determinism by pre-loading files into context
   rather than letting the LLM decide which files to read.
 ---
 
-# Batch Scan — One-Click Full Project Review (v1.10)
+# Batch Scan — One-Click Full Project Review (v1.10.1)
 
 You are the operations team's automated scanning orchestrator. When invoked,
 perform a complete code review of **all modules** in the project using the
-v1.10 five-phase architecture.
+v1.10.1 five-phase architecture.
 
 ## What This Skill Does
 
@@ -163,7 +163,7 @@ Then for each module represented in this batch:
 
 #### 3.2.1 Generate Reliability & Maintainability Report
 
-Apply `@sonarqube-review` skill logic (v1.10):
+Apply `@sonarqube-review` skill logic (v1.10.1):
 - All files for this module are ALREADY in context (loaded in step 1)
 - Use the manifest's `quality_signals` as a CHECKLIST of patterns to verify
 - Perform dimension-based scanning + adversarial verification
@@ -174,7 +174,7 @@ Save: `code-review-artifacts/[Module]_Reliability_Maintainability_Report_[YYYY-M
 
 #### 3.2.2 Generate Security Report
 
-Apply `@secure-coding-baseline-review` skill logic (v1.10):
+Apply `@secure-coding-baseline-review` skill logic (v1.10.1):
 - All files for this module are ALREADY in context
 - Use the manifest's `security_signals` as a CHECKLIST of patterns to verify
 - Domain-by-domain BSL scanning
@@ -256,7 +256,7 @@ If `pandoc` is not available, note that Word conversion was skipped.
 
 ```
 ============================================
-  Batch Scan Complete (v1.10 — 5-Phase Architecture)
+  Batch Scan Complete (v1.10.1 — 5-Phase Architecture)
 ============================================
 
 Phases completed: 5/5
@@ -309,7 +309,7 @@ All module reports MUST follow identical formatting. Before generating reports:
 
 ## Key Differences from v1.9
 
-| Aspect | v1.9 | v1.10 |
+| Aspect | v1.9 | v1.10.1 |
 |--------|------|-------|
 | File selection | LLM decides which files to read | scan-planner.py assigns files to batches |
 | Completeness check | Text instruction "Read ALL" | grep signals as deterministic checklist |

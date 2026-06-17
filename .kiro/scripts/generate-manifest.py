@@ -5,7 +5,7 @@ generate-manifest.py — Deterministic File Manifest Generator (v1.10.1)
 Generates file-manifest.json WITHOUT requiring the LLM to read every file.
 Uses filesystem operations and grep for 100% deterministic, complete coverage.
 
-This script solves the v1.10 bootstrap problem: file-manifest.json must cover
+This script solves the v1.10.1 bootstrap problem: file-manifest.json must cover
 ALL source files, but the LLM cannot read 1000+ files in one context window.
 
 What this script provides (deterministic, no LLM needed):

@@ -1,4 +1,4 @@
-# Ops Code Review Kit (v1.10)
+# Ops Code Review Kit (v1.10.1)
 
 ## What Is This
 
@@ -28,7 +28,7 @@ All review work is performed by the operations team in their own environment.
 - **AI-suggested fix code**: Each finding includes AI-generated corrective code
 - **Word output**: Reports generated in both Markdown and Word (.docx) format
 
-## Architecture (v1.10)
+## Architecture (v1.10.1)
 
 ```
 Phase 1: Reverse Engineering + File Manifest
@@ -62,7 +62,7 @@ Testing showed this was unreliable — the same codebase scanned twice produced
 different results (18 vs 11 issues) because the LLM non-deterministically
 selected which files to read.
 
-v1.10 solves this structurally:
+v1.10.1 solves this structurally:
 - **Phase 2** assigns files to batches algorithmically (no LLM choice)
 - **Phase 3** receives files as input (not self-selected)
 - **Phase 4** uses grep signals to detect any patterns Agent A missed
@@ -199,7 +199,7 @@ The `scan-planner.py` script implements this deterministically:
 - Token budget: 800K per batch (leaves ~200K for rules, prompt, output)
 - Alphabetical tie-breaking ensures identical plans on every run
 
-## Signal-Driven Completeness (v1.10)
+## Signal-Driven Completeness (v1.10.1)
 
 file-manifest.json includes grep-detected signals per file:
 
@@ -272,7 +272,7 @@ Generates structured artifacts:
 - `data-flow.md` — Trust boundaries, API surfaces, integrations
 - `architecture-preview.html` — Visual diagram for browser viewing
 
-**Step 1.5 — File Manifest Generation** (NEW in v1.10, SCRIPT-BASED):
+**Step 1.5 — File Manifest Generation** (NEW in v1.10.1, SCRIPT-BASED):
 
 **CRITICAL**: This step uses a Python script, NOT the LLM reading files one by one.
 The LLM cannot read 1000+ files in one session — the script guarantees 100% coverage.
@@ -657,9 +657,9 @@ in seconds using precomputed MD5 tables.
 A: The development team does not need Kiro. The `.kiro/` directory is the
 operations team's review toolkit and is not committed to their repository.
 
-**Q: What changed from v1.9 to v1.10?**
-A: v1.10 structurally eliminates non-determinism. v1.9 told the LLM "read all
-files" (unreliable). v1.10 assigns files to context windows algorithmically and
+**Q: What changed from v1.9 to v1.10.1?**
+A: v1.10.1 structurally eliminates non-determinism. v1.9 told the LLM "read all
+files" (unreliable). v1.10.1 assigns files to context windows algorithmically and
 uses grep signals + an independent verification agent to guarantee completeness.
 
 **Q: Do I need Python installed?**
@@ -686,6 +686,7 @@ guarantees. Not recommended.
 
 | Version | Key Changes |
 |---------|-------------|
+| v1.10.1 | Multi-module detection (Maven/Gradle/Go/npm); fix incomplete module scanning on multi-module projects |
 | v1.10 | 5-phase architecture; file-manifest.json with grep signals; scan-planner.py for deterministic batch assignment; Agent B verification; structural non-determinism elimination |
 | v1.9 | Three-layer architecture: dimension scanning + adversarial verification + external script validation |
 | v1.8.1 | Full-scan mode — read ALL source files, no sampling regardless of codebase size |

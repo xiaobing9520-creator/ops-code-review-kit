@@ -56,11 +56,11 @@ When this file exists, ALL skills MUST use it instead of auto-detection. When
 it does NOT exist, auto-detection applies. This makes the kit portable across
 projects without manual steering edits.
 
-## Determinism & Reproducibility Policy (v1.10)
+## Determinism & Reproducibility Policy (v1.10.1)
 
 Same codebase + same standards + same model MUST yield the same reports.
 
-v1.10 introduces a **five-phase architecture** that structurally eliminates the
+v1.10.1 introduces a **five-phase architecture** that structurally eliminates the
 primary source of non-determinism (LLM file-reading decisions):
 
 ```
@@ -119,7 +119,7 @@ reading" problem that caused v1.9 run-to-run variance.
 | Severity = Medium (any other) | P2 |
 | Severity = Low | P3 |
 
-### Context Window Strategy (v1.10)
+### Context Window Strategy (v1.10.1)
 
 Target model: Claude Opus 4.6 / Sonnet 4.6 (1M context window).
 
@@ -328,11 +328,11 @@ code-review-artifacts/
 ├── reverse-engineering/          ← @codebase-reverse-engineering output
 │   ├── architecture-preview.html
 │   ├── *.md
-│   └── file-manifest.json       ← NEW in v1.10: per-file descriptions + signals
-├── scan-plan.json                ← NEW in v1.10: deterministic batch assignment
+│   └── file-manifest.json       ← NEW in v1.10.1: per-file descriptions + signals
+├── scan-plan.json                ← NEW in v1.10.1: deterministic batch assignment
 ├── [Module1]_Reliability_Maintainability_Report_[date].md / .docx
 ├── [Module1]_Security_Report_[date].md / .docx
-├── [Module1]_Verification_Report_[date].md / .docx    ← NEW in v1.10
+├── [Module1]_Verification_Report_[date].md / .docx    ← NEW in v1.10.1
 ├── Summary_Report_[date].md / .docx
 └── previous-scan/                ← for @rescan only
 ```

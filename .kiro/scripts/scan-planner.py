@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scan-planner.py — Deterministic Context Window Batch Planner (v1.10)
+scan-planner.py — Deterministic Context Window Batch Planner (v1.10.1)
 
 Reads file-manifest.json and produces scan-plan.json that assigns files to
 context window batches based on token budget and dependency relationships.
@@ -199,7 +199,7 @@ def create_scan_plan(manifest_path, budget):
 
     if not files:
         return {
-            'version': '1.10',
+            'version': '1.10.1',
             'total_files': 0,
             'total_tokens': 0,
             'budget_per_batch': budget,
@@ -222,7 +222,7 @@ def create_scan_plan(manifest_path, budget):
         modules = sorted(set(f.get('module', 'unknown') for f in files))
 
         return {
-            'version': '1.10',
+            'version': '1.10.1',
             'total_files': len(files),
             'total_tokens': total_tokens,
             'budget_per_batch': budget,
@@ -257,7 +257,7 @@ def create_scan_plan(manifest_path, budget):
         })
 
     return {
-        'version': '1.10',
+        'version': '1.10.1',
         'total_files': len(files),
         'total_tokens': total_tokens,
         'budget_per_batch': budget,
@@ -269,7 +269,7 @@ def create_scan_plan(manifest_path, budget):
 def print_summary(plan):
     """Print human-readable summary."""
     print("=" * 60)
-    print("  SCAN PLAN (v1.10)")
+    print("  SCAN PLAN (v1.10.1)")
     print("=" * 60)
     print(f"  Total files: {plan['total_files']}")
     print(f"  Total tokens: {plan['total_tokens']:,}")
