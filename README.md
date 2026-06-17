@@ -31,121 +31,64 @@ That's it. Reports appear in `code-review-artifacts/`.
 
 ## Scanning Flow — Full Panorama
 
-Below is the complete end-to-end flow. Each box shows WHO does the work
-(Script or LLM), WHAT it produces, and WHERE the output goes.
+```mermaid
+flowchart TD
+    PREP[/"<b>PREPARATION</b> — You, in Terminal
+    cp -r ops-code-review-kit/.kiro target/
+    python3 generate-manifest.py --root ."/]
 
+    P1["<b>PHASE 1: Reverse Engineering</b>
+    Trigger: @codebase-reverse-engineering
+    ———
+    LLM reads code, understands architecture
+    Detects modules from build system"]
+
+    P2[["<b>PHASE 2: Context Window Planning</b>
+    Script: scan-planner.py — no LLM
+    ———
+    Builds dependency graph
+    Assigns files to batches ≤800K tokens"]]
+
+    P3["<b>PHASE 3: Primary Scan — Agent A</b>
+    Trigger: @batch-scan
+    ———
+    LLM scans pre-loaded files
+    R&M scan + Security scan
+    Writes file descriptions"]
+
+    P4["<b>PHASE 4: Verification — Agent B</b>
+    Independent adversarial LLM
+    ———
+    Removes false positives
+    Finds missed patterns via signals
+    Cross-file attack chains"]
+
+    P5[["<b>PHASE 5: Report Assembly</b>
+    Script: compute-gate.py + LLM summary
+    ———
+    Computes PASS/FAIL gate
+    Generates Summary Report
+    Converts to .docx"]]
+
+    DONE(["Scan Complete — 3N+1 reports"])
+
+    PREP -- "file-manifest.json" --> P1
+    P1 -- "architecture docs" --> P2
+    P2 -- "scan-plan.json" --> P3
+    P3 -- "R&M + Security reports" --> P4
+    P4 -- "Verification reports" --> P5
+    P5 --> DONE
+
+    style PREP fill:#e3f2fd,stroke:#1565C0,stroke-width:2px,color:#0D47A1
+    style P1 fill:#fff3e0,stroke:#E65100,stroke-width:2px
+    style P2 fill:#e8f5e9,stroke:#2E7D32,stroke-width:2px
+    style P3 fill:#fff3e0,stroke:#E65100,stroke-width:2px
+    style P4 fill:#fce4ec,stroke:#AD1457,stroke-width:2px
+    style P5 fill:#e8f5e9,stroke:#2E7D32,stroke-width:2px
+    style DONE fill:#c8e6c9,stroke:#1B5E20,stroke-width:3px
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        COMPLETE SCANNING PIPELINE                            │
-│                                                                             │
-│  YOU (terminal)          KIRO (LLM)              SCRIPTS (deterministic)    │
-│  ─────────────           ──────────              ─────────────────────────  │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ PREPARATION (one-time, before opening Kiro)                         │    │
-│  │                                                                     │    │
-│  │  $ cp -r ops-code-review-kit/.kiro /target-project/                 │    │
-│  │  $ cd /target-project                                               │    │
-│  │  $ python3 .kiro/scripts/generate-manifest.py --root .              │    │
-│  │                                                                     │    │
-│  │  Output: code-review-artifacts/reverse-engineering/file-manifest.json│    │
-│  │          (ALL source files indexed — 100% coverage guaranteed)       │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                              │                                               │
-│                              ▼                                               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ PHASE 1: Reverse Engineering           Trigger: @codebase-reverse-  │    │
-│  │                                                 engineering          │    │
-│  │  WHO: LLM (reads files, understands architecture)                   │    │
-│  │                                                                     │    │
-│  │  DOES:                                                              │    │
-│  │   • Reads source files to understand business logic                 │    │
-│  │   • Identifies system architecture, tech stack, data flows          │    │
-│  │   • Detects modules from build system (Maven/Gradle/npm/Go)         │    │
-│  │   • Generates architecture documentation                           │    │
-│  │                                                                     │    │
-│  │  PRODUCES:                                                          │    │
-│  │   code-review-artifacts/reverse-engineering/                        │    │
-│  │   ├── business-overview.md      ← System purpose & modules          │    │
-│  │   ├── tech-stack.md             ← Languages, frameworks, deps       │    │
-│  │   ├── architecture.md           ← Component topology                │    │
-│  │   ├── data-flow.md              ← Trust boundaries, APIs            │    │
-│  │   ├── analysis-summary.md       ← Scale assessment                  │    │
-│  │   └── architecture-preview.html ← Visual diagrams (open in browser) │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                              │                                               │
-│                              ▼                                               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ PHASE 2: Context Window Planning       Trigger: @batch-scan (auto)  │    │
-│  │                                                                     │    │
-│  │  WHO: Script (scan-planner.py) — NO LLM involved                   │    │
-│  │                                                                     │    │
-│  │  DOES:                                                              │    │
-│  │   • Reads file-manifest.json                                        │    │
-│  │   • Builds dependency graph (which files import each other)         │    │
-│  │   • Groups connected files into batches (≤800K tokens each)         │    │
-│  │   • Ensures related files stay in same batch                        │    │
-│  │                                                                     │    │
-│  │  PRODUCES:                                                          │    │
-│  │   code-review-artifacts/scan-plan.json                              │    │
-│  │   (e.g., "Batch 1: 1284 files, 798K tokens, modules A-I")          │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                              │                                               │
-│                              ▼                                               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ PHASE 3: Primary Scan (Agent A)        Trigger: @batch-scan (auto)  │    │
-│  │                                                                     │    │
-│  │  WHO: LLM (reads code, identifies violations)                       │    │
-│  │                                                                     │    │
-│  │  DOES (for each batch):                                             │    │
-│  │   • Reads ALL files assigned to this batch (no self-selection)      │    │
-│  │   • Writes a one-line description for each file → updates manifest  │    │
-│  │   • Scans for R&M issues (SonarQube rules — 5 dimensions)          │    │
-│  │   • Scans for Security issues (BSL 230 controls — 17 domains)      │    │
-│  │   • Uses grep signals as a checklist (must address every signal)    │    │
-│  │                                                                     │    │
-│  │  PRODUCES (per module):                                             │    │
-│  │   code-review-artifacts/                                            │    │
-│  │   ├── [Module]_Reliability_Maintainability_Report_[date].md         │    │
-│  │   └── [Module]_Security_Report_[date].md                            │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                              │                                               │
-│                              ▼                                               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ PHASE 4: Verification (Agent B)        Trigger: @batch-scan (auto)  │    │
-│  │                                                                     │    │
-│  │  WHO: LLM (independent adversarial reviewer)                        │    │
-│  │                                                                     │    │
-│  │  DOES:                                                              │    │
-│  │   • Job 1: Challenges each finding — checks exclusion conditions    │    │
-│  │     → removes false positives                                       │    │
-│  │   • Job 2: Compares signals vs findings — finds missed patterns     │    │
-│  │     → adds omitted issues                                           │    │
-│  │   • Job 3: Cross-file attack chain analysis                         │    │
-│  │                                                                     │    │
-│  │  PRODUCES (per module):                                             │    │
-│  │   code-review-artifacts/                                            │    │
-│  │   └── [Module]_Verification_Report_[date].md                        │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                              │                                               │
-│                              ▼                                               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ PHASE 5: Report Assembly               Trigger: @batch-scan (auto)  │    │
-│  │                                                                     │    │
-│  │  WHO: Script (compute-gate.py) + LLM (summary writing)             │    │
-│  │                                                                     │    │
-│  │  DOES:                                                              │    │
-│  │   • Computes quality gate (PASS/FAIL) from post-verification counts │    │
-│  │   • Aggregates all module results into summary                      │    │
-│  │   • Converts to Word (.docx) via pandoc                             │    │
-│  │                                                                     │    │
-│  │  PRODUCES:                                                          │    │
-│  │   code-review-artifacts/                                            │    │
-│  │   └── Summary_Report_[date].md   ← Final deliverable               │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+
+> **Legend**: Orange = LLM | Green = Script (deterministic) | Blue = You (terminal) | Pink = Adversarial LLM
 
 ### Script Invocation Timeline
 
