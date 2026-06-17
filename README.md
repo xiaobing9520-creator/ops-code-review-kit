@@ -1,625 +1,306 @@
 # Ops Code Review Kit (v1.10.1)
 
-## What Is This
+A Kiro IDE toolkit that lets operations teams perform standardized code reviews
+on any project. You get security + reliability reports with specific rule
+violations, CVSS scores, and fix recommendations — not vague suggestions.
 
-A code review toolkit built on Kiro (AI IDE). Operations teams use this toolkit
-to perform standardized reviews of application code delivered by development
-teams, ensuring the system is secure, stable, and maintainable before acceptance.
+**The development team does NOT need Kiro.** You copy this toolkit into their
+code, run the scan in your own Kiro session, and deliver the reports.
 
-**This toolkit does NOT require the development team to use Kiro or any specific tool.**
-All review work is performed by the operations team in their own environment.
+---
 
-## Key Capabilities
-
-- **One-click batch scan**: A single `@batch-scan` command triggers a full 5-phase scan
-- **5-Phase Architecture**: RE + File Manifest → Context Planning → Agent A Scan → Agent B Verify → Report Assembly
-- **Structural determinism**: Files are assigned to context windows algorithmically — the LLM never decides which files to read
-- **File Manifest with grep signals**: Per-file descriptions + security/quality signals enable completeness verification
-- **Agent A/B pattern**: Primary scanner + independent adversarial verifier eliminates false positives and catches omissions
-- **Auto module discovery**: Automatically detects project modules from build system (Maven, Gradle, npm, etc.)
-- **3 reports per module**: Reliability & Maintainability + Security + Verification
-- **Global summary report**: Merges all module results with overall Pass/Fail
-- **Context window planning**: Deterministic batch assignment respecting dependency graphs and token budgets
-- **Signal-driven completeness**: grep-generated signals guarantee known vulnerability patterns are never missed
-- **External validation scripts**: Python scripts verify rule IDs and compute Quality Gate deterministically
-- **Strict rule mapping**: Every issue must map to a specific Rule ID — no ad-hoc adjustments
-- **Quality gate**: Automatic Pass/Fail computed by external script (not LLM judgment)
-- **Fix priorities**: P0-P3 classification with defined remediation timelines
-- **AI-suggested fix code**: Each finding includes AI-generated corrective code
-- **Word output**: Reports generated in both Markdown and Word (.docx) format
-
-## Architecture (v1.10.1)
-
-```
-Phase 1: Reverse Engineering + File Manifest
-           ├── Architecture docs (business-overview, tech-stack, data-flow, etc.)
-           └── file-manifest.json (per-file descriptions + grep signals)
-
-Phase 2: Context Window Planning (scan-planner.py)
-           └── scan-plan.json (deterministic batch assignment)
-
-Phase 3: Primary Scan — Agent A
-           ├── Files PRE-LOADED per scan-plan.json (LLM doesn't choose)
-           ├── Manifest signals as completeness checklist
-           ├── R&M Report (SonarQube dimension scan)
-           └── Security Report (BSL domain scan)
-
-Phase 4: Verification — Agent B (independent adversarial reviewer)
-           ├── Job 1: Challenge findings (false positive detection)
-           ├── Job 2: Detect omissions (signal coverage matrix)
-           └── Verification Report
-
-Phase 5: Report Assembly + Gate Calculation
-           ├── compute-gate.py (authoritative PASS/FAIL)
-           ├── Summary Report (post-verification adjusted counts)
-           └── Word (.docx) conversion
-```
-
-### Why 5 Phases?
-
-v1.9 used text instructions ("Read ALL files") to ensure complete scanning.
-Testing showed this was unreliable — the same codebase scanned twice produced
-different results (18 vs 11 issues) because the LLM non-deterministically
-selected which files to read.
-
-v1.10.1 solves this structurally:
-- **Phase 2** assigns files to batches algorithmically (no LLM choice)
-- **Phase 3** receives files as input (not self-selected)
-- **Phase 4** uses grep signals to detect any patterns Agent A missed
-
-## Report Types
-
-| Report | Review Standards | Coverage |
-|--------|-----------------|----------|
-| Reliability & Maintainability | SonarQube Java/JavaScript rules (Bug category only) | Blocker / High / Medium |
-| Security | Philips Secure Coding Baseline (BSL 11.1.1.d, 230 controls) | 17 security domains |
-| Verification | Agent B adversarial review | False positives + missed findings |
-| Summary | Aggregates all modules | Global Pass/Fail |
-
-An N-module project produces **(3N + 1) reports** in one scan.
-
-## Prerequisites
-
-### Required
-
-1. **Kiro IDE** — Download: https://kiro.dev
-2. **Claude Opus 4.6 / Sonnet 4.6** — 1M context window model (configured in Kiro)
-
-### Optional
-
-3. **Python 3.6+** — for scan-planner.py, validate-report.py, compute-gate.py
-4. **pandoc** — for Word (.docx) output generation
-
-## Usage
-
-### Step 1: Clone the Target Code
+## Quick Start (3 Steps)
 
 ```bash
-git clone <repository-url> /path/to/target-project
-```
-
-### Step 2: Inject the Review Toolkit
-
-```bash
+# 1. Copy the toolkit into the target project
 cp -r ops-code-review-kit/.kiro /path/to/target-project/
+
+# 2. Generate the file manifest (run once, in terminal)
+cd /path/to/target-project
+python3 .kiro/scripts/generate-manifest.py --root .
+
+# 3. Open in Kiro and scan
+#    → In Kiro AI chat:
+#    @codebase-reverse-engineering
+#    @batch-scan
 ```
 
-### Step 3: Run the Review in Kiro
+That's it. Reports appear in `code-review-artifacts/`.
 
-1. Open the target project in Kiro IDE
-2. In the AI chat panel, run:
+---
 
-```
-@codebase-reverse-engineering
-```
+## Scanning Flow — Full Panorama
 
-This generates architecture docs AND `file-manifest.json` (Phase 1).
-
-Once complete, run the batch scan (Phases 2-5):
+Below is the complete end-to-end flow. Each box shows WHO does the work
+(Script or LLM), WHAT it produces, and WHERE the output goes.
 
 ```
-@batch-scan
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        COMPLETE SCANNING PIPELINE                            │
+│                                                                             │
+│  YOU (terminal)          KIRO (LLM)              SCRIPTS (deterministic)    │
+│  ─────────────           ──────────              ─────────────────────────  │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PREPARATION (one-time, before opening Kiro)                         │    │
+│  │                                                                     │    │
+│  │  $ cp -r ops-code-review-kit/.kiro /target-project/                 │    │
+│  │  $ cd /target-project                                               │    │
+│  │  $ python3 .kiro/scripts/generate-manifest.py --root .              │    │
+│  │                                                                     │    │
+│  │  Output: code-review-artifacts/reverse-engineering/file-manifest.json│    │
+│  │          (ALL source files indexed — 100% coverage guaranteed)       │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              │                                               │
+│                              ▼                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 1: Reverse Engineering           Trigger: @codebase-reverse-  │    │
+│  │                                                 engineering          │    │
+│  │  WHO: LLM (reads files, understands architecture)                   │    │
+│  │                                                                     │    │
+│  │  DOES:                                                              │    │
+│  │   • Reads source files to understand business logic                 │    │
+│  │   • Identifies system architecture, tech stack, data flows          │    │
+│  │   • Detects modules from build system (Maven/Gradle/npm/Go)         │    │
+│  │   • Generates architecture documentation                           │    │
+│  │                                                                     │    │
+│  │  PRODUCES:                                                          │    │
+│  │   code-review-artifacts/reverse-engineering/                        │    │
+│  │   ├── business-overview.md      ← System purpose & modules          │    │
+│  │   ├── tech-stack.md             ← Languages, frameworks, deps       │    │
+│  │   ├── architecture.md           ← Component topology                │    │
+│  │   ├── data-flow.md              ← Trust boundaries, APIs            │    │
+│  │   ├── analysis-summary.md       ← Scale assessment                  │    │
+│  │   └── architecture-preview.html ← Visual diagrams (open in browser) │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              │                                               │
+│                              ▼                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 2: Context Window Planning       Trigger: @batch-scan (auto)  │    │
+│  │                                                                     │    │
+│  │  WHO: Script (scan-planner.py) — NO LLM involved                   │    │
+│  │                                                                     │    │
+│  │  DOES:                                                              │    │
+│  │   • Reads file-manifest.json                                        │    │
+│  │   • Builds dependency graph (which files import each other)         │    │
+│  │   • Groups connected files into batches (≤800K tokens each)         │    │
+│  │   • Ensures related files stay in same batch                        │    │
+│  │                                                                     │    │
+│  │  PRODUCES:                                                          │    │
+│  │   code-review-artifacts/scan-plan.json                              │    │
+│  │   (e.g., "Batch 1: 1284 files, 798K tokens, modules A-I")          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              │                                               │
+│                              ▼                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 3: Primary Scan (Agent A)        Trigger: @batch-scan (auto)  │    │
+│  │                                                                     │    │
+│  │  WHO: LLM (reads code, identifies violations)                       │    │
+│  │                                                                     │    │
+│  │  DOES (for each batch):                                             │    │
+│  │   • Reads ALL files assigned to this batch (no self-selection)      │    │
+│  │   • Writes a one-line description for each file → updates manifest  │    │
+│  │   • Scans for R&M issues (SonarQube rules — 5 dimensions)          │    │
+│  │   • Scans for Security issues (BSL 230 controls — 17 domains)      │    │
+│  │   • Uses grep signals as a checklist (must address every signal)    │    │
+│  │                                                                     │    │
+│  │  PRODUCES (per module):                                             │    │
+│  │   code-review-artifacts/                                            │    │
+│  │   ├── [Module]_Reliability_Maintainability_Report_[date].md         │    │
+│  │   └── [Module]_Security_Report_[date].md                            │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              │                                               │
+│                              ▼                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 4: Verification (Agent B)        Trigger: @batch-scan (auto)  │    │
+│  │                                                                     │    │
+│  │  WHO: LLM (independent adversarial reviewer)                        │    │
+│  │                                                                     │    │
+│  │  DOES:                                                              │    │
+│  │   • Job 1: Challenges each finding — checks exclusion conditions    │    │
+│  │     → removes false positives                                       │    │
+│  │   • Job 2: Compares signals vs findings — finds missed patterns     │    │
+│  │     → adds omitted issues                                           │    │
+│  │   • Job 3: Cross-file attack chain analysis                         │    │
+│  │                                                                     │    │
+│  │  PRODUCES (per module):                                             │    │
+│  │   code-review-artifacts/                                            │    │
+│  │   └── [Module]_Verification_Report_[date].md                        │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                              │                                               │
+│                              ▼                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 5: Report Assembly               Trigger: @batch-scan (auto)  │    │
+│  │                                                                     │    │
+│  │  WHO: Script (compute-gate.py) + LLM (summary writing)             │    │
+│  │                                                                     │    │
+│  │  DOES:                                                              │    │
+│  │   • Computes quality gate (PASS/FAIL) from post-verification counts │    │
+│  │   • Aggregates all module results into summary                      │    │
+│  │   • Converts to Word (.docx) via pandoc                             │    │
+│  │                                                                     │    │
+│  │  PRODUCES:                                                          │    │
+│  │   code-review-artifacts/                                            │    │
+│  │   └── Summary_Report_[date].md   ← Final deliverable               │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**This single command will automatically:**
-- Run scan-planner.py to assign files to context window batches
-- Generate R&M + Security reports for each module (Agent A)
-- Run adversarial verification for each module (Agent B)
-- Compute the quality gate and generate the Summary Report
+### Script Invocation Timeline
 
-### Step 4: Review the Results
+| When | Script | Input | Output | Purpose |
+|------|--------|-------|--------|---------|
+| Before Kiro | `generate-manifest.py` | Filesystem | `file-manifest.json` | Index ALL source files + extract grep signals |
+| Phase 2 (auto) | `scan-planner.py` | `file-manifest.json` | `scan-plan.json` | Split files into context-window batches |
+| Phase 3 (auto) | `validate-report.py` | Each report `.md` | Pass/Fail | Verify rule IDs exist in standards |
+| Phase 5 (auto) | `compute-gate.py` | All reports | PASS/FAIL | Compute quality gate deterministically |
+
+### What is "Reverse Engineering"?
+
+When you run `@codebase-reverse-engineering`, the LLM reads the project's source
+code and produces documentation that describes:
+
+- **What the system does** (business overview, user-facing features)
+- **How it's built** (tech stack, frameworks, dependencies)
+- **How it's structured** (modules, layers, component relationships)
+- **How data flows** (APIs, databases, trust boundaries)
+
+This documentation helps the scanning phases (3-4) understand the business
+context of the code — e.g., knowing that a module handles payment processing
+makes a hardcoded secret finding more critical than in a demo app.
+
+### What is `file-manifest.json`?
+
+A JSON file with one entry per source file in the project. Generated by script
+(not the LLM) to guarantee 100% coverage. Example:
+
+```json
+{
+  "path": "ph-lab-user/src/main/java/com/itnode/user/service/WxLoginService.java",
+  "module": "ph-lab-user",
+  "description": "",
+  "tokens": 2400,
+  "imports": ["ph-lab-common/src/.../TokenService.java"],
+  "imported_by": ["ph-lab-user/src/.../WxLoginController.java"],
+  "security_signals": ["hardcoded-secret", "md5-usage"],
+  "quality_signals": ["empty-catch"]
+}
+```
+
+- **description**: Empty when script generates it; LLM fills it during Phase 3
+- **security_signals / quality_signals**: Detected by grep patterns, used by
+  Agent B as a "must-check" completeness list
+- **imports / imported_by**: Used by scan-planner.py to keep related files together
+
+---
+
+## Multi-Session Scanning (Large Projects)
+
+Projects with many modules (e.g., 21 Maven modules, 3600 files) cannot fit in
+a single Kiro context window. The toolkit handles this automatically:
 
 ```
-code-review-artifacts/
-├── reverse-engineering/
-│   ├── architecture-preview.html
-│   ├── *.md
-│   └── file-manifest.json                 ← Per-file descriptions + signals
-├── scan-plan.json                          ← Batch assignment plan
-├── [Module1]_Reliability_Maintainability_Report_[date].md
-├── [Module1]_Security_Report_[date].md
-├── [Module1]_Verification_Report_[date].md ← Agent B results
-├── ...
-└── Summary_Report_[date].md
+Session 1:  @batch-scan  → scans Batch 1 (modules A-I)
+Session 2:  @batch-scan  → detects Batch 1 done, scans Batch 2 (modules J-T)
+Session 3:  @batch-scan  → detects Batches 1-2 done, scans Batch 3 + Summary
 ```
 
-### Step 5: Post-Fix Rescan
+**You just type `@batch-scan` each time.** The Resume Protocol auto-detects
+progress by checking which report files already exist:
+- `scan-plan.json` exists → skip Phase 1-2
+- Module reports exist → skip those modules
+- All modules done → generate Summary Report
 
-After the development team fixes issues:
+No manual instructions needed between sessions.
 
-```bash
-# Copy previous artifacts as baseline
-cp -r /path/to/previous/code-review-artifacts/reverse-engineering/ \
-      /path/to/new-version/code-review-artifacts/reverse-engineering/
-cp /path/to/previous/code-review-artifacts/*_Report_*.md \
-   /path/to/new-version/code-review-artifacts/previous-scan/
-```
+---
 
-Then run:
-```
-@rescan
-```
+## What the Reports Look Like
 
-## Module Discovery
+### Report Types
 
-### Auto-Detection (Default)
+| Report | Per Module | Standards | What it catches |
+|--------|-----------|-----------|-----------------|
+| R&M | Yes | SonarQube 575 rules | Resource leaks, NPE, concurrency bugs, exception handling |
+| Security | Yes | BSL 230 controls | Injection, auth bypass, crypto weakness, secrets exposure |
+| Verification | Yes | Agent B adversarial | False positives removed, missed findings added |
+| Summary | 1 total | All combined | Global PASS/FAIL, priority roadmap |
 
-| Priority | Build System | Detection Method |
-|----------|-------------|------------------|
-| 1 | Maven | `<modules>` in root `pom.xml` |
-| 2 | Gradle | `include` in `settings.gradle(.kts)` |
-| 3 | npm/pnpm/yarn | `workspaces` in root `package.json` |
-| 4 | Nx/Turborepo/Lerna | Workspace config |
-| 5 | Go | `go.work` |
-| 6 | Directory heuristic | Subdirectories with their own build file |
+Formula: **N modules → (3N + 1) reports**
 
-### Manual Override
-
-Create `module-manifest.md` in the project root:
+### Example Finding
 
 ```markdown
-| # | Module | Path | Language | Notes |
-|---|--------|------|----------|-------|
-| 1 | my-backend | my-backend/ | Java | Maven multi-module |
-| 2 | my-frontend | my-frontend/ | JS/Vue | SPA frontend |
+### SEC-01: HSDP RSA private key in source-controlled YAML
+
+**Risk Level**: CRITICAL
+**CVSS Score**: 9.1 (Critical)
+**File**: `ph-lab-user/src/main/resources/application-prod.yml:45`
+**Associated CVE**: N/A — code logic defect (CWE-798)
+
+- **BSL Control**: `11.1.1_41` — Do not store secrets in source code
+- **Security Domain**: Data Protection
+- **CVSS Vector**: `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N`
+- **Fix Priority**: P0
+
+**Code**:
+  hsdp:
+    private-key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIEpAIBAAKCAQEA...
+
+**Root Cause & Business Impact**:
+RSA private key committed in YAML config. Anyone with repo access can
+impersonate the service to HSDP identity provider.
+
+**Fix Recommendation**:
+Move to AWS Secrets Manager or environment variable injection at deploy time.
 ```
 
-## Context Window Strategy
-
-Target model: Claude Opus 4.6 / Sonnet 4.6 (1M context window).
-
-| Project Size | Total Tokens | Strategy |
-|-------------|-------------|----------|
-| Small (< 300K tokens) | Fits in single batch | All files + rules in one context window |
-| Medium (300K–800K) | 2–3 batches | Group by dependency graph |
-| Large (> 800K) | 4+ batches | Module-level batches |
-
-The `scan-planner.py` script implements this deterministically:
-- Connected components (files that import each other) stay in the same batch
-- Token budget: 800K per batch (leaves ~200K for rules, prompt, output)
-- Alphabetical tie-breaking ensures identical plans on every run
-
-## Signal-Driven Completeness (v1.10.1)
-
-file-manifest.json includes grep-detected signals per file:
-
-| Signal | Category | Maps To |
-|--------|----------|---------|
-| v-html | security | BSL 11.1.1_174 |
-| innerHTML | security | BSL 11.1.1_174 |
-| hardcoded-secret | security | BSL 11.1.1_41, javascript:S6437 |
-| md5-usage | security | BSL 11.1.1_8 |
-| localStorage | security | BSL 11.1.1_51 |
-| console-log | security | BSL 11.1.1_86, BSL 11.1.1_98 |
-| eval-usage | security | BSL 11.1.1_113 |
-| http-url | security | BSL 11.1.1_32 |
-| empty-catch | quality | javascript:S1186, java:S108 |
-| var-declaration | quality | javascript:S3504 |
-
-Agent B uses these signals as a completeness checklist. If a signal exists but
-Agent A didn't report a corresponding finding, Agent B investigates and either
-adds the missed finding or documents why it's acceptable.
+---
 
 ## Quality Gate
 
 ```
-FAIL if ANY of the following is true:
-  - severity = Critical  (any priority)
-  - severity = High  AND  priority = P0
+FAIL if ANY of:
+  • severity = Critical (any priority)
+  • severity = High AND priority = P0
 
-PASS if none of the above conditions are met.
+PASS otherwise.
 ```
 
-Quality gate uses **post-verification** counts (after Agent B adjustments).
-The Summary Report's overall gate is PASS only if ALL individual reports PASS.
-
-## Fix Priority Definitions
-
-| Priority | Meaning | Typical Scenarios |
-|----------|---------|-------------------|
-| **P0** | Must fix before release | Affects correctness or security |
-| **P1** | Short-term fix (1-2 weeks) | High risk but not blocking current release |
-| **P2** | Medium-term fix (1 month) | Code quality issues with some risk |
-| **P3** | Long-term optimization | Low risk, technical debt |
-
-## Detailed Scanning Flow (What Happens Internally)
-
-Below is the complete end-to-end flow. When you run `@codebase-reverse-engineering`
-followed by `@batch-scan`, the system executes all of these steps automatically.
-
-### Phase 1: Reverse Engineering + File Manifest
-
-**Trigger**: `@codebase-reverse-engineering`
-
-**Step 1.1 — Scale Assessment**:
-```bash
-find . -type f -name "*.js" -o -name "*.vue" -o -name "*.ts" ... | sort | wc -l
-```
-Counts source files, classifies project scale (Small/Medium/Large).
-
-**Step 1.2 — Module Discovery**:
-Detects modules from build system (package.json workspaces, pom.xml modules, etc.).
-Produces a FIXED sorted module list for the entire scan.
-
-**Step 1.3 — Full Code Reading**:
-Reads ALL source files in alphabetical order. No sampling, no selection.
-
-**Step 1.4 — Architecture Documentation**:
-Generates structured artifacts:
-- `business-overview.md` — System purpose, modules, business transactions
-- `tech-stack.md` — Languages, frameworks, versions, dependencies
-- `architecture.md` — Component topology, data flow diagrams
-- `data-flow.md` — Trust boundaries, API surfaces, integrations
-- `architecture-preview.html` — Visual diagram for browser viewing
-
-**Step 1.5 — File Manifest Generation** (NEW in v1.10.1, SCRIPT-BASED):
-
-**CRITICAL**: This step uses a Python script, NOT the LLM reading files one by one.
-The LLM cannot read 1000+ files in one session — the script guarantees 100% coverage.
-
-```bash
-python3 .kiro/scripts/generate-manifest.py --root .
-```
-
-The script scans the filesystem, extracts imports via regex, and runs grep
-patterns for signals. It generates an entry for EVERY source file:
-
-```json
-[
-  {
-    "path": "src/api/index.js",
-    "module": "lab-admin-web",
-    "description": "Axios HTTP client with request/response interceptors for auth token injection",
-    "tokens": 1200,
-    "imports": ["src/utils/auth.js", "src/config/env.js"],
-    "imported_by": ["src/views/Login.vue", "src/views/Dashboard.vue"],
-    "security_signals": ["hardcoded-secret", "localStorage", "console-log"],
-    "quality_signals": ["var-declaration"]
-  },
-  {
-    "path": "src/views/Login.vue",
-    "module": "lab-admin-web",
-    "description": "Admin login page with password MD5 hashing and MFA redirect",
-    "tokens": 3400,
-    "imports": ["src/api/index.js", "src/utils/md5.js"],
-    "imported_by": [],
-    "security_signals": ["md5-usage", "localStorage"],
-    "quality_signals": []
-  }
-]
-```
-
-Signal detection uses deterministic grep patterns:
-- `v-html` → grep for `v-html` in .vue files
-- `hardcoded-secret` → grep for `password\s*=\s*['"]`, `secret\s*=\s*['"]`
-- `md5-usage` → grep for `md5(`, `MD5(`
-- `localStorage` → grep for `localStorage.setItem`, `localStorage.getItem`
-- `console-log` → grep for `console.log(` in non-test files
-- `empty-catch` → grep for `catch.*{[\s]*}` (empty catch blocks)
-- etc.
-
-**Phase 1 Output**:
-```
-code-review-artifacts/reverse-engineering/
-├── business-overview.md
-├── tech-stack.md
-├── architecture.md
-├── data-flow.md
-├── architecture-preview.html
-└── file-manifest.json          ← Critical for Phases 2-4
-```
+Computed by `compute-gate.py` (script, not LLM judgment). Uses post-verification
+counts (after Agent B adjusts for false positives/missed findings).
 
 ---
 
-### Phase 2: Context Window Planning
+## Module Discovery
 
-**Trigger**: Automatically by `@batch-scan`
+The toolkit auto-detects project modules from the build system:
 
-**Step 2.1 — Run scan-planner.py**:
-```bash
-python3 .kiro/scripts/scan-planner.py \
-  --manifest code-review-artifacts/reverse-engineering/file-manifest.json \
-  --output code-review-artifacts/scan-plan.json
-```
+| Priority | Build System | What it reads |
+|----------|-------------|---------------|
+| 1 | Maven | `<module>` entries in root `pom.xml` |
+| 2 | Gradle | `include` in `settings.gradle(.kts)` |
+| 3 | npm/pnpm/yarn | `workspaces` in `package.json` |
+| 4 | Go | `use()` blocks in `go.work` |
+| 5 | Heuristic | Subdirs with their own build file |
 
-**Algorithm**:
-1. Read file-manifest.json → extract all files with their token counts
-2. Build dependency graph from `imports`/`imported_by` edges
-3. Find connected components (BFS) — files that reference each other
-4. Sort components alphabetically by first file path (determinism)
-5. Greedy bin-packing: assign components to batches, each ≤ 800K tokens
-6. If a single component exceeds 800K → it gets its own dedicated batch
-
-**Key constraint**: Connected components NEVER split across batches. If file A
-imports file B, they are always in the same context window — ensuring the LLM
-sees the full dependency chain.
-
-**Example scan-plan.json output**:
-```json
-{
-  "version": "1.10",
-  "total_files": 1344,
-  "total_tokens": 2100000,
-  "budget_per_batch": 800000,
-  "batches": [
-    {
-      "id": 1,
-      "files": ["src/api/index.js", "src/api/baseUrl.js", ...],
-      "tokens": 780000,
-      "modules": ["lab-admin-web"],
-      "signal_summary": {"localStorage": 5, "console-log": 120, "md5-usage": 3}
-    },
-    {
-      "id": 2,
-      "files": ["src/views/Login.vue", "src/views/MFALogin.vue", ...],
-      "tokens": 750000,
-      "modules": ["lab-admin-web"],
-      "signal_summary": {"v-html": 15, "hardcoded-secret": 2}
-    }
-  ],
-  "single_batch": false
-}
-```
-
-**Fallback**: If python3 is unavailable → single-batch mode (read all files directly).
+Override: create `module-manifest.md` in project root with a module table.
 
 ---
 
-### Phase 3: Primary Scan — Agent A
+## Prerequisites
 
-**Trigger**: Automatically by `@batch-scan`
+| Requirement | Required? | Purpose |
+|-------------|-----------|---------|
+| Kiro IDE | Yes | Runs the LLM scanning sessions |
+| Python 3.6+ | Recommended | Scripts: generate-manifest, scan-planner, compute-gate |
+| pandoc | Optional | Converts reports to Word (.docx) |
 
-For each batch in scan-plan.json, Agent A:
-
-1. **Loads all files** in the batch into context (no file-selection decision)
-2. **Loads the rule standards** (sonarqube-rule-index.txt + BSL standards)
-3. **Loads manifest signals** for files in this batch as a completeness checklist
-
-**3A: Reliability & Maintainability Report** (`@sonarqube-review` logic):
-
-Agent A scans in 5 mandatory dimensions, IN ORDER:
-
-| # | Dimension | Focus | Key Rules Checked |
-|---|-----------|-------|-------------------|
-| 1 | Resource Management | Streams, connections, lifecycle | S2095, S2189, S2142 |
-| 2 | Null Safety | NullPointerException risks | S2259, S2637, S3518 |
-| 3 | Exception Handling | Error handling correctness | S1181, S108, S1186 |
-| 4 | Concurrency | Thread safety issues | S2445, S2168, S2696 |
-| 5 | Spring/Config | Framework-specific issues | S6818, S4601, S3776 |
-
-For each dimension, every mandatory rule is explicitly checked and reported as
-Found / Not Found / N/A. This prevents random coverage gaps.
-
-After dimension scanning, Agent A performs **self-adversarial verification**:
-- Re-reads the full method containing each finding
-- Applies exclusion checklist (e.g., "Is this resource Spring-managed?")
-- Removes findings where any exclusion condition is met
-
-**3B: Security Report** (`@secure-coding-baseline-review` logic):
-
-Agent A scans across 17 BSL security domains:
-1. Authentication & Password Management (11.1.1_1–31)
-2. Communications Security (11.1.1_32–39)
-3. Cryptography (11.1.1_40–46)
-4. Data Protection (11.1.1_47–59)
-5. Database Security (11.1.1_60–73)
-6. Error Handling & Logging (11.1.1_74–98)
-7. File Management (11.1.1_99–112)
-8. General Coding Practices (11.1.1_113–124)
-9. Input Validation (11.1.1_125–139)
-10. Logical Access Control (11.1.1_140–162)
-11. Memory Management (11.1.1_163–172)
-12. Output Encoding (11.1.1_173–178)
-13. Secure Design (11.1.1_179–187)
-14. Security Configuration (11.1.1_188–193)
-15. Security Logging (11.1.1_194–201)
-16. Session Management (11.1.1_202–216)
-17. System Configuration (11.1.1_217–228)
-
-Each finding includes CVSS v3.1 scoring with full vector string.
-
-**Phase 3 validation** (after report generation):
-```bash
-# Verify rule IDs exist in standards
-python3 .kiro/scripts/validate-report.py [report].md --rules sonarqube_rules.json
-
-# Compute quality gate deterministically
-python3 .kiro/scripts/compute-gate.py [report].md
-```
-
----
-
-### Phase 4: Verification — Agent B
-
-**Trigger**: Automatically by `@batch-scan` (after all Agent A reports complete)
-
-Agent B is an INDEPENDENT adversarial reviewer. It has two jobs:
-
-**Job 1 — Challenge Findings (Reduce False Positives)**:
-
-For each finding in Agent A's reports:
-1. Re-read the COMPLETE method/function (not just the flagged line)
-2. Apply exclusion checklist:
-
-| Category | Exclusion 1 | Exclusion 2 | Exclusion 3 |
-|----------|------------|------------|------------|
-| Hardcoded secret (S6437) | Injected from env at build? | Test/stub value? | Public identifier? |
-| XSS (v-html) | Trusted admin-only source? | DOMPurify applied? | Sandboxed iframe? |
-| MD5 usage (BSL 8) | Non-security purpose? | Never for auth? | File integrity only? |
-| localStorage (BSL 51) | Non-sensitive value stored? | No XSS vector? | Public page? |
-| Empty catch (S1186) | Intentional @Override no-op? | Comment explains why? | Framework stub? |
-
-3. If ANY exclusion is met with evidence → **FALSE POSITIVE** → removed
-
-**Job 2 — Detect Omissions (Reduce False Negatives)**:
-
-1. Build **Signal Coverage Matrix** from file-manifest.json:
-
-| Signal Type | Files with Signal | Expected Rule | Covered by Agent A? |
-|-------------|-------------------|---------------|---------------------|
-| v-html | 52 files | BSL 11.1.1_174 | Yes/No/Partial |
-| md5-usage | 8 files | BSL 11.1.1_8 | Yes/No/Partial |
-| localStorage | 22 files | BSL 11.1.1_51 | Yes/No/Partial |
-| console-log | 648 files | BSL 11.1.1_98 | Yes/No/Partial |
-
-2. For each UNCOVERED signal:
-   - Read the actual source file
-   - Determine if it's a genuine violation (apply same exclusion checklist)
-   - If genuine → add as **MISSED FINDING** with full documentation
-   - If acceptable → document why (e.g., "content from trusted CMS, admin-only")
-
-3. **Cross-file attack chain analysis**:
-   - v-html + localStorage in same app → token theft via XSS (CVSS Scope = Changed)
-   - md5-usage + hardcoded-secret → forgeable auth scheme
-   - console-log + hardcoded-secret → credential logging exposure
-
-**Phase 4 Output**: Verification Report per module with:
-- False positive rejections (with evidence)
-- Missed finding additions (with signal source)
-- Signal Coverage Matrix (every signal accounted for)
-- Final adjusted counts (authoritative for Summary Report)
-
----
-
-### Phase 5: Report Assembly + Gate Calculation
-
-**Trigger**: Automatically by `@batch-scan`
-
-1. **Compute overall gate**:
-```bash
-python3 .kiro/scripts/compute-gate.py --summary code-review-artifacts/*_Report_*.md
-```
-
-2. **Generate Summary Report** using post-verification counts (Agent B's adjusted numbers)
-
-3. **Convert to Word**:
-```bash
-for f in code-review-artifacts/*.md; do
-  pandoc "$f" -o "${f%.md}.docx"
-done
-```
-
----
-
-### Data Flow Between Phases
-
-```
-Phase 1 ──produces──→ file-manifest.json ──consumed by──→ Phase 2, Phase 4
-Phase 2 ──produces──→ scan-plan.json     ──consumed by──→ Phase 3
-Phase 3 ──produces──→ R&M + Security Reports ──consumed by──→ Phase 4, Phase 5
-Phase 4 ──produces──→ Verification Report ──consumed by──→ Phase 5
-Phase 5 ──produces──→ Summary Report + Word files (FINAL deliverables)
-```
-
-Each phase's output is a deterministic function of its inputs. Same code +
-same rules + same model = same reports.
-
----
-
-## Step-by-Step Execution (Manual Mode)
-
-If you prefer not to use the one-click batch scan:
-
-```
-@codebase-reverse-engineering     ← Phase 1: Analyze + generate file-manifest.json
-@sonarqube-review                 ← Phase 3: R&M report for a specific module
-@secure-coding-baseline-review    ← Phase 3: Security report for a specific module
-@verification-agent               ← Phase 4: Adversarial verification
-@summary-report                   ← Phase 5: Generate summary
-@rescan                           ← Post-fix verification (optional)
-```
-
-## Report Finding Format (Example)
-
-Every finding across all report types uses a unified header format:
-
-### R&M Report Finding Example
-
-```markdown
-### BUG-01: Hardcoded APP_ID and APP_SECRET in shop Axios client
-
-**Risk Level**: CRITICAL
-**CVSS Score**: N/A — non-security rule
-**File**: `src/api/indexShop.js:12`
-**Associated CVE**: N/A — code quality rule (CWE-798)
-
-- **Rule**: `javascript:S6437` — Credentials should not be hard-coded
-- **Verified**: javascript:S6437|Critical|Credentials should not be hard-coded
-- **Fix Priority**: P0
-- **Dimension**: Resource Management
-
-**Code**:
-  const APP_ID = 'wx1234567890abcdef'
-  const APP_SECRET = 'abc123def456...'
-
-**Root Cause & Business Impact**:
-Signing secret is embedded in the browser bundle. Any user can extract it
-from DevTools and forge authenticated shop API requests.
-
-**Adversarial Verification**:
-- Exclusion 1: Injected from env at build time? → NOT MET (hardcoded literal)
-- Exclusion 2: Test/stub value? → NOT MET (matches production pattern)
-- Exclusion 3: Public identifier? → NOT MET (marked as SECRET)
-- **Verdict**: CONFIRMED
-
-**Fix Recommendation**:
-Move to environment variables via .env files.
-
-**Suggested Fix Code (AI-generated)**:
-  const APP_ID = process.env.VUE_APP_SHOP_APP_ID || ''
-  const APP_SECRET = process.env.VUE_APP_SHOP_APP_SECRET || ''
-```
-
-### Security Report Finding Example
-
-```markdown
-### SEC-01: Client-side MD5 password hashing before transmission
-
-**Risk Level**: HIGH
-**CVSS Score**: 7.4 (High)
-**File**: `src/views/Login.vue:89`
-**Associated CVE**: N/A — code logic defect (CWE-328)
-
-- **BSL Control**: `11.1.1_8` — Do not use MD5 for password hashing
-- **Security Domain**: Cryptography
-- **CVSS Vector**: `CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N`
-- **Fix Priority**: P0
-
-**Code**:
-  form.password = md5(form.password)
-
-**Root Cause & Business Impact**:
-MD5 hashes are trivially reversible via rainbow tables. Combined with
-base64 encoding for new passwords, credentials are near-plaintext.
-
-**Fix Recommendation**:
-Remove client-side hashing entirely. Rely on TLS for transport security.
-Implement bcrypt/Argon2 server-side.
-
-**Impact of Not Fixing**:
-Attacker intercepting traffic or accessing logs can recover passwords
-in seconds using precomputed MD5 tables.
-```
+If Python is unavailable, the system falls back to single-batch mode (all files
+in one context window — works for small projects).
 
 ---
 
@@ -627,72 +308,99 @@ in seconds using precomputed MD5 tables.
 
 ```
 .kiro/
-├── steering.md                              ← Master configuration (architecture, rules, policies)
-├── rules/
-│   ├── sonarqube-java-standards.md          ← 341 Java rules (Blocker/High/Medium)
-│   ├── sonarqube-javascript-standards.md    ← JavaScript rules
-│   ├── sonarqube-rule-index.txt             ← Compact rule ID → severity lookup
-│   ├── sonarqube_rules.json                 ← Machine-readable rule database
-│   └── secure-coding-baseline-standards.md  ← BSL 11.1.1.d (230 controls, 17 domains)
+├── steering.md                              ← Master config (architecture, rules, policies)
 ├── scripts/
-│   ├── generate-manifest.py                 ← Phase 1: Deterministic file manifest (ALL files)
-│   ├── scan-planner.py                      ← Phase 2: Deterministic batch assignment
-│   ├── validate-report.py                   ← Phase 3: Rule ID + severity validation
-│   └── compute-gate.py                      ← Phase 5: Quality Gate calculation
+│   ├── generate-manifest.py                 ← Indexes ALL files + detects signals (run before Kiro)
+│   ├── scan-planner.py                      ← Assigns files to batches (Phase 2)
+│   ├── validate-report.py                   ← Validates rule IDs exist in standards (Phase 3)
+│   └── compute-gate.py                      ← Computes PASS/FAIL gate (Phase 5)
+├── rules/
+│   ├── sonarqube-java-standards.md          ← 341 Java bug rules
+│   ├── sonarqube-javascript-standards.md    ← 234 JavaScript bug rules
+│   ├── sonarqube-rule-index.txt             ← Quick lookup: rule ID → severity
+│   └── secure-coding-baseline-standards.md  ← BSL 11.1.1.d (230 controls)
 └── skills/
-    ├── codebase-reverse-engineering/skill.md ← Phase 1: Full RE + file-manifest.json
-    ├── batch-scan/skill.md                  ← Orchestrator: runs Phases 2-5
-    ├── sonarqube-review/skill.md            ← Agent A: R&M dimension scan
-    ├── secure-coding-baseline-review/skill.md ← Agent A: BSL domain scan
-    ├── verification-agent/skill.md          ← Agent B: Adversarial verification
-    ├── summary-report/skill.md              ← Phase 5: Summary generation
+    ├── codebase-reverse-engineering/skill.md ← Phase 1: understand the codebase
+    ├── batch-scan/skill.md                  ← Orchestrator: Phases 2-5 + resume
+    ├── sonarqube-review/skill.md            ← Agent A: R&M scanning
+    ├── secure-coding-baseline-review/skill.md ← Agent A: Security scanning
+    ├── verification-agent/skill.md          ← Agent B: adversarial verification
+    ├── summary-report/skill.md              ← Phase 5: summary generation
     └── rescan/skill.md                      ← Post-fix delta verification
 ```
 
 ---
 
+## Post-Fix Rescan
+
+After the development team fixes issues:
+
+```bash
+# Copy previous artifacts as baseline
+cp -r /previous/code-review-artifacts/reverse-engineering/ \
+      /new-version/code-review-artifacts/reverse-engineering/
+```
+
+Then in Kiro:
+```
+@rescan
+```
+
+This produces a delta report (FIXED / NOT FIXED / REGRESSED) without
+re-scanning the entire codebase.
+
+---
+
 ## FAQ
 
-**Q: What if the development team doesn't use Kiro?**
-A: The development team does not need Kiro. The `.kiro/` directory is the
-operations team's review toolkit and is not committed to their repository.
+**Q: What if my project has 1000+ files?**
+A: `generate-manifest.py` handles any size (tested on 3600 files). `scan-planner.py`
+splits into multiple batches. Each batch runs in its own Kiro session.
 
-**Q: What changed from v1.9 to v1.10.1?**
-A: v1.10.1 structurally eliminates non-determinism. v1.9 told the LLM "read all
-files" (unreliable). v1.10.1 assigns files to context windows algorithmically and
-uses grep signals + an independent verification agent to guarantee completeness.
+**Q: Do I need to configure anything?**
+A: No. Copy `.kiro/`, run `generate-manifest.py`, and go. Module detection,
+batch planning, and report generation are all automatic.
 
-**Q: Do I need Python installed?**
-A: Python 3.6+ is recommended for scan-planner.py and validation scripts. If
-unavailable, the system falls back to single-batch mode and inline validation.
+**Q: What if Kiro's context runs out mid-scan?**
+A: Open a new session and type `@batch-scan` again. The Resume Protocol
+detects completed batches from existing report files and continues.
 
-**Q: What if my project exceeds the 1M token context window?**
-A: scan-planner.py automatically splits into multiple batches (800K per batch).
-Connected components in the dependency graph stay together. Very large projects
-may need 4+ batches, processed sequentially.
+**Q: Can I scan just one module?**
+A: Yes. Use `@sonarqube-review` and `@secure-coding-baseline-review` individually.
 
-**Q: How does Agent B verification work?**
-A: Agent B is an independent adversarial reviewer that: (1) challenges every
-Agent A finding using an exclusion checklist to detect false positives, and
-(2) uses file-manifest signals to find patterns Agent A missed. The final
-report counts come from Agent B's verification.
+**Q: How is this different from running SonarQube directly?**
+A: This toolkit adds: BSL security scanning (230 controls), CVSS scoring,
+adversarial verification (Agent B), cross-file attack chain analysis,
+AI-generated fix code, and Word report output. SonarQube only covers R&M.
 
-**Q: Can I skip verification (Agent B)?**
-A: You can run `@sonarqube-review` and `@secure-coding-baseline-review` without
-`@verification-agent`, but this reverts to v1.9 behavior without completeness
-guarantees. Not recommended.
+**Q: What changed from earlier versions?**
+A: See Version History below. The key evolution: v1.6-v1.8 relied on LLM file
+selection (non-deterministic). v1.10+ assigns files algorithmically via scripts,
+making results reproducible.
+
+---
+
+## Design Principles
+
+| Principle | Implementation |
+|-----------|---------------|
+| Enumeration = Script | File listing, token counting, signal detection, batch planning |
+| Judgment = LLM | Code understanding, violation detection, fix recommendations |
+| Verification = Independent | Agent B (separate context, adversarial stance) |
+| Determinism | Same code + same rules → same scan plan → same file assignments |
+| Completeness | grep signals guarantee known patterns are never silently missed |
+
+---
 
 ## Version History
 
 | Version | Key Changes |
 |---------|-------------|
-| v1.10.1 | Multi-module detection (Maven/Gradle/Go/npm); fix incomplete module scanning on multi-module projects |
-| v1.10 | 5-phase architecture; file-manifest.json with grep signals; scan-planner.py for deterministic batch assignment; Agent B verification; structural non-determinism elimination |
-| v1.9 | Three-layer architecture: dimension scanning + adversarial verification + external script validation |
-| v1.8.1 | Full-scan mode — read ALL source files, no sampling regardless of codebase size |
-| v1.8 | Architecture-Role Pattern Matching; open module discovery; bug fixes |
-| v1.77 | Auth leaf-implementation tracing (password hashing, token issuance) |
-| v1.76 | Two-plane architecture topology fix; 4-diagram specification |
-| v1.75 | Merged v1.65 + v1.7; quality gate recalibration; R&M validator |
-| v1.7 | Determinism rules D1-D7; HTML diagram preview |
-| v1.6 | Initial release with BSL + SonarQube dual-standard review |
+| v1.10.1 | Multi-module detection (Maven/Gradle/Go/npm); Resume Protocol; file descriptions by LLM |
+| v1.10 | 5-phase architecture; file-manifest.json; scan-planner.py; Agent B verification |
+| v1.9 | Three-layer architecture: dimension scanning + adversarial verification |
+| v1.8.1 | Full-scan mode — read ALL source files, no sampling |
+| v1.8 | Architecture-Role Pattern Matching; open module discovery |
+| v1.75 | Merged determinism rules + quality gate recalibration |
+| v1.7 | Determinism rules D1-D7; HTML architecture diagrams |
+| v1.6 | Initial release: BSL + SonarQube dual-standard review |
