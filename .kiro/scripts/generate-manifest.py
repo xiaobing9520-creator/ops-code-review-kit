@@ -447,6 +447,7 @@ def generate_manifest(root, output_path=None):
         entry = {
             'path': filepath,
             'module': file_module,
+            'description': '',  # filled by LLM during Phase 3 scanning
             'tokens': tokens,
             'imports': imports,
             'imported_by': [],  # filled in second pass

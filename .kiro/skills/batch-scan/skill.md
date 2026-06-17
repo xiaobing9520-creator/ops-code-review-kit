@@ -141,6 +141,7 @@ The file-manifest.json structure per file:
 {
   "path": "src/api/index.js",
   "module": "lab-admin-web",
+  "description": "",
   "tokens": 1200,
   "imports": ["src/utils/auth.js"],
   "imported_by": ["src/views/login.vue"],
@@ -148,6 +149,10 @@ The file-manifest.json structure per file:
   "quality_signals": ["var-declaration"]
 }
 ```
+
+The `description` field is generated empty by the script and filled by the LLM
+during Phase 3 scanning (Step 3.2.0). It provides a semantic one-line summary
+of each file's responsibility.
 
 ---
 
@@ -219,8 +224,33 @@ For each batch in scan-plan.json, IN SEQUENCE:
 1. **Load all files** in the batch into context (read them)
 2. **Load the file-manifest.json** entries for those files (descriptions + signals)
 3. **Load applicable rules** (sonarqube-rule-index.txt, secure-coding-baseline-standards)
+4. **Write file descriptions** (see Step 3.2.0 below)
 
 Then for each module represented in this batch:
+
+#### 3.2.0 Write File Descriptions to Manifest
+
+After reading all files in the batch, write a one-line description for each file
+back into `file-manifest.json`. The `description` field is pre-created but empty
+— your job is to fill it based on your understanding of the code.
+
+**Rules**:
+- One sentence, max 100 characters
+- Describe WHAT the file does (its responsibility), not HOW
+- Use the file's primary class/function/component as the subject
+- Examples:
+  - `"User authentication service handling login, logout, and token refresh"`
+  - `"Redis configuration with FastJSON serializer"`
+  - `"Gateway filter that injects user context into request headers"`
+  - `"Order payment callback handler for WeChat Pay"`
+
+**How to write back**: After scanning all files in this batch, update
+`file-manifest.json` in place — read the file, update the `description` fields
+for entries in this batch, and write it back. Only fill entries where
+`description` is empty (never overwrite descriptions from previous batches).
+
+This step ensures the manifest becomes a complete project map that future
+sessions can use to understand the codebase without re-reading all files.
 
 #### 3.2.1 Generate Reliability & Maintainability Report
 
