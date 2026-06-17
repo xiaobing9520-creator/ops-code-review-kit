@@ -214,12 +214,137 @@ def extract_imports(content, current_file, root, all_files_set):
     return sorted(imports)
 
 
+def discover_modules(root):
+    """Discover project modules using the steering.md priority chain.
+
+    Returns a sorted list of module directory names, or empty list if
+    the project is a single-module project.
+    """
+    modules = []
+
+    # Priority 1: Maven — parse <modules> in root pom.xml
+    pom_path = os.path.join(root, 'pom.xml')
+    if os.path.exists(pom_path):
+        try:
+            with open(pom_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            # Extract <module>...</module> entries
+            module_pattern = re.compile(r'<module>\s*([^<]+?)\s*</module>')
+            matches = module_pattern.findall(content)
+            if matches:
+                modules = sorted(set(matches))
+                return modules
+        except OSError:
+            pass
+
+    # Priority 2: Gradle — parse include in settings.gradle(.kts)
+    for gradle_file in ['settings.gradle', 'settings.gradle.kts']:
+        gradle_path = os.path.join(root, gradle_file)
+        if os.path.exists(gradle_path):
+            try:
+                with open(gradle_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                # Match include 'module1', 'module2' or include("module1", "module2")
+                include_pattern = re.compile(r"include\s*[\(]?\s*['\"]([^'\"]+)['\"]")
+                matches = include_pattern.findall(content)
+                if matches:
+                    # Gradle modules use : prefix, strip it
+                    modules = sorted(set(m.lstrip(':').replace(':', '/') for m in matches))
+                    return modules
+            except OSError:
+                pass
+
+    # Priority 3: npm/pnpm/yarn workspaces
+    pkg_path = os.path.join(root, 'package.json')
+    if os.path.exists(pkg_path):
+        try:
+            with open(pkg_path, 'r') as f:
+                pkg = json.load(f)
+            workspaces = pkg.get('workspaces', [])
+            if isinstance(workspaces, dict):
+                workspaces = workspaces.get('packages', [])
+            if workspaces:
+                # Resolve globs to actual directories
+                resolved = []
+                for ws in workspaces:
+                    ws_dir = ws.rstrip('/*').rstrip('/')
+                    ws_full = os.path.join(root, ws_dir)
+                    if os.path.isdir(ws_full):
+                        resolved.append(ws_dir)
+                    else:
+                        # Try glob
+                        import glob
+                        for match in glob.glob(os.path.join(root, ws)):
+                            if os.path.isdir(match):
+                                resolved.append(os.path.relpath(match, root))
+                if resolved:
+                    modules = sorted(set(resolved))
+                    return modules
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Priority 4: Go workspace
+    go_work_path = os.path.join(root, 'go.work')
+    if os.path.exists(go_work_path):
+        try:
+            with open(go_work_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            use_pattern = re.compile(r'use\s*\(\s*([^)]+)\)', re.DOTALL)
+            match = use_pattern.search(content)
+            if match:
+                dirs = [d.strip().strip('./') for d in match.group(1).split('\n') if d.strip()]
+                modules = sorted(set(dirs))
+                return modules
+        except OSError:
+            pass
+
+    # Priority 5: Directory heuristic — subdirs with their own build file
+    build_files = ['pom.xml', 'build.gradle', 'build.gradle.kts', 'package.json',
+                   'go.mod', 'Cargo.toml', 'pyproject.toml']
+    for entry in sorted(os.listdir(root)):
+        entry_path = os.path.join(root, entry)
+        if not os.path.isdir(entry_path):
+            continue
+        if entry.startswith('.') or entry in EXCLUDE_DIRS:
+            continue
+        for bf in build_files:
+            if os.path.exists(os.path.join(entry_path, bf)):
+                modules.append(entry)
+                break
+
+    return sorted(set(modules)) if modules else []
+
+
+def detect_module_for_file(filepath, modules):
+    """Determine which module a file belongs to based on discovered modules.
+
+    Returns the module name if the file is under a module directory,
+    or 'root' if it's in the project root (not in any module).
+    """
+    if not modules:
+        return None  # Single-module project, will use project name
+
+    parts = Path(filepath).parts
+    if len(parts) >= 1:
+        # Check if first directory component matches a module
+        for module in modules:
+            module_parts = Path(module).parts
+            if parts[:len(module_parts)] == module_parts:
+                return module
+
+    return 'root'
+
+
 def detect_module(filepath, root):
-    """Detect which module a file belongs to."""
+    """Detect which module a file belongs to.
+
+    NOTE: This function is kept for backward compatibility but the preferred
+    approach is to call discover_modules() once and then use
+    detect_module_for_file() for each file.
+    """
     # Check for module-manifest.md
     manifest_path = os.path.join(root, 'module-manifest.md')
     if os.path.exists(manifest_path):
-        # Simple: use root directory as module for now
         pass
 
     # Check for workspaces in package.json
@@ -266,8 +391,23 @@ def generate_manifest(root, output_path=None):
     # Create file set for import resolution
     all_files_set = set(files)
 
-    # Detect module name
-    module_name = detect_module(files[0] if files else '', root)
+    # Discover project modules (Maven, Gradle, npm workspaces, Go workspace, etc.)
+    modules = discover_modules(root)
+    if modules:
+        print(f"Detected {len(modules)} modules: {', '.join(modules[:10])}{'...' if len(modules) > 10 else ''}")
+    else:
+        print(f"Single-module project: {os.path.basename(root)}")
+
+    # Fallback project name for single-module projects
+    project_name = os.path.basename(root)
+    pkg_path = os.path.join(root, 'package.json')
+    if os.path.exists(pkg_path):
+        try:
+            with open(pkg_path, 'r') as f:
+                pkg = json.load(f)
+            project_name = pkg.get('name', project_name)
+        except (json.JSONDecodeError, OSError):
+            pass
 
     # Process each file
     manifest = []
@@ -299,9 +439,14 @@ def generate_manifest(root, output_path=None):
         imports = extract_imports(content, filepath, root, all_files_set)
         import_map[filepath] = imports
 
+        # Determine module for this file
+        file_module = detect_module_for_file(filepath, modules) if modules else project_name
+        if file_module == 'root':
+            file_module = project_name
+
         entry = {
             'path': filepath,
-            'module': module_name,
+            'module': file_module,
             'tokens': tokens,
             'imports': imports,
             'imported_by': [],  # filled in second pass
@@ -351,11 +496,21 @@ def generate_manifest(root, output_path=None):
         for sig in entry.get('quality_signals', []):
             signal_counts[sig] += 1
 
+    # Count files per module
+    module_file_counts = defaultdict(int)
+    for entry in manifest:
+        module_file_counts[entry['module']] += 1
+
     print()
     print("=" * 60)
     print("  FILE MANIFEST GENERATED (v1.10.1)")
     print("=" * 60)
-    print(f"  Module: {module_name}")
+    if modules:
+        print(f"  Modules detected: {len(modules)}")
+        for mod in sorted(module_file_counts.keys()):
+            print(f"    {mod}: {module_file_counts[mod]} files")
+    else:
+        print(f"  Project: {project_name}")
     print(f"  Total files: {len(manifest)}")
     print(f"  Total tokens: {total_tokens:,}")
     print(f"  Files with security signals: {files_with_security_signals}")
